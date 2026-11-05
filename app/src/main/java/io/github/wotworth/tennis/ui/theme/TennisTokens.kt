@@ -152,6 +152,11 @@ object TennisTokens {
         val presets = listOf(60, 90, 120)
     }
 
+    /** NAV-02: how dark the package photo behind the setup tile is made, for white text. */
+    object Photos {
+        var scrim by mutableFloatStateOf(0.55f)
+    }
+
     object Lists {
         /** NAV-02: restrings listed under the tiles. */
         var recentRestrings by mutableIntStateOf(5)

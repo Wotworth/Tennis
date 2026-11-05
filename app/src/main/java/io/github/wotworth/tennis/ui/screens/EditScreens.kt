@@ -83,7 +83,7 @@ fun RacquetEditScreen(id: Long?) {
 // ---- restrings (STR-01 to STR-04, RAC-02) ---------------------------------------------------
 
 @Composable
-fun RestringEditScreen(racquetId: Long, jobId: Long?) {
+fun RestringEditScreen(racquetId: Long, jobId: Long?, camera: Boolean = false) {
     val d = appData()
     if (!d.loaded) return
     val app = LocalApp.current
@@ -119,7 +119,7 @@ fun RestringEditScreen(racquetId: Long, jobId: Long?) {
     }) {
         if (d.racquets.size > 1) ChoiceRow("racquet", d.racquets.map { it.id to it.name }, setOf(j.racquetId), { j = j.copy(racquetId = it) })
         DateField("date strung", j.date, { j = j.copy(date = it) })
-        PhotoSlots.content?.invoke(j) { j = it }
+        RestringPhotos(j, camera) { j = it }
         SectionHeader(if (j.hybrid) "mains" else "strings")
         SpecFields(j.mains, base.mains, editing == null, ::sugg) { j = j.copy(mains = it) }
         ToggleSwitch("hybrid (different crosses)", j.hybrid) { j = j.copy(hybrid = it) }
@@ -153,8 +153,6 @@ private fun SpecFields(s: StringSpec, was: StringSpec, isNew: Boolean, sugg: ((S
     }
 }
 
-/** PH-4 adds the package photos here (PHO-01, PHO-02). */
-object PhotoSlots { var content: (@Composable (StringJob, (StringJob) -> Unit) -> Unit)? = null }
 
 // ---- sessions (SES-01, SES-02, SES-05, RAC-05) ----------------------------------------------
 
@@ -322,17 +320,17 @@ fun StringEditScreen(id: Long?) {
     val old = id?.let { sid -> d.strings.firstOrNull { it.id == sid } }
     var spec by remember(old) { mutableStateOf(old?.spec ?: StringSpec()) }
     var notes by remember(old) { mutableStateOf(old?.notes ?: "") }
+    var photo by remember(old) { mutableStateOf(old?.photo) }
     fun sugg(f: (StringSpec) -> String) = (d.strings.map { f(it.spec) } + d.jobs.map { f(it.mains) }).filter { it.isNotBlank() }.distinct()
     Page(if (old == null) "new string" else "string", bar = listOf(
         BarButton(R.drawable.fluent_checkmark, "save", spec.brand.isNotBlank() || spec.model.isNotBlank()) {
-            scope.launch { app.repo.saveString((old ?: StringItem(spec = spec)).copy(spec = spec.trimmed(), notes = notes.trim())); nav.back() }
+            scope.launch { app.repo.saveString((old ?: StringItem(spec = spec)).copy(spec = spec.trimmed(), notes = notes.trim(), photo = photo)); nav.back() }
         },
         BarButton(R.drawable.fluent_dismiss, "cancel") { nav.back() },
     )) {
-        StringPhoto.content?.invoke(old?.photo)
+        PackagePhoto("package photo", photo, { photo = it }, { spec = spec.fillFrom(it) })
         SpecFields(spec, spec, false, ::sugg) { spec = it }
         TextBox("notes", notes, { notes = it }, singleLine = false)
     }
 }
 
-object StringPhoto { var content: (@Composable (String?) -> Unit)? = null }

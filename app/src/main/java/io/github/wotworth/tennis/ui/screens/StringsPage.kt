@@ -197,13 +197,9 @@ private fun SetupTile(t: TileSet, withTension: Boolean = false) {
     Tile(label, w(), m(), description = "current setup", onClick = { t.order() }, background = photoBackground(job)) { TileLines(lines) }
 }
 
-/** PH-4 fills this with the package photo (NAV-02). */
+/** NAV-02: the mains package photo behind the setup tile (PH-4). */
 @Composable
-internal fun photoBackground(job: StringJob): (@Composable androidx.compose.foundation.layout.BoxScope.() -> Unit)? = PhotoTileBackground.provider?.invoke(job)
-
-object PhotoTileBackground {
-    var provider: (@Composable (StringJob) -> (@Composable androidx.compose.foundation.layout.BoxScope.() -> Unit)?)? = null
-}
+internal fun photoBackground(job: StringJob): (@Composable androidx.compose.foundation.layout.BoxScope.() -> Unit)? = PhotoBehind(job.mainsPhoto)
 
 @Composable
 private fun ActionSmalls(t: TileSet) {
@@ -212,11 +208,12 @@ private fun ActionSmalls(t: TileSet) {
     CameraSmall(t.v)
 }
 
-/** PH-4: the camera tile (hidden until photos exist, so no tile does nothing). */
+/** PHO-01: the camera tile: a new restring for this racquet, starting with the package photo. */
 @Composable
-private fun CameraSmall(v: RacquetView) { CameraTile.content?.invoke(v) }
-
-object CameraTile { var content: (@Composable (RacquetView) -> Unit)? = null }
+private fun CameraSmall(v: RacquetView) {
+    val nav = LocalNav.current
+    GlyphTile("camera", R.drawable.fluent_camera, s(), showLabel = false) { nav.open(Screen.RestringEdit(v.racquet.id, camera = true)) }
+}
 
 /** Layout 1, "grid": two rows of medium number tiles, the wide setup tile, small actions. */
 @Composable

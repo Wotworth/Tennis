@@ -7,7 +7,7 @@ plugins {
 }
 
 // PLT-02: versionName is 0.<phase>.<run>; versionCode is the build workflow's run number.
-val phase = 3
+val phase = 4
 val buildNumber = (System.getenv("VERSION_CODE") ?: "1").toInt()
 val buildDate = System.getenv("BUILD_DATE") ?: "local build"
 
@@ -29,6 +29,8 @@ android {
         versionCode = buildNumber
         versionName = "0.$phase.$buildNumber"
         buildConfigField("String", "BUILD_DATE", "\"$buildDate\"")
+        // The S25 is arm64. Leaves out ML Kit's copies for other processors (about 30 MB).
+        ndk { abiFilters += listOf("arm64-v8a") }
     }
 
     signingConfigs {
@@ -103,6 +105,9 @@ dependencies {
     implementation(libs.room.ktx)
     ksp(libs.room.compiler)
     implementation(libs.work.runtime)
+    implementation(libs.mlkit.text)
+    implementation(libs.anthropic)
+    implementation(libs.exif)
 
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.junit)

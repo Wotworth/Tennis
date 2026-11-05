@@ -60,6 +60,7 @@ fun SettingsScreen() {
         SectionHeader("strings page")
         ChoiceRow("tile layout (pick the one you like)", listOf(1 to "grid", 2 to "hero", 3 to "mixed"), setOf(app.prefs.stringsLayout), { app.prefs.chooseStringsLayout(it) })
         DetectionSettingsSection()
+        ApiKeySection()
         SettingsExtras.sections.forEach { it() }
         SectionHeader("backup")
         TextRow("export", "Save everything, with photos, to a file") {

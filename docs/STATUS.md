@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** overnight run through PH-1 to PH-5 (Chris asleep, 5–6 Nov; he accepted PH-0). PH-1 released (v0.1.3), PH-2 released (v0.2.4). PH-3 built and tested; releasing as v0.3.
+**Phase:** overnight run through PH-1 to PH-5 (Chris asleep, 5–6 Nov; he accepted PH-0). PH-1 (v0.1.3), PH-2 (v0.2.4), PH-3 (v0.3.5) released. PH-4 built and tested; releasing as v0.4.
 
 ## Done
 
@@ -19,7 +19,8 @@
 - PH-0 accepted by Chris (5 Nov).
 - PH-1 (v0.3 spec: racquets, pivot title, cues first, three strings layouts): v0.1.3, docs/reports/PH-1.md.
 - PH-2 (detection, debug screen, report back a year): v0.2.4, docs/reports/PH-2.md.
-- PH-3 (live tile): tennis provider here; launcher side on Wotworth/wp-launcher branch `ccr-eb362149-pgs534`. docs/reports/PH-3.md.
+- PH-3 (live tile): v0.3.5. Tennis provider here; launcher side on Wotworth/wp-launcher branch `ccr-eb362149-pgs534`. docs/reports/PH-3.md.
+- PH-4 (photos, on-phone reading, Claude retry, API key): docs/reports/PH-4.md.
 - After Chris accepts PH-0: PH-1 (logging).
 
 ## Open questions

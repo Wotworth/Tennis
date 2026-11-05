@@ -59,6 +59,24 @@ class ScreenshotTest {
         val app = Sample.fill()
         screen("restrung", Screen.RestringEdit(app.repo.data.value.racquets.first().id), app)
     }
+    @Test fun stringsWithPhoto() {
+        val app = Sample.fill(layout = 1)
+        // A made-up "package photo": a gradient with text-like bars, saved where photos go.
+        val f = io.github.wotworth.tennis.photos.Photos.file(app, "pkg-test.jpg")
+        val b = android.graphics.Bitmap.createBitmap(800, 600, android.graphics.Bitmap.Config.ARGB_8888)
+        android.graphics.Canvas(b).apply {
+            drawColor(android.graphics.Color.rgb(230, 200, 40))
+            val p = android.graphics.Paint().apply { color = android.graphics.Color.rgb(20, 20, 20) }
+            drawRect(80f, 120f, 700f, 220f, p); drawRect(80f, 280f, 520f, 330f, p)
+        }
+        f.outputStream().use { b.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, it) }
+        val d = app.repo.data.value
+        val j = io.github.wotworth.tennis.domain.Strings.currentJob(app.prefs.selectedRacquet, d.jobs)!!
+        kotlinx.coroutines.runBlocking { app.repo.saveJob(j.copy(mainsPhoto = "pkg-test.jpg")) }
+        Sample.waitFor(app) { it.jobs.any { j2 -> j2.mainsPhoto != null } }
+        io.github.wotworth.tennis.ui.screens.PhotoCache.load(app, "pkg-test.jpg", 720)
+        screen("hub-strings-photo", Screen.Hub(STRINGS), app, both = false)
+    }
     @Test fun sessionForm() = screen("session-new", Screen.SessionEdit())
     @Test fun proposal() {
         val app = Sample.fill(proposals = true)

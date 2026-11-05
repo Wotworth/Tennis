@@ -32,7 +32,7 @@ sealed interface Screen {
     data object CrashLog : Screen
     data object Debug : Screen
     data class RacquetEdit(val id: Long? = null) : Screen
-    data class RestringEdit(val racquetId: Long, val jobId: Long? = null) : Screen
+    data class RestringEdit(val racquetId: Long, val jobId: Long? = null, val camera: Boolean = false) : Screen
     data class SessionEdit(val id: Long? = null, val proposalId: Long? = null) : Screen
     data class ShopOrder(val jobId: Long) : Screen
     data class CueEdit(val id: Long? = null) : Screen
@@ -68,7 +68,7 @@ fun AppRoot(app: TennisApp, nav: Navigator = remember { Navigator() }, overlays:
                     Screen.CrashLog -> CrashLogScreen(app.crashLog)
                     Screen.Debug -> io.github.wotworth.tennis.ui.screens.DebugScreen()
                     is Screen.RacquetEdit -> RacquetEditScreen(s.id)
-                    is Screen.RestringEdit -> RestringEditScreen(s.racquetId, s.jobId)
+                    is Screen.RestringEdit -> RestringEditScreen(s.racquetId, s.jobId, s.camera)
                     is Screen.SessionEdit -> SessionEditScreen(s.id, s.proposalId)
                     is Screen.ShopOrder -> ShopOrderScreen(s.jobId)
                     is Screen.CueEdit -> CueEditScreen(s.id)

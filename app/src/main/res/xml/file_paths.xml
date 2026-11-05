@@ -2,4 +2,6 @@
 <paths>
     <!-- DET-01: the Health Connect report, shared as a text file. -->
     <cache-path name="reports" path="reports/" />
+    <!-- PHO-01: the camera app writes package photos here. -->
+    <files-path name="photos" path="photos/" />
 </paths>

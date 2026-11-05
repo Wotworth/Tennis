@@ -1,4 +1,6 @@
 # NFR-05: every permission the app may declare. CI fails on anything else.
+# PHO-23 (PH-4): only for "retry with Claude"; ClaudeReader is the only network code (api.anthropic.com, HTTPS).
+android.permission.INTERNET
 # DET-02: Health Connect reads (PH-0 report; PH-2 adds READ_HEALTH_DATA_IN_BACKGROUND).
 android.permission.health.READ_HEART_RATE
 android.permission.health.READ_STEPS
