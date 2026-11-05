@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** overnight run done (5–6 Nov). Released: PH-1 v0.1.3, PH-2 v0.2.4, PH-3 v0.3.5, PH-4 v0.4.7, PH-5 v0.5.8. Waiting for Chris to test on the phone (docs/MORNING.md). Launcher tennis-tile release: see Known issues.
+**Phase:** overnight run done (5–6 Nov). Released: PH-1 v0.1.3, PH-2 v0.2.4, PH-3 v0.3.5, PH-4 v0.4.7, PH-5 v0.5.8. Waiting for Chris to test on the phone (docs/MORNING.md). Launcher with the tennis tile: v0.9.153.
 
 ## Done
 

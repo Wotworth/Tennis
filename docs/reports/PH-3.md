@@ -1,6 +1,6 @@
 # PH-3 report: live tile on the WP launcher
 
-Release: [v0.3.5](https://github.com/Wotworth/tennis/releases/tag/v0.3.5) (tag `ph-3`; CI passed). Launcher release: tag `tennis-tile` in Wotworth/wp-launcher (see the morning summary).
+Release: [v0.3.5](https://github.com/Wotworth/tennis/releases/tag/v0.3.5) (tag `ph-3`; CI passed). Launcher release: [v0.9.153](https://github.com/Wotworth/wp-launcher/releases/tag/v0.9.153) (CI passed, including its emulator smoke and end-to-end tests).
 
 ## Done
 

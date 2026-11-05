@@ -9,11 +9,11 @@ All five phases were built, tested in the session and released, one release per 
 | PH-3 live tile (tennis side) | [v0.3.5](https://github.com/Wotworth/tennis/releases/tag/v0.3.5) | [PH-3](reports/PH-3.md) |
 | PH-4 package photos, Claude retry | [v0.4.7](https://github.com/Wotworth/tennis/releases/tag/v0.4.7) | [PH-4](reports/PH-4.md) |
 | PH-5 stats | [v0.5.8](https://github.com/Wotworth/tennis/releases/tag/v0.5.8) | [PH-5](reports/PH-5.md) |
-| Launcher: tennis tile | still building at the end of the night (checkpoint `tennis-tile`); see docs/STATUS.md | [launcher CHANGELOG](https://github.com/Wotworth/wp-launcher/blob/ccr-eb362149-pgs534/CHANGELOG.md) |
+| Launcher: tennis tile | [v0.9.153](https://github.com/Wotworth/wp-launcher/releases/tag/v0.9.153) | [launcher CHANGELOG](https://github.com/Wotworth/wp-launcher/blob/ccr-eb362149-pgs534/CHANGELOG.md) |
 
 ## What CI proved
 
-Each tennis release: the app builds, signs with your key, passes the permission check, and passes the unit and screenshot tests (78 by PH-5). The launcher build passed its 196 unit tests. Nothing has run on the phone.
+Each tennis release: the app builds, signs with your key, passes the permission check, and passes the unit and screenshot tests (78 by PH-5). The launcher release v0.9.153 passed its 196 unit tests and its emulator smoke and end-to-end tests. Nothing has run on the phone.
 
 ## Start here
 
