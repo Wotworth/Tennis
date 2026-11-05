@@ -103,16 +103,16 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/release.p12"
 
-      # NFR-05: must pass on the merged release manifest, and must fail on a manifest that declares INTERNET.
+      # NFR-05: must pass on the merged release manifest, and must fail on a manifest that asks for location.
       - name: Permission check
         run: |
           merged=$(find app/build/intermediates -path '*merged_manifests/release*' -name AndroidManifest.xml | head -1)
           [ -n "$merged" ] || { echo "::error::Merged release manifest not found"; exit 1; }
           .github/scripts/check-permissions.sh "$merged" | tee manifest-check.txt
-          if .github/scripts/check-permissions.sh ci/test-manifest-with-internet.xml >> manifest-check.txt; then
-            echo "::error::The permission check did not catch INTERNET in the test manifest"; exit 1
+          if .github/scripts/check-permissions.sh ci/test-manifest-disallowed.xml >> manifest-check.txt; then
+            echo "::error::The permission check did not catch a disallowed permission in the test manifest"; exit 1
           fi
-          echo "Proof: the check rejects ci/test-manifest-with-internet.xml (expected failure)." >> manifest-check.txt
+          echo "Proof: the check rejects ci/test-manifest-disallowed.xml (expected failure)." >> manifest-check.txt
           cat manifest-check.txt
 
       - name: Upload screenshots
