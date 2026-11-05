@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Same as TennisTokens.Colors.tile (VIS-04); the icon can't read Kotlin. -->
+    <color name="tile">#FF2A7F3E</color>
+</resources>

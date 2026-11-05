@@ -1,0 +1,186 @@
+# PLT-02, PLT-03, NFR-05. Copied from the Zune player's build.yml. Never rename this file: versionCode is its run number.
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'reference/**'
+      - '**.md'
+  workflow_dispatch:
+    inputs:
+      release_title:
+        description: 'Release title, for example PH-1. Empty: the version.'
+        type: string
+        default: ''
+      checkpoint_tag:
+        description: 'Tag to create on this commit after the release, for example ph-1.'
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VERSION_CODE: ${{ github.run_number }}
+      INPUT_TITLE: ${{ github.event_name == 'workflow_dispatch' && inputs.release_title || '' }}
+      INPUT_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.checkpoint_tag || '' }}
+      HEAD_MESSAGE: ${{ github.event.head_commit.message }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Restores the closest earlier Gradle cache even when build files change.
+      - uses: gradle/actions/setup-gradle@v5
+
+      # Robolectric downloads its Android runtime into ~/.m2 on first use.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/robolectric
+          key: robolectric-${{ hashFiles('gradle/libs.versions.toml') }}
+          restore-keys: robolectric-
+
+      - name: Set build date and version
+        run: |
+          echo "BUILD_DATE=$(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
+          phase=$(grep -oP '^val phase = \K[0-9]+' app/build.gradle.kts)
+          echo "VERSION_NAME=0.${phase}.${VERSION_CODE}" >> "$GITHUB_ENV"
+          # A phase's last build: from the manual inputs, or from "Release-Title:" and
+          # "Checkpoint-Tag:" lines in the pushed commit's message.
+          title=$(printf '%s\n' "$HEAD_MESSAGE" | sed -n 's/^Release-Title: *\([A-Za-z0-9.-]*\).*/\1/p' | head -1)
+          tag=$(printf '%s\n' "$HEAD_MESSAGE" | sed -n 's/^Checkpoint-Tag: *\([A-Za-z0-9.-]*\).*/\1/p' | head -1)
+          echo "RELEASE_TITLE=${INPUT_TITLE:-$title}" >> "$GITHUB_ENV"
+          echo "CHECKPOINT=${INPUT_TAG:-$tag}" >> "$GITHUB_ENV"
+
+      - name: Check signing secrets
+        id: secrets
+        env:
+          KS: ${{ secrets.KEYSTORE_BASE64 }}
+          PW: ${{ secrets.KEYSTORE_PASSWORD }}
+          AL: ${{ secrets.KEY_ALIAS }}
+        run: |
+          if [ -n "$KS" ] && [ -n "$PW" ] && [ -n "$AL" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Signing secrets are missing. The build and tests run, but no release is published."
+          fi
+
+      - name: Decode signing key and print its fingerprint
+        if: steps.secrets.outputs.ok == 'true'
+        env:
+          KS: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          echo "$KS" | tr -d ' \n\r' | base64 -d > "$RUNNER_TEMP/release.p12"
+          echo "KEYSTORE_FILE=$RUNNER_TEMP/release.p12" >> "$GITHUB_ENV"
+          fp=$(keytool -list -v -keystore "$RUNNER_TEMP/release.p12" -storetype pkcs12 \
+                 -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" 2>/dev/null | grep -oP 'SHA256:\s*\K[0-9A-F:]+')
+          [ -n "$fp" ] || { echo "::error::Could not read the key. Check KEYSTORE_PASSWORD and KEY_ALIAS."; exit 1; }
+          echo "KEY_SHA256=$fp" >> "$GITHUB_ENV"
+
+      - name: Build release APK and run unit and screenshot tests
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: ./gradlew :app:assembleRelease :app:testDebugUnitTest -Proborazzi.test.record=true --stacktrace
+
+      - name: Remove signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.p12"
+
+      # NFR-05: must pass on the merged release manifest, and must fail on a manifest that declares INTERNET.
+      - name: Permission check
+        run: |
+          merged=$(find app/build/intermediates -path '*merged_manifests/release*' -name AndroidManifest.xml | head -1)
+          [ -n "$merged" ] || { echo "::error::Merged release manifest not found"; exit 1; }
+          .github/scripts/check-permissions.sh "$merged" | tee manifest-check.txt
+          if .github/scripts/check-permissions.sh ci/test-manifest-with-internet.xml >> manifest-check.txt; then
+            echo "::error::The permission check did not catch INTERNET in the test manifest"; exit 1
+          fi
+          echo "Proof: the check rejects ci/test-manifest-with-internet.xml (expected failure)." >> manifest-check.txt
+          cat manifest-check.txt
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ env.VERSION_NAME }}
+          path: app/build/outputs/roborazzi/
+          retention-days: 7
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ env.VERSION_NAME }}
+          path: app/build/reports/tests/
+          retention-days: 7
+
+      - name: Check APK signature
+        if: steps.secrets.outputs.ok == 'true'
+        run: |
+          apksigner=$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          apk=app/build/outputs/apk/release/app-release.apk
+          signed=$("$apksigner" verify --print-certs "$apk" | grep -oP 'SHA-256 digest: \K[0-9a-f]+' | head -1 | tr a-f A-F | sed 's/../&:/g; s/:$//')
+          echo "APK signed with: $signed"
+          [ "$signed" = "$KEY_SHA256" ] || { echo "::error::APK is not signed with the release key"; exit 1; }
+          mkdir -p out && cp "$apk" "out/tennis-${VERSION_NAME}.apk"
+
+      - name: Workflow summary
+        if: always()
+        run: |
+          {
+            echo "## tennis ${VERSION_NAME} (versionCode ${VERSION_CODE})"
+            echo
+            echo "**Release key SHA-256 (PLT-03):** \`${KEY_SHA256:-not available: signing secrets missing}\`"
+            echo
+            echo "### Permission check (NFR-05)"
+            echo '```'
+            cat manifest-check.txt 2>/dev/null || echo "did not run"
+            echo '```'
+            echo "### Screenshots"
+            ls app/build/outputs/roborazzi 2>/dev/null | sed 's/^/- /' || echo "none"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Stop if not signed
+        if: steps.secrets.outputs.ok != 'true'
+        run: |
+          echo "::error::Secrets KEYSTORE_BASE64, KEYSTORE_PASSWORD and KEY_ALIAS are not all set, so no release was published."
+          exit 1
+
+      - name: Publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "Version ${VERSION_NAME}, built ${BUILD_DATE} from \`${GITHUB_SHA::7}\`."
+            echo
+            [ -n "$RELEASE_TITLE" ] && { echo "**${RELEASE_TITLE}**: the last build of this phase. Tag \`${CHECKPOINT}\`."; echo; }
+            echo "Install \`tennis-${VERSION_NAME}.apk\` on the phone."
+            echo
+            echo "Release key SHA-256: \`${KEY_SHA256}\`"
+          } > notes.md
+          gh release create "v${VERSION_NAME}" "out/tennis-${VERSION_NAME}.apk" \
+            --prerelease --title "${RELEASE_TITLE:-v${VERSION_NAME}}" --notes-file notes.md --target "$GITHUB_SHA"
+
+      # GitHub's API proxy blocks tag creation from Claude's sessions, so a phase's last run tags its own commit.
+      - name: Tag phase checkpoint
+        if: env.CHECKPOINT != ''
+        run: |
+          git tag "$CHECKPOINT" "$GITHUB_SHA"
+          git push origin "refs/tags/$CHECKPOINT"

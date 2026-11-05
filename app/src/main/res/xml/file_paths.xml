@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- DET-01: the Health Connect report, shared as a text file. -->
+    <cache-path name="reports" path="reports/" />
+</paths>

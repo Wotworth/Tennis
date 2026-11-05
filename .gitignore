@@ -1,0 +1,11 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+.kotlin/
+# Signing material must never be committed (PLT-22).
+*.jks
+*.keystore
+*.p12
+*.b64

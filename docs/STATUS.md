@@ -1,0 +1,30 @@
+# Status
+
+**Phase:** PH-0 (foundation and Health Connect report). Built and tested in the session; waiting for Chris to save the signing secrets so CI can publish the first release.
+
+## Done
+
+- Spec v0.2 with Chris's answers (docs/REQUIREMENTS.md); launcher requests (docs/LAUNCHER-REQUESTS.md), for Chris to hand to the launcher's session.
+- PH-0 code: build, CI workflow, permission check (NFR-05), crash log (NFR-02), tokens and colors (VIS-01 to VIS-04), hub with five pivots and a static tile preview (NAV-01, NAV-02), settings (NAV-08), Health Connect report with share (DET-01, DET-02), privacy page.
+- In the session: release APK builds and signs with the new key; 24 unit and screenshot tests pass. Report: docs/reports/PH-0.md.
+- Release key generated in the session (EC P-256, alias `tennis`). SHA-256 fingerprint:
+  `C9:8E:F4:98:A8:39:C9:7F:94:5A:E3:84:6F:A4:A2:9B:29:F0:8A:D8:52:0C:DD:7F:7C:2C:5F:8B:29:D6:4B:4C`
+
+## Next
+
+- Chris adds the three secrets (KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS) and runs the workflow; Claude checks the run and the release.
+- Chris installs PH-0, runs the Health Connect report on a day he played, and attaches the shared file. PH-2's detection is designed from it.
+- After Chris accepts PH-0: PH-1 (logging).
+
+## Open questions
+
+- None.
+
+## Known issues
+
+- Nothing has run on the phone yet.
+- Wrapped secondary text lines sit close together (the Zune type roles trim line height); revisit in PH-1 if it reads badly on the phone.
+
+## Building in a session
+
+See docs/cloud-setup.md (the Zune player's setup script; this repo needs the same). Set `ANDROID_HOME=/opt/android-sdk` and `ROBOLECTRIC_REPO_URL` in each shell. Local check: `./gradlew :app:assembleRelease :app:testDebugUnitTest -Proborazzi.test.record=true`.

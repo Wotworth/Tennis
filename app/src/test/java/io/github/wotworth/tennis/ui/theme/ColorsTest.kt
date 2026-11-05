@@ -1,0 +1,37 @@
+package io.github.wotworth.tennis.ui.theme
+
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import java.io.File
+
+/** VIS-03, VIS-04: contrast rules for the tennis colors. */
+class ColorsTest {
+
+    private fun contrast(a: Color, b: Color): Double {
+        val (hi, lo) = listOf(a.luminance().toDouble(), b.luminance().toDouble()).sortedDescending()
+        return (hi + 0.05) / (lo + 0.05)
+    }
+
+    @Test fun titleGradientReadsOnBlack() {
+        val c = TennisTokens.Colors
+        for (stop in listOf(c.titleGradientStart, c.titleGradientEnd)) {
+            val r = contrast(stop, c.background)
+            assertTrue("gradient stop ${Integer.toHexString(stop.toArgb())} is $r:1 on black", r >= 4.5)
+        }
+    }
+
+    @Test fun whiteReadsOnTiles() {
+        val r = contrast(TennisTokens.Colors.primary, TennisTokens.Colors.tile)
+        assertTrue("white on the tile green is $r:1", r >= 4.5)
+    }
+
+    @Test fun iconBackgroundMatchesTileColor() {
+        val xml = File("src/main/res/values/colors.xml").readText()
+        val hex = Regex("""name="tile">#([0-9A-Fa-f]{8})<""").find(xml)!!.groupValues[1]
+        assertEquals(TennisTokens.Colors.tile.toArgb(), hex.toLong(16).toInt())
+    }
+}
