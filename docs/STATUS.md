@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** overnight run through PH-1 to PH-5 (Chris asleep, 5–6 Nov; he accepted PH-0). PH-1 (v0.1.3), PH-2 (v0.2.4), PH-3 (v0.3.5) released. PH-4 built and tested; releasing as v0.4.
+**Phase:** overnight run through PH-1 to PH-5 (Chris asleep, 5–6 Nov; he accepted PH-0). PH-1 (v0.1.3), PH-2 (v0.2.4), PH-3 (v0.3.5) released. PH-4 released as v0.4. PH-5 built and tested; releasing as v0.5. Overnight run complete after that.
 
 ## Done
 
@@ -13,7 +13,9 @@
 
 ## Next
 
-- Overnight: PH-2 detection, PH-3 live tile, PH-4 photos, PH-5 stats, each with its own release.
+- Chris tests the overnight builds (one release per phase; each report has numbered steps) and picks a strings layout (grid, hero, mixed).
+- Chris sets his birth year, and runs debug → try a day on a pre-injury tennis day; tune detection from it.
+- The launcher's session merges wp-launcher branch `ccr-eb362149-pgs534` (tennis tile).
 
 - Chris shared the report for 4 Nov (no tennis: injured for the past 30 days). Findings in docs/health-connect-findings.md: Fitbit heart rate every 2–3 s; steps from both Fitbit and the phone (must not be added together); no workout records that day.
 - PH-0 accepted by Chris (5 Nov).
@@ -21,6 +23,7 @@
 - PH-2 (detection, debug screen, report back a year): v0.2.4, docs/reports/PH-2.md.
 - PH-3 (live tile): v0.3.5. Tennis provider here; launcher side on Wotworth/wp-launcher branch `ccr-eb362149-pgs534`. docs/reports/PH-3.md.
 - PH-4 (photos, on-phone reading, Claude retry, API key): docs/reports/PH-4.md.
+- PH-5 (stats; cues were done in PH-1): docs/reports/PH-5.md.
 - After Chris accepts PH-0: PH-1 (logging).
 
 ## Open questions

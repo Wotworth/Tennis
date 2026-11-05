@@ -157,6 +157,12 @@ object TennisTokens {
         var scrim by mutableFloatStateOf(0.55f)
     }
 
+    /** Section 9: chart height (zpx) and how many string jobs the feel chart draws. */
+    object Stats {
+        var chartHeight by mutableFloatStateOf(130f)
+        var jobsInChart by mutableIntStateOf(4)
+    }
+
     object Lists {
         /** NAV-02: restrings listed under the tiles. */
         var recentRestrings by mutableIntStateOf(5)

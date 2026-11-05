@@ -54,6 +54,7 @@ class ScreenshotTest {
     @Test fun stringsMixed() = screen("hub-strings-3-mixed", Screen.Hub(STRINGS), Sample.fill(layout = 3))
     @Test fun stringsEmpty() = screen("hub-strings-empty", Screen.Hub(STRINGS), Sample.empty(), both = false)
     @Test fun sessions() = screen("hub-sessions", Screen.Hub(SESSIONS))
+    @Test fun stats() = screen("hub-stats", Screen.Hub(io.github.wotworth.tennis.ui.screens.STATS))
     @Test fun library() = screen("hub-library", Screen.Hub(LIBRARY), both = false)
     @Test fun restrungForm() {
         val app = Sample.fill()

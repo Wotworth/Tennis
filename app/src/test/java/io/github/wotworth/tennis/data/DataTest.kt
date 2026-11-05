@@ -38,7 +38,7 @@ class DataTest {
         runBlocking { app.repo.deleteRacquet(bb2) }
         Sample.waitFor(app) { it.racquets.size == 2 }
         val d = app.repo.data.value
-        assertEquals(8, d.sessions.size)
+        assertEquals(11, d.sessions.size)
         assertTrue(d.jobs.none { it.racquetId == bb2.id })
         assertTrue(d.sessions.none { bb2.id in it.racquetIds })
     }
@@ -55,7 +55,7 @@ class DataTest {
         runBlocking { app.repo.replaceAll(BackupData()) }
         Sample.waitFor(app) { it.racquets.isEmpty() }
         runBlocking { app.repo.replaceAll(read) }
-        Sample.waitFor(app) { it.sessions.size == 8 }
+        Sample.waitFor(app) { it.sessions.size == 11 }
         assertEquals(before, runBlocking { app.repo.snapshot() })
     }
 }

@@ -7,7 +7,7 @@ plugins {
 }
 
 // PLT-02: versionName is 0.<phase>.<run>; versionCode is the build workflow's run number.
-val phase = 4
+val phase = 5
 val buildNumber = (System.getenv("VERSION_CODE") ?: "1").toInt()
 val buildDate = System.getenv("BUILD_DATE") ?: "local build"
 

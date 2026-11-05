@@ -47,6 +47,7 @@ object Sample {
             r.saveJob(StringJob(racquetId = bb1, date = d(2026, 10, 12), mains = hyper, hybrid = true, crossesOwn = alu, mainsLb = 55.0, crossesLb = 53.0, shop = "Racquet Lab", priceCents = 3850))
             r.saveJob(StringJob(racquetId = bb2, date = d(2026, 10, 20), mains = StringSpec("Babolat", "RPM Blast", "17", "co-poly"), mainsLb = 52.0, crossesLb = 52.0, shop = "Racquet Lab", priceCents = 3600))
             listOf(
+                Triple(d(2026, 9, 3), 90, 5), Triple(d(2026, 9, 10), 120, 4), Triple(d(2026, 9, 20), 90, 3),
                 Triple(d(2026, 10, 13), 90, 5), Triple(d(2026, 10, 16), 120, 5), Triple(d(2026, 10, 19), 90, 4),
                 Triple(d(2026, 10, 23), 120, 4), Triple(d(2026, 10, 27), 90, 4), Triple(d(2026, 10, 30), 120, 3), Triple(d(2026, 11, 3), 90, 3),
             ).forEach { (day, min, feel) -> r.saveSession(Session(date = day, minutes = min, feel = feel), listOf(bb1)) }
@@ -63,7 +64,7 @@ object Sample {
             app.prefs.selectRacquet(bb1)
             app.prefs.chooseStringsLayout(layout)
         }
-        waitFor(app) { it.cues.size == 5 && it.sessions.size == 8 && (!proposals || it.proposals.isNotEmpty()) }
+        waitFor(app) { it.cues.size == 5 && it.sessions.size == 11 && (!proposals || it.proposals.isNotEmpty()) }
         return app
     }
 }
