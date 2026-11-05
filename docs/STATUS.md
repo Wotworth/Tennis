@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** update 1 (spec v0.4, 6 Nov): racquets pivot, one racquet per session, learned threshold, network limited to Anthropic, tile flip. Releasing tennis v0.6 and a launcher release from main. Earlier: PH-1 v0.1.3, PH-2 v0.2.4, PH-3 v0.3.5, PH-4 v0.4.7, PH-5 v0.5.8, launcher v0.9.153.
+**Phase:** update 1 (spec v0.4, 6 Nov): racquets pivot, one racquet per session, learned threshold, network limited to Anthropic, tile flip. Tennis v0.6.9 released; launcher release from main building. Earlier: PH-1 v0.1.3, PH-2 v0.2.4, PH-3 v0.3.5, PH-4 v0.4.7, PH-5 v0.5.8, launcher v0.9.153.
 
 ## Done
 
