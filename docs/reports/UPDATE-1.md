@@ -1,6 +1,6 @@
 # Update 1 (v0.6): racquets pivot, one racquet per session, learned threshold, network limited to Anthropic
 
-Release: [v0.6.9](https://github.com/Wotworth/tennis/releases/tag/v0.6.9) (tag `update-1`; CI passed: build, 91 tests, permission and network checks, signed). Spec v0.4. Choices in DECISIONS.md (rows dated 2026-11-06).
+Release: [v0.6.9](https://github.com/Wotworth/tennis/releases/tag/v0.6.9) (tag `update-1`; CI passed: build, 91 tests, permission and network checks, signed). Launcher: [v0.9.163](https://github.com/Wotworth/wp-launcher/releases/tag/v0.9.163), from launcher main (211 unit tests, emulator smoke and end-to-end tests passed). Spec v0.4. Choices in DECISIONS.md (rows dated 2026-11-06).
 
 ## What changed
 
