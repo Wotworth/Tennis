@@ -1,6 +1,6 @@
 # Tennis String Log — Requirements
 
-v0.2, 5 November 2026: Chris's answers to section 16 (defaults, except cues as a fifth pivot, Sonnet for the photo retry, and hours tracked per racquet). v0.1, 4 November 2026: written by Claude from Chris's brief, after reading the wp-launcher code (tag v0.9.150) and the Zune player (main at `f2d9237`).
+v0.3, 5 November 2026 (Chris, after accepting PH-0): the app opens on cues; several racquets with their own strings and hours (section 5a); the Windows Phone pivot title instead of the clipped giant title; a richer strings page. v0.2, 5 November 2026: Chris's answers to section 16 (defaults, except cues as a fifth pivot, Sonnet for the photo retry, and hours tracked per racquet). v0.1, 4 November 2026: written by Claude from Chris's brief, after reading the wp-launcher code (tag v0.9.150) and the Zune player (main at `f2d9237`).
 
 ## 0 How to use this document
 
@@ -8,7 +8,7 @@ This spec is the single source of truth for a personal Android app that logs ten
 
 **Priority keywords.** **MUST**: required for the phase to pass. **SHOULD**: expected; if skipped, say why in the phase report. **COULD**: only when Chris asks later.
 
-**Requirement IDs.** Prefixes: SCP scope, PLT platform, VIS visuals, NAV screens, STR string jobs, SES sessions, DET detection, TIL live tile, STA stats, CUE swing cues, PHO photos, DAT data, NFR non-functional, PH phases. Cite IDs in commits and reports.
+**Requirement IDs.** Prefixes: SCP scope, RAC racquets, PLT platform, VIS visuals, NAV screens, STR string jobs, SES sessions, DET detection, TIL live tile, STA stats, CUE swing cues, PHO photos, DAT data, NFR non-functional, PH phases. Cite IDs in commits and reports.
 
 **Tunable values.** Every number marked *tunable* is a named constant in one tokens file, `TennisTokens.kt`, never inline.
 
@@ -57,8 +57,8 @@ Reuse, by copying source files from the Zune player (`ZuneTokens.kt`, the font f
 
 ## 4 Navigation and screens
 
-- NAV-01 One hub with five pivots, swiped horizontally, headers in the Zune pivot style with the gradient title `tennis` above: **strings · sessions · stats · library · cues** (Q5, v0.2).
-- NAV-02 **strings** (Current Strings) pivot, top to bottom:
+- NAV-01 One hub with five pivots, swiped horizontally: **cues · strings · sessions · stats · library**. The app opens on **cues** (v0.3). Title (v0.3, Chris's option a): the Windows Phone pivot: a small all-caps `TENNIS` at the top, the pages' large lowercase headers below it, the current one filled with the VIS-03 gradient and the next one peeking in grey from the right. Pages below the hub use the same small title over their own large lowercase header. No clipped giant title anywhere.
+- NAV-02 **strings** pivot (v0.3), top to bottom: the racquet switcher (RAC-04); tiles in mixed sizes (small, medium, wide) with real data, WP style: a big number over a small label: hours on strings, tension (`55/53` over `lb main/cross`), days strung, feel with its trend line; a wide setup tile (strings, gauges, hybrid, date strung; the package photo behind it once PH-4 exists); small glyph tiles for log session and restrung (and camera from PH-4). No tile without useful content. Below the tiles, this racquet's recent restrings as Zune text rows. Three tile layouts (grid, hero, mixed) are built; settings chooses one until Chris picks (Chris, 5 Nov). The original v0.2 list follows for reference:
   - a wide tile per racquet that has a string job (Q11, v0.2), most recently used racquet first: its hours on the current strings as a big number (e.g. `14.5`) with "hours on these strings" under it (with the racquet's name when there is more than one), and the string job's age ("restrung 23 days ago");
   - a wide tile: the current setup in two lines (`Mains: Solinco Hyper-G 16L @ 52 lb` / `Crosses: Luxilon Alu Power 125 @ 50 lb`), tapping opens the shop order card (STR-20);
   - four square tiles, two per row (*tunable* layout; PH-0 preview): **log session**, **restrung**, **camera**, **warmup** (opens the cues pivot);
@@ -79,6 +79,14 @@ Reuse, by copying source files from the Zune player (`ZuneTokens.kt`, the font f
 - STR-05 A session belongs to the string job that was current for its racquet on the session's date. Editing a job's date reassigns sessions accordingly.
 - STR-20 **Shop order card:** a full-screen page, black, large type, for showing at the counter: racquet, then for mains and crosses: brand + model, gauge, tension, and the pre-stretch/notes line if any. Readable at arm's length (no text smaller than the Zune list size). Keeps the screen on while shown.
 - STR-30 **String library:** each distinct string (brand, model, gauge, material), with its package photo if any, the jobs that used it, and its average feel rating. Editable; a string can be added by hand or from a photo.
+
+## 5a Racquets (v0.3)
+
+- RAC-01 Several racquets, each with a name (e.g. "Black Blade #1"), model and colour.
+- RAC-02 Each racquet has its own string jobs: string or hybrid, mains and crosses tension, date strung, shop (STR-01).
+- RAC-03 Hours on a racquet's current strings count only sessions logged with that racquet. A session with several racquets gives each an equal share of its length.
+- RAC-04 The strings page switches racquets with one tap on its name in a row at the top; long-press a name to edit or delete the racquet; `+` adds one.
+- RAC-05 Logging or confirming a session asks which racquets were used, defaulting to those of the last session; more than one can be chosen.
 
 ## 6 Sessions
 

@@ -4,6 +4,12 @@ import android.app.Application
 import android.os.Build
 import io.github.wotworth.tennis.diagnostics.CrashLog
 import io.github.wotworth.tennis.health.HealthSource
+import io.github.wotworth.tennis.data.Prefs
+import io.github.wotworth.tennis.data.Repository
+import io.github.wotworth.tennis.data.TennisDatabase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import java.io.File
 import java.time.Instant
 
@@ -14,6 +20,19 @@ class TennisApp : Application() {
         private set
 
     val health by lazy { HealthSource(this) }
+
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    val database by lazy { TennisDatabase.open(this) }
+    val repo by lazy { Repository(database, scope) { onDataChanged() } }
+    val prefs by lazy { Prefs(this) }
+    /** PHO-02: package photos, by file name. */
+    val photosDir: File get() = File(filesDir, "photos").apply { mkdirs() }
+
+    /** Called after every change to the data. PH-3 tells the launcher tile from here (TIL-02). */
+    fun onDataChanged() {
+        dataListeners.forEach { runCatching { it() } }
+    }
+    val dataListeners = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
 
     val versionText: String
         get() = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}), built ${BuildConfig.BUILD_DATE}"

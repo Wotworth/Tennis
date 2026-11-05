@@ -1,5 +1,5 @@
-// Copied from the Zune player (Wotworth/zune ui/theme/GiantHeader.kt at f2d9237): the zoom-transition
-// visibility flag is removed and the gradient colors come from TennisTokens (VIS-03).
+// TennisText and titleGradient copied from the Zune player (Wotworth/zune ui/theme/GiantHeader.kt at f2d9237).
+// The clipped giant title itself was removed in PH-1 (v0.3 title: Windows Phone pivot instead).
 package io.github.wotworth.tennis.ui.theme
 
 import androidx.compose.foundation.text.BasicText
@@ -15,37 +15,6 @@ import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
-
-/**
- * The giant lowercase screen title: its left edge starts off screen, the word runs off the right
- * edge, and it is filled with the title gradient. Place it directly below the status-bar inset.
- */
-@Composable
-fun GiantHeader(text: String, modifier: Modifier = Modifier) {
-    val role = TennisTokens.Type.giantHeader
-    val zpx = LocalZpx.current
-    BasicText(
-        text = applyCase(text, role.case),
-        // Opaque, so the gradient shows at full strength.
-        style = textStyleFor(role).copy(color = TennisTokens.Colors.primary),
-        maxLines = 1,
-        softWrap = false,
-        overflow = TextOverflow.Visible,
-        modifier = modifier
-            .clipToBounds()
-            .titleGradient()
-            .layout { measurable, constraints ->
-                val placeable = measurable.measure(Constraints())
-                val baseline = placeable[FirstBaseline]
-                val baselineY = zpx(TennisTokens.Layout.giantHeaderBaseline).roundToPx()
-                val left = zpx(TennisTokens.Layout.giantHeaderLeft).roundToPx()
-                val height = baselineY + (placeable.height - baseline)
-                layout(constraints.maxWidth, height) {
-                    placeable.place(left, baselineY - baseline)
-                }
-            },
-    )
-}
 
 /** Plain text in a type role, colored and cased by the role. */
 @Composable

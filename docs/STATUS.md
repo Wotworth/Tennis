@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** PH-0 (foundation and Health Connect report). Released as v0.0.2 (CI run 2 passed); waiting for Chris to test it on the phone and share the Health Connect report.
+**Phase:** overnight run through PH-1 to PH-5 (Chris asleep, 5–6 Nov; he accepted PH-0). PH-1 built and tested; releasing as v0.1.
 
 ## Done
 
@@ -13,8 +13,11 @@
 
 ## Next
 
+- Overnight: PH-2 detection, PH-3 live tile, PH-4 photos, PH-5 stats, each with its own release.
+
 - Chris shared the report for 4 Nov (no tennis: injured for the past 30 days). Findings in docs/health-connect-findings.md: Fitbit heart rate every 2–3 s; steps from both Fitbit and the phone (must not be added together); no workout records that day.
-- Waiting for Chris: accept PH-0, and choose whether to extend the report's range to find a pre-injury tennis day.
+- PH-0 accepted by Chris (5 Nov).
+- PH-1 (v0.3 spec: racquets, pivot title, cues first, three strings layouts): docs/reports/PH-1.md.
 - After Chris accepts PH-0: PH-1 (logging).
 
 ## Open questions

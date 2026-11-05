@@ -1,4 +1,6 @@
-// Copied from the Zune player (Wotworth/zune ui/motion/CategoryPager.kt at f2d9237), package renamed; changes noted below. (VIS, section 3)
+// Copied from the Zune player (Wotworth/zune ui/motion/CategoryPager.kt at f2d9237), package renamed.
+// Changes: the bar is a Windows Phone pivot header (v0.3 title, option a): large lowercase headers,
+// the selected one filled with the title gradient (VIS-03), positions from TennisTokens.Layout.pivot*.
 package io.github.wotworth.tennis.ui.motion
 
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -38,6 +40,7 @@ import io.github.wotworth.tennis.ui.theme.LocalZpx
 import io.github.wotworth.tennis.ui.theme.TennisTokens
 import io.github.wotworth.tennis.ui.theme.applyCase
 import io.github.wotworth.tennis.ui.theme.textStyleFor
+import io.github.wotworth.tennis.ui.theme.titleGradient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -158,7 +161,7 @@ fun rememberCategoryPager(count: Int, initial: Int, onChange: (Int) -> Unit): Ca
 @Composable
 fun PagerCategoryBar(state: CategoryPagerState, labels: List<String>) {
     val zpx = LocalZpx.current
-    val role = TennisTokens.Type.categoryLabel
+    val role = TennisTokens.Type.pivotHeader
     val n = labels.size
     val sel = state.selected
     // The previous label sits just off the left edge, so a swipe back can bring it in.
@@ -170,7 +173,7 @@ fun PagerCategoryBar(state: CategoryPagerState, labels: List<String>) {
                 .layout { m, c ->
                     val p = m.measure(c.copy(maxWidth = Constraints.Infinity))
                     val prevWidth = state.labelWidths[-1] ?: 0
-                    layout(c.maxWidth, p.height) { p.place(zpx(TennisTokens.Layout.categoryBarLeft).roundToPx() - prevWidth, 0) }
+                    layout(c.maxWidth, p.height) { p.place(zpx(TennisTokens.Layout.pivotHeaderLeft).roundToPx() - prevWidth, 0) }
                 }
                 .graphicsLayer {
                     val o = state.offset
@@ -189,7 +192,8 @@ fun PagerCategoryBar(state: CategoryPagerState, labels: List<String>) {
                     softWrap = false,
                     onTextLayout = { state.labelWidths[slot] = it.size.width },
                     modifier = Modifier
-                        .baselineAt(zpx(TennisTokens.Layout.categoryBarBaseline))
+                        .baselineAt(zpx(TennisTokens.Layout.pivotHeaderBaseline))
+                        .then(if (slot == 0) Modifier.titleGradient() else Modifier)
                         // The previous label only shows while swiping back toward it.
                         .then(if (slot < 0) Modifier.graphicsLayer { alpha = if (state.offset > 0f) 1f else 0f } else Modifier)
                         .press(description = labels[i]) { state.select(i) },

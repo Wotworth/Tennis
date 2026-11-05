@@ -2,10 +2,12 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.roborazzi)
+    alias(libs.plugins.ksp)
+    alias(libs.plugins.room)
 }
 
 // PLT-02: versionName is 0.<phase>.<run>; versionCode is the build workflow's run number.
-val phase = 0
+val phase = 1
 val buildNumber = (System.getenv("VERSION_CODE") ?: "1").toInt()
 val buildDate = System.getenv("BUILD_DATE") ?: "local build"
 
@@ -55,6 +57,9 @@ android {
         buildConfig = true
     }
 
+    // Room's exported schemas, for the migration test (DAT-04). Debug only.
+    sourceSets.getByName("debug").assets.directories.add("$projectDir/schemas")
+
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.all {
@@ -78,6 +83,10 @@ kotlin {
     }
 }
 
+room {
+    schemaDirectory("$projectDir/schemas")
+}
+
 roborazzi {
     outputDir.set(file("build/outputs/roborazzi"))
 }
@@ -90,6 +99,10 @@ dependencies {
     implementation(libs.compose.foundation)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.health.connect)
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
+    implementation(libs.work.runtime)
 
     testImplementation(platform(libs.compose.bom))
     testImplementation(libs.junit)
@@ -97,6 +110,8 @@ dependencies {
     testImplementation(libs.androidx.test.junit)
     testImplementation(libs.espresso.core)
     testImplementation(libs.robolectric)
+    testImplementation(libs.room.testing)
+    testImplementation(libs.work.testing)
     testImplementation(libs.roborazzi)
     testImplementation(libs.roborazzi.compose)
     testImplementation(libs.roborazzi.junit.rule)
