@@ -19,6 +19,9 @@ data class AppData(
 ) {
     val waiting: List<Proposal> get() = proposals.filter { it.state == "waiting" }
     fun racquet(id: Long) = racquets.firstOrNull { it.id == id }
+    /** RAC-06: the racquets on the main page. */
+    val active: List<Racquet> get() = racquets.filter { !it.retired }
+    val retired: List<Racquet> get() = racquets.filter { it.retired }
 }
 
 class Repository(private val db: TennisDatabase, scope: CoroutineScope, private val onChange: () -> Unit = {}) {
@@ -60,11 +63,14 @@ class Repository(private val db: TennisDatabase, scope: CoroutineScope, private 
     suspend fun saveString(s: StringItem): Long = changed { if (s.id == 0L) dao.insertString(s) else { dao.updateString(s); s.id } }
     suspend fun deleteString(s: StringItem) = changed { dao.deleteString(s) }
 
+    /** SES-05 (v0.4): one racquet per session. */
+    suspend fun saveSession(s: Session, racquetId: Long?): Long = saveSession(s, listOfNotNull(racquetId))
+
     suspend fun saveSession(s: Session, racquetIds: List<Long>): Long = changed {
         db.runInTransactionSuspend {
             val id = if (s.id == 0L) dao.insertSession(s) else { dao.updateSession(s); s.id }
             dao.clearSessionRacquets(id)
-            dao.insertSessionRacquets(racquetIds.distinct().map { SessionRacquet(id, it) })
+            dao.insertSessionRacquets(racquetIds.distinct().take(1).map { SessionRacquet(id, it) })
             id
         }
     }
@@ -98,7 +104,8 @@ class Repository(private val db: TennisDatabase, scope: CoroutineScope, private 
         db.runInTransactionSuspend {
             dao.clearSessions(); dao.clearRacquets(); dao.clearProposals(); dao.clearCues(); dao.clearStrings()
             dao.insertRacquets(b.racquets); dao.insertJobs(b.jobs); dao.insertSessions(b.sessions)
-            dao.insertSessionRacquets(b.sessionRacquets); dao.insertProposals(b.proposals); dao.insertCues(b.cues); dao.insertStrings(b.strings)
+            // v0.4: one racquet per session; an older backup's extra racquets are dropped (first kept).
+            dao.insertSessionRacquets(b.sessionRacquets.distinctBy { it.sessionId }); dao.insertProposals(b.proposals); dao.insertCues(b.cues); dao.insertStrings(b.strings)
         }
     }
 

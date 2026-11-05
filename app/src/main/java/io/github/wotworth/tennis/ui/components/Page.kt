@@ -24,11 +24,11 @@ import io.github.wotworth.tennis.ui.theme.applyCase
 import io.github.wotworth.tennis.ui.theme.textStyleFor
 import io.github.wotworth.tennis.ui.theme.titleGradient
 
-/** The small all-caps app title at the top of every page (v0.3 title, option a). */
+/** The small all-caps title at the top of every page: the app's, or a racquet's name in its own pivot (v0.4). */
 @Composable
-fun AppTitle(modifier: Modifier = Modifier) {
+fun AppTitle(modifier: Modifier = Modifier, text: String = "tennis") {
     val zpx = LocalZpx.current
-    TennisText("tennis", TennisTokens.Type.appTitle, modifier.padding(start = zpx(TennisTokens.Layout.pageSideMargin)).baselineAt(zpx(TennisTokens.Layout.appTitleBaseline)))
+    TennisText(text, TennisTokens.Type.appTitle, modifier.padding(start = zpx(TennisTokens.Layout.pageSideMargin)).baselineAt(zpx(TennisTokens.Layout.appTitleBaseline)), maxLines = 1)
 }
 
 /** A page's large lowercase header in the title gradient, cut with "…" if too long (never clipped mid-letter). */

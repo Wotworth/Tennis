@@ -18,10 +18,10 @@ class TileTest {
 
     @Test fun hoursForTheRacquetPlayedLast() {
         val app = Sample.fill()
-        // The last session (4 Nov) used both Black Blades; #1 comes first in it.
+        // The last session (4 Nov) was with Black Blade #1.
         val row = runBlocking { app.tileRow() }
         assertEquals("hours", row.state)
-        assertEquals("13", row.big)
+        assertEquals("14", row.big)
         assertEquals("hours · Black Blade #1", row.small)
     }
 
@@ -53,8 +53,26 @@ class TileTest {
         app.contentResolver.query(TileRows.URI, null, null, null, null)!!.use { c ->
             c.moveToFirst()
             assertEquals("hours", c.getString(c.getColumnIndexOrThrow("state")))
-            assertEquals("13", c.getString(c.getColumnIndexOrThrow("big")))
+            assertEquals("14", c.getString(c.getColumnIndexOrThrow("big")))
             assertEquals(true, c.isNull(c.getColumnIndexOrThrow("proposal_id")))
         }
+    }
+
+    @Test fun facesFlipThroughActiveRacquetsWhenAsked() {
+        val app = Sample.fill()
+        assertEquals(1, runBlocking { app.tileFaces() }.size)
+        app.prefs.chooseTileFlips(true)
+        val faces = runBlocking { app.tileFaces() }
+        // Black Blade #1 (played last) first, then #2; Pure Aero has no strings; the retired racquet is left out.
+        assertEquals(listOf("hours · Black Blade #1", "hours · Black Blade #2"), faces.map { it.small })
+        assertEquals(listOf("14", "1"), faces.map { it.big })
+        Robolectric.setupContentProvider(TileProvider::class.java, TileRows.AUTHORITY)
+        app.contentResolver.query(TileRows.FACES, null, null, null, null)!!.use { assertEquals(2, it.count) }
+    }
+
+    @Test fun aWaitingProposalIsTheOnlyFace() {
+        val app = Sample.fill(proposals = true)
+        app.prefs.chooseTileFlips(true)
+        assertEquals(listOf("proposal"), runBlocking { app.tileFaces() }.map { it.state })
     }
 }

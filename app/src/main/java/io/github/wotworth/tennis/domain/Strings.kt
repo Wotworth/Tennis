@@ -27,12 +27,9 @@ object Strings {
     fun sessionsFor(job: StringJob, jobs: List<StringJob>, sessions: List<SessionWithRacquets>): List<SessionWithRacquets> =
         sessions.filter { s -> job.racquetId in s.racquetIds && jobOn(job.racquetId, s.session.date, jobs)?.id == job.id }
 
-    /**
-     * RAC-03: hours on [job]. A session with several racquets gives each an equal share of its
-     * time (Chris switches racquets mid-session; DECISIONS 2026-11-05).
-     */
+    /** RAC-03 (v0.4): hours on [job]: the full length of every session played with its racquet. */
     fun hours(job: StringJob, jobs: List<StringJob>, sessions: List<SessionWithRacquets>): Double =
-        sessionsFor(job, jobs, sessions).sumOf { it.session.minutes / 60.0 / it.racquetIds.size.coerceAtLeast(1) }
+        sessionsFor(job, jobs, sessions).sumOf { it.session.minutes / 60.0 }
 
     /** SES-03: one decimal, "14.5"; whole numbers without ".0" ("0", "12"). */
     fun hoursText(h: Double): String {

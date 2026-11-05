@@ -1,9 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- PHO-23: HTTPS only, system certificates only. The only host contacted is api.anthropic.com (ClaudeReader). -->
+<!--
+  PHO-23 (v0.4): the app can reach only api.anthropic.com (ClaudeReader, "retry with Claude").
+  - No plain HTTP anywhere.
+  - Every other host: no trusted certificates at all, so any HTTPS connection to it fails.
+  - api.anthropic.com only (no subdomains): Android's system certificates.
+  CI's network check (.github/scripts/check-network.sh) fails the build if this changes.
+-->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false">
+        <trust-anchors />
+    </base-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">api.anthropic.com</domain>
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
-    </base-config>
+    </domain-config>
 </network-security-config>

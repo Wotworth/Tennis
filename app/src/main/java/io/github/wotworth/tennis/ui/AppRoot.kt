@@ -33,7 +33,9 @@ sealed interface Screen {
     data object Debug : Screen
     data class RacquetEdit(val id: Long? = null) : Screen
     data class RestringEdit(val racquetId: Long, val jobId: Long? = null, val camera: Boolean = false) : Screen
-    data class SessionEdit(val id: Long? = null, val proposalId: Long? = null) : Screen
+    data class SessionEdit(val id: Long? = null, val proposalId: Long? = null, val racquetId: Long? = null) : Screen
+    /** v0.4: one racquet's own pivot. */
+    data class Racquet(val id: Long, val pivot: Int = 0) : Screen
     data class ShopOrder(val jobId: Long) : Screen
     data class CueEdit(val id: Long? = null) : Screen
     data class StringEdit(val id: Long? = null) : Screen
@@ -69,7 +71,8 @@ fun AppRoot(app: TennisApp, nav: Navigator = remember { Navigator() }, overlays:
                     Screen.Debug -> io.github.wotworth.tennis.ui.screens.DebugScreen()
                     is Screen.RacquetEdit -> RacquetEditScreen(s.id)
                     is Screen.RestringEdit -> RestringEditScreen(s.racquetId, s.jobId, s.camera)
-                    is Screen.SessionEdit -> SessionEditScreen(s.id, s.proposalId)
+                    is Screen.SessionEdit -> SessionEditScreen(s.id, s.proposalId, s.racquetId)
+                    is Screen.Racquet -> io.github.wotworth.tennis.ui.screens.RacquetHubScreen(s.id, s.pivot)
                     is Screen.ShopOrder -> ShopOrderScreen(s.jobId)
                     is Screen.CueEdit -> CueEditScreen(s.id)
                     is Screen.StringEdit -> StringEditScreen(s.id)

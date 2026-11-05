@@ -24,6 +24,11 @@ class Prefs(context: Context) {
         private set
     fun rememberLastRacquets(ids: List<Long>) { lastRacquets = ids; sp.edit().putString("lastRacquets", ids.joinToString(",")).apply() }
 
+    /** TIL-03 (v0.4): the launcher tile flips through all active racquets instead of showing the last used. */
+    var tileFlips by mutableStateOf(sp.getBoolean("tileFlips", false))
+        private set
+    fun chooseTileFlips(v: Boolean) { tileFlips = v; sp.edit().putBoolean("tileFlips", v).apply() }
+
     /** NAV-02: which strings page layout to show (1, 2 or 3), for Chris to choose. */
     var stringsLayout by mutableIntStateOf(sp.getInt("stringsLayout", 1))
         private set

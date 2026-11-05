@@ -30,48 +30,70 @@ import io.github.wotworth.tennis.ui.theme.LocalZpx
 import io.github.wotworth.tennis.ui.theme.TennisTokens
 
 /**
- * NAV-01 (v0.3): the five pivots. Cues first, since the app opens on it (Chris, 5 Nov); the
- * others follow to its right.
+ * NAV-01 (v0.4): the five pivots. Cues first, since the app opens on it; "racquets" (was
+ * "strings") lists every racquet, People-hub style.
  */
-val PIVOTS = listOf("cues", "strings", "sessions", "stats", "library")
+val PIVOTS = listOf("cues", "racquets", "sessions", "stats", "library")
 const val CUES = 0
-const val STRINGS = 1
+const val RACQUETS = 1
 const val SESSIONS = 2
 const val STATS = 3
 const val LIBRARY = 4
 
 /**
- * NAV-01: the hub as a Windows Phone pivot (v0.3 title, option a): "TENNIS" small at the top,
- * the pages' lowercase headers below it with the next one peeking in from the right, and an
- * application bar that changes with the page.
+ * A Windows Phone pivot: the small all-caps [title], the pages' lowercase headers with the next
+ * one peeking in, the pages, and an application bar that changes with the page.
  */
 @Composable
-fun Hub(initial: Int = CUES) {
+fun PivotScreen(
+    title: String,
+    pivots: List<String>,
+    initial: Int,
+    onChange: (Int) -> Unit,
+    bar: @Composable (CategoryPagerState) -> List<BarButton>,
+    onMore: () -> Unit,
+    content: @Composable (Int, CategoryPagerState) -> Unit,
+) {
     val zpx = LocalZpx.current
-    val l = TennisTokens.Layout
-    val nav = LocalNav.current
-    val pager = rememberCategoryPager(PIVOTS.size, initial) { nav.stack[0] = Screen.Hub(it) }
-    // CUE-10: the screen stays on while the cues (warmup) page shows.
-    val view = LocalView.current
-    DisposableEffect(pager.selected) {
-        view.keepScreenOn = pager.selected == CUES
-        onDispose { view.keepScreenOn = false }
-    }
+    val pager = rememberCategoryPager(pivots.size, initial, onChange)
     Box(Modifier.fillMaxSize().statusBarsPadding()) {
-        AppTitle()
-        PagerCategoryBar(pager, PIVOTS)
-        Box(Modifier.fillMaxSize().padding(top = zpx(l.pivotContentTop))) {
-            PagerContent(pager) { i ->
-                when (i) {
-                    CUES -> CuesPage()
-                    STRINGS -> StringsPage(pager)
-                    SESSIONS -> SessionsPage()
-                    STATS -> StatsPage()
-                    LIBRARY -> LibraryPage()
-                }
-            }
+        AppTitle(text = title)
+        PagerCategoryBar(pager, pivots)
+        Box(Modifier.fillMaxSize().padding(top = zpx(TennisTokens.Layout.pivotContentTop))) {
+            PagerContent(pager) { i -> content(i, pager) }
         }
-        AppBar(barFor(pager.selected), Modifier.align(Alignment.BottomCenter), onMore = { nav.open(Screen.Settings) })
+        AppBar(bar(pager), Modifier.align(Alignment.BottomCenter), onMore = onMore)
+    }
+}
+
+/** NAV-01: the main hub. */
+@Composable
+fun Hub(initial: Int = CUES) {
+    val nav = LocalNav.current
+    PivotScreen(
+        "tennis", PIVOTS, initial,
+        onChange = { nav.stack[0] = Screen.Hub(it) },
+        bar = { p -> barFor(p.selected) },
+        onMore = { nav.open(Screen.Settings) },
+    ) { i, pager ->
+        // CUE-10: the screen stays on while the cues (warmup) page shows.
+        if (i == CUES) KeepScreenOn(pager.selected == CUES)
+        when (i) {
+            CUES -> CuesPage()
+            RACQUETS -> RacquetsPage()
+            SESSIONS -> SessionsPage()
+            STATS -> StatsPage()
+            LIBRARY -> LibraryPage()
+        }
+    }
+}
+
+@Composable
+fun KeepScreenOn(on: Boolean) {
+    val view = LocalView.current
+    DisposableEffect(on) {
+        view.keepScreenOn = on
+        onDispose { view.keepScreenOn = false }
     }
 }
 
@@ -80,6 +102,7 @@ private fun barFor(pivot: Int): List<BarButton> {
     val nav = LocalNav.current
     return when (pivot) {
         CUES -> listOf(BarButton(R.drawable.fluent_add, "add cue") { nav.open(Screen.CueEdit()) })
+        RACQUETS -> listOf(BarButton(R.drawable.fluent_add, "add racquet") { nav.open(Screen.RacquetEdit()) })
         SESSIONS -> listOf(BarButton(R.drawable.fluent_add, "log session") { nav.open(Screen.SessionEdit()) })
         LIBRARY -> listOf(BarButton(R.drawable.fluent_add, "add string") { nav.open(Screen.StringEdit()) })
         else -> emptyList()
@@ -102,6 +125,3 @@ fun PivotColumn(content: @Composable ColumnScope.() -> Unit) {
         Spacer(Modifier.navigationBarsPadding())
     }
 }
-
-/** For the strings page's tiles that open another pivot. */
-fun CategoryPagerState.go(i: Int) = select(i)

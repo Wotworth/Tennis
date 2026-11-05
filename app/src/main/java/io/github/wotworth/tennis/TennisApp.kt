@@ -35,12 +35,18 @@ class TennisApp : Application() {
     }
 
     /** TIL-01: the tile row, read straight from the database (the provider may start the process). */
-    suspend fun tileRow(): io.github.wotworth.tennis.tile.TileRow {
+    suspend fun tileRow(): io.github.wotworth.tennis.tile.TileRow =
+        io.github.wotworth.tennis.tile.TileRows.of(tileData(), prefs.lastRacquets, prefs.selectedRacquet, io.github.wotworth.tennis.domain.Now.millis())
+
+    /** TIL-03 (v0.4): all the tile's faces. */
+    suspend fun tileFaces(): List<io.github.wotworth.tennis.tile.TileRow> =
+        io.github.wotworth.tennis.tile.TileRows.faces(tileData(), prefs.lastRacquets, prefs.selectedRacquet, io.github.wotworth.tennis.domain.Now.millis(), prefs.tileFlips)
+
+    private suspend fun tileData(): io.github.wotworth.tennis.data.AppData {
         val dao = repo.dao
         val links = dao.sessionRacquetsNow().groupBy({ it.sessionId }, { it.racquetId })
-        val d = io.github.wotworth.tennis.data.AppData(dao.racquetsNow(), dao.jobsNow(), dao.sessionsNow().map { io.github.wotworth.tennis.data.SessionWithRacquets(it, links[it.id].orEmpty()) },
+        return io.github.wotworth.tennis.data.AppData(dao.racquetsNow(), dao.jobsNow(), dao.sessionsNow().map { io.github.wotworth.tennis.data.SessionWithRacquets(it, links[it.id].orEmpty()) },
             dao.proposalsNow(), loaded = true)
-        return io.github.wotworth.tennis.tile.TileRows.of(d, prefs.lastRacquets, prefs.selectedRacquet, io.github.wotworth.tennis.domain.Now.millis())
     }
     val dataListeners = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
 

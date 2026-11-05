@@ -23,6 +23,12 @@ data class DetectionSettings(
     val checkEveryMinutes: Int = 60,
     val expiryDays: Int = 7,
     val enabled: Boolean = true,
+    /** DET-14 (v0.4): once enough sessions with heart rate are logged, the threshold comes from them. */
+    val learn: Boolean = true,
+    /** Threshold = this share of the median average heart rate of the logged sessions. */
+    val learnShare: Double = 0.88,
+    val learnMinSessions: Int = 3,
+    val learnMaxSessions: Int = 10,
 )
 
 /** A possible session: its window, source and the numbers attached to it (DET-12). */
@@ -55,6 +61,47 @@ object Detection {
     fun threshold(s: DetectionSettings, resting: Int, year: Int): Int {
         val mx = maxHr(s, year)
         return (resting + s.reserveShare * (mx - resting)).roundToInt()
+    }
+
+    /**
+     * DET-14 (v0.4): the threshold from Chris's own sessions: [DetectionSettings.learnShare] of the
+     * median average heart rate of his latest sessions with heart-rate data (newest first in
+     * [sessionAverages]); never under resting + 15. Null with too few sessions (then [threshold]).
+     */
+    fun learnedThreshold(sessionAverages: List<Int>, s: DetectionSettings, resting: Int): Int? {
+        if (!s.learn) return null
+        val recent = sessionAverages.take(s.learnMaxSessions)
+        if (recent.size < s.learnMinSessions) return null
+        val sorted = recent.sorted()
+        val median = if (sorted.size % 2 == 1) sorted[sorted.size / 2].toDouble() else (sorted[sorted.size / 2 - 1] + sorted[sorted.size / 2]) / 2.0
+        return maxOf((median * s.learnShare).roundToInt(), resting + 15)
+    }
+
+    /** The threshold detection uses: learned when there are enough sessions, else from age. */
+    fun thresholdFor(s: DetectionSettings, resting: Int, year: Int, sessionAverages: List<Int>): Int =
+        learnedThreshold(sessionAverages, s, resting) ?: threshold(s, resting, year)
+
+    /**
+     * DET-14: for a session logged by hand (a date and a length, no times): the stretch of that
+     * length with the highest average heart rate, where at least [coverage] of its minutes have
+     * readings. Returns its first minute (epoch minute) and that average.
+     */
+    fun bestWindow(minutes: Map<Long, Double>, length: Int, coverage: Double = 0.7): Pair<Long, Double>? {
+        if (minutes.isEmpty() || length <= 0) return null
+        val first = minutes.keys.min(); val last = minutes.keys.max()
+        // Ranked by the sum of the minute averages, so a window doesn't gain by sliding over
+        // minutes without readings; the average returned is over the minutes with readings.
+        var best: Triple<Long, Double, Double>? = null
+        var start = first
+        while (start + length - 1 <= last) {
+            val vals = (start until start + length).mapNotNull { minutes[it] }
+            if (vals.size >= length * coverage) {
+                val sum = vals.sum()
+                if (best == null || sum > best.third) best = Triple(start, vals.average(), sum)
+            }
+            start++
+        }
+        return best?.let { it.first to it.second }
     }
 
     /** The newest resting heart rate in the data, else the fallback. */
@@ -124,14 +171,14 @@ object Detection {
      * DET-10: workouts first, then heart-rate windows that don't overlap one. Each with DET-12's
      * numbers. Nothing here knows about sessions or proposals; see [filter] and [merge].
      */
-    fun detect(d: DayData, s: DetectionSettings, year: Int): List<Candidate> {
+    fun detect(d: DayData, s: DetectionSettings, year: Int, threshold: Int? = null): List<Candidate> {
         val types = workoutTypes(s)
         val workouts = d.exercise.filter { it.type in types }.map { e ->
             val a = e.start.toEpochMilli(); val b = e.end.toEpochMilli()
             val (avg, mx) = heartStats(d, a, b)
             Candidate(a, b, "workout", avg, mx, steps(d, a, b))
         }.filter { it.minutes >= s.minMinutes / 2 }
-        val th = threshold(s, resting(d, s), year)
+        val th = threshold ?: threshold(s, resting(d, s), year)
         val roll = rolling(perMinute(d), s.rollingMinutes)
         val hr = heartRateWindows(d, s, th).filter { (a, b) -> workouts.none { overlaps(a, b, it.startMillis, it.endMillis) } }.map { (a, b) ->
             val (avg, mx) = heartStats(d, a, b)

@@ -86,6 +86,16 @@ fun DetectionDebugScreen() {
     var text by remember { mutableStateOf(mapOf<String, String>()) }
     var day by remember { mutableStateOf(Now.day() - 1) }
     var result by remember { mutableStateOf<List<String>>(emptyList()) }
+    var averages by remember { mutableStateOf<List<Int>>(emptyList()) }
+    var granted by remember { mutableStateOf<Set<String>>(emptySet()) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        averages = runCatching { DetectionRunner.sessionAverages(app) }.getOrDefault(emptyList())
+        granted = runCatching { app.health.granted() }.getOrDefault(emptySet())
+    }
+    // DET-01 (v0.4): ask for everything, past data (history) included, so "try a day" reaches back past 30 days.
+    val ask = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) {
+        scope.launch { granted = runCatching { app.health.granted() }.getOrDefault(emptySet()) }
+    }
     fun set(n: DetectionSettings?) { if (n != null) { s = n; DetectionPrefs.save(app.prefs, n); runCatching { DetectionRunner.schedule(app, n) } } }
     @Composable fun num(label: String, key: String, now: String, parse: (String) -> DetectionSettings?) {
         val shown = text[key] ?: now
@@ -111,10 +121,30 @@ fun DetectionDebugScreen() {
             Column(Modifier.weight(1f)) { num("check every (min)", "every", s.checkEveryMinutes.toString()) { v -> v.toIntOrNull()?.takeIf { it in 15..720 }?.let { s.copy(checkEveryMinutes = it) } } }
         }
         num("unanswered expire after (days)", "exp", s.expiryDays.toString()) { v -> v.toIntOrNull()?.takeIf { it in 1..60 }?.let { s.copy(expiryDays = it) } }
+
+        SectionHeader("threshold")
+        val year = LocalDate.ofEpochDay(Now.day()).year
+        val ageTh = Detection.threshold(s, s.restingFallback, year)
+        val learned = Detection.learnedThreshold(averages, s.copy(learn = true), s.restingFallback)
+        TennisText("From your age: $ageTh bpm (max ${Detection.maxHr(s, year)}; resting ${s.restingFallback} until Health Connect gives one).", TennisTokens.Type.listSecondary)
+        Spacer(Modifier.height(zpx(4f)))
+        TennisText(if (learned == null) "From your sessions: needs ${s.learnMinSessions} sessions with heart rate (you have ${averages.size})."
+            else "From your last ${minOf(averages.size, s.learnMaxSessions)} sessions: $learned bpm (${(s.learnShare * 100).toInt()}% of their middle average).", TennisTokens.Type.listSecondary)
+        Spacer(Modifier.height(zpx(4f)))
+        TennisText("In use: ${if (s.learn && learned != null) "from your sessions" else "from your age"}.", TennisTokens.Type.listPrimary)
+        Spacer(Modifier.height(zpx(10f)))
+        ToggleSwitch("learn the threshold from my sessions", s.learn) { set(s.copy(learn = it)) }
+        Row(horizontalArrangement = Arrangement.spacedBy(zpx(12f))) {
+            Column(Modifier.weight(1f)) { num("share of session average (%)", "lshare", (s.learnShare * 100).toInt().toString()) { v -> v.toIntOrNull()?.takeIf { it in 50..100 }?.let { s.copy(learnShare = it / 100.0) } } }
+            Column(Modifier.weight(1f)) { num("sessions needed", "lmin", s.learnMinSessions.toString()) { v -> v.toIntOrNull()?.takeIf { it in 1..20 }?.let { s.copy(learnMinSessions = it) } } }
+        }
         ToggleSwitch("count squash, badminton and other racquet workouts", s.otherRacquetSports) { set(s.copy(otherRacquetSports = it)) }
         TextRow("reset to defaults", "Shortest 30 min, smoothing 5, break 5, share 50%") { text = emptyMap(); set(DetectionSettings(birthYear = s.birthYear, enabled = s.enabled)) }
 
         SectionHeader("try a day")
+        if (!granted.containsAll(HealthSource.permissions)) {
+            TextRow("allow access", "Health Connect access, including past data, so days more than 30 days back can be read") { ask.launch(HealthSource.permissions) }
+        }
         TennisText(io.github.wotworth.tennis.domain.Strings.dayText(day), TennisTokens.Type.listPrimary)
         Spacer(Modifier.height(zpx(4f)))
         Row(horizontalArrangement = Arrangement.spacedBy(zpx(18f))) {
@@ -128,7 +158,9 @@ fun DetectionDebugScreen() {
             scope.launch {
                 result = runCatching {
                     val d = app.health.read(LocalDate.ofEpochDay(day))
-                    describe(d, s, LocalDate.ofEpochDay(day).year)
+                    val old = Now.day() - day > 30 && androidx.health.connect.client.permission.HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY !in granted
+                    (if (old) listOf("Past-data access isn't given, so Health Connect may return nothing for this day. Tap allow access above.") else emptyList()) +
+                        describe(d, s, LocalDate.ofEpochDay(day).year, sessionAverages = averages)
                 }.getOrElse { listOf("Couldn't read Health Connect: ${it.message}") }
             }
         }
@@ -137,14 +169,15 @@ fun DetectionDebugScreen() {
 }
 
 /** The debug screen's plain-text result for one day. */
-fun describe(d: DayData, s: DetectionSettings, year: Int, zone: ZoneId = d.zone): List<String> {
+fun describe(d: DayData, s: DetectionSettings, year: Int, zone: ZoneId = d.zone, sessionAverages: List<Int> = emptyList()): List<String> {
     val rest = Detection.resting(d, s)
-    val th = Detection.threshold(s, rest, year)
-    val found = Detection.detect(d, s, year)
+    val th = Detection.thresholdFor(s, rest, year, sessionAverages)
+    val learned = Detection.learnedThreshold(sessionAverages, s, rest) != null
+    val found = Detection.detect(d, s, year, th)
     val longest = Detection.longestHot(d, s, th)
     val samples = d.heartRate.sumOf { it.samples.size }
     return buildList {
-        add("$samples heart-rate readings; resting $rest bpm; max ${Detection.maxHr(s, year)}; threshold $th bpm")
+        add("$samples heart-rate readings; resting $rest bpm; max ${Detection.maxHr(s, year)}; threshold $th bpm" + if (learned) " (from your sessions)" else "")
         add(if (longest == null) "never at or above the threshold" else "longest stretch at or above it: ${longest.first} min from ${time(longest.second, zone)}")
         if (found.isEmpty()) add("no sessions found")
         found.forEach { c ->

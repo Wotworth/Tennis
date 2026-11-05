@@ -50,8 +50,13 @@ object Sample {
                 Triple(d(2026, 9, 3), 90, 5), Triple(d(2026, 9, 10), 120, 4), Triple(d(2026, 9, 20), 90, 3),
                 Triple(d(2026, 10, 13), 90, 5), Triple(d(2026, 10, 16), 120, 5), Triple(d(2026, 10, 19), 90, 4),
                 Triple(d(2026, 10, 23), 120, 4), Triple(d(2026, 10, 27), 90, 4), Triple(d(2026, 10, 30), 120, 3), Triple(d(2026, 11, 3), 90, 3),
-            ).forEach { (day, min, feel) -> r.saveSession(Session(date = day, minutes = min, feel = feel), listOf(bb1)) }
-            r.saveSession(Session(date = d(2026, 11, 4), minutes = 120, feel = 3, source = "heart_rate", avgHr = 132, maxHr = 167, steps = 6200), listOf(bb1, bb2))
+            ).forEach { (day, min, feel) -> r.saveSession(Session(date = day, minutes = min, feel = feel), bb1) }
+            r.saveSession(Session(date = d(2026, 11, 4), minutes = 120, feel = 3, source = "heart_rate", avgHr = 132, maxHr = 167, steps = 6200), bb1)
+            r.saveSession(Session(date = d(2026, 10, 22), minutes = 60, feel = 4), bb2)
+            // A retired racquet with its history (RAC-06).
+            val old = r.saveRacquet(Racquet(name = "Old Pro Staff", model = "Wilson Pro Staff 97", colour = "black"))
+            r.saveJob(StringJob(racquetId = old, date = d(2025, 6, 1), mains = StringSpec("Luxilon", "4G", "125", "co-poly"), mainsLb = 50.0, crossesLb = 50.0, shop = "Racquet Lab", priceCents = 4000))
+            r.saveRacquet(app.repo.dao.racquetsNow().first { it.id == old }.copy(retired = true))
             r.saveCue(Cue(heading = "forehand", text = "Keep the racket face flat on the backswing.", pinned = true))
             r.saveCue(Cue(heading = "serve", text = "Toss up and a little in front. Reach up to it.", pinned = true))
             r.saveCue(Cue(heading = "backhand", text = "Turn the shoulders early.", pinned = true))
@@ -64,7 +69,7 @@ object Sample {
             app.prefs.selectRacquet(bb1)
             app.prefs.chooseStringsLayout(layout)
         }
-        waitFor(app) { it.cues.size == 5 && it.sessions.size == 11 && (!proposals || it.proposals.isNotEmpty()) }
+        waitFor(app) { it.cues.size == 5 && it.sessions.size == 12 && it.racquets.any { r -> r.retired } && (!proposals || it.proposals.isNotEmpty()) }
         return app
     }
 }

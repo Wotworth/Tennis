@@ -21,6 +21,8 @@ data class Racquet(
     val model: String = "",
     val colour: String = "",
     val position: Int = 0,
+    /** RAC-06 (v0.4): retired racquets leave the main page but keep their history. */
+    @ColumnInfo(defaultValue = "0") val retired: Boolean = false,
 )
 
 /** One string (STR-01): brand, model, gauge, material. */
@@ -76,7 +78,7 @@ data class Session(
     val notes: String = "",
 )
 
-/** Which racquets a session used (v0.3: one or more). */
+/** The racquet a session used (v0.4: exactly one; the table allows more only for old data). */
 @Entity(
     tableName = "session_racquets",
     primaryKeys = ["sessionId", "racquetId"],

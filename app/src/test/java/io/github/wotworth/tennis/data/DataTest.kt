@@ -22,23 +22,23 @@ class DataTest {
         val d = app.repo.data.value
         val bb1 = d.racquets.first { it.name == "Black Blade #1" }
         val bb2 = d.racquets.first { it.name == "Black Blade #2" }
-        // 90+120+90+120+90+120+90 = 720 min, plus half of the 120-minute two-racquet session.
-        assertEquals("13", Strings.hoursText(Strings.hours(Strings.currentJob(bb1.id, d.jobs)!!, d.jobs, d.sessions)))
+        // 90+120+90+120+90+120+90+120 = 840 min (v0.4: one racquet per session, no split).
+        assertEquals("14", Strings.hoursText(Strings.hours(Strings.currentJob(bb1.id, d.jobs)!!, d.jobs, d.sessions)))
         assertEquals("1", Strings.hoursText(Strings.hours(Strings.currentJob(bb2.id, d.jobs)!!, d.jobs, d.sessions)))
     }
 
     @Test fun libraryFilledFromJobs() {
         val d = Sample.fill().repo.data.value
-        assertEquals(setOf("Hyper-G", "Alu Power", "RPM Blast"), d.strings.map { it.spec.model }.toSet())
+        assertEquals(setOf("Hyper-G", "Alu Power", "RPM Blast", "4G"), d.strings.map { it.spec.model }.toSet())
     }
 
     @Test fun deletingARacquetKeepsItsSessionsWithoutIt() {
         val app = Sample.fill()
         val bb2 = app.repo.data.value.racquets.first { it.name == "Black Blade #2" }
         runBlocking { app.repo.deleteRacquet(bb2) }
-        Sample.waitFor(app) { it.racquets.size == 2 }
+        Sample.waitFor(app) { it.racquets.size == 3 }
         val d = app.repo.data.value
-        assertEquals(11, d.sessions.size)
+        assertEquals(12, d.sessions.size)
         assertTrue(d.jobs.none { it.racquetId == bb2.id })
         assertTrue(d.sessions.none { bb2.id in it.racquetIds })
     }
@@ -55,7 +55,23 @@ class DataTest {
         runBlocking { app.repo.replaceAll(BackupData()) }
         Sample.waitFor(app) { it.racquets.isEmpty() }
         runBlocking { app.repo.replaceAll(read) }
-        Sample.waitFor(app) { it.sessions.size == 11 }
+        Sample.waitFor(app) { it.sessions.size == 12 }
         assertEquals(before, runBlocking { app.repo.snapshot() })
+    }
+
+    @Test fun oneRacquetPerSession() {
+        val app = Sample.fill()
+        val d = app.repo.data.value
+        assertTrue(d.sessions.all { it.racquetIds.size == 1 })
+        val s = d.sessions.first()
+        runBlocking { app.repo.saveSession(s.session, listOf(d.racquets[0].id, d.racquets[1].id)) }
+        Sample.waitFor(app) { it.sessions.first { x -> x.session.id == s.session.id }.racquetIds == listOf(d.racquets[0].id) }
+    }
+
+    @Test fun retiredRacquetsKeepTheirHistory() {
+        val d = Sample.fill().repo.data.value
+        assertEquals(listOf("Old Pro Staff"), d.retired.map { it.name })
+        assertEquals(listOf("Black Blade #1", "Black Blade #2", "Pure Aero"), d.active.map { it.name })
+        assertEquals(1, d.jobs.count { it.racquetId == d.retired[0].id })
     }
 }

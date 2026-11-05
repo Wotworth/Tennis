@@ -33,9 +33,10 @@ class StringsTest {
         assertEquals(1.0, Strings.hours(other, jobs, sessions), 1e-9)
     }
 
-    @Test fun twoRacquetsShareTheSession() {
-        val sessions = listOf(s(1, 131, 120, 1, 2))
-        assertEquals(1.0, Strings.hours(oct, jobs, sessions), 1e-9)
+    @Test fun aSessionCountsInFullForItsRacquet() {
+        // v0.4: one racquet per session, no split (Chris, 6 Nov).
+        val sessions = listOf(s(1, 131, 120, 1), s(2, 131, 60, 2))
+        assertEquals(2.0, Strings.hours(oct, jobs, sessions), 1e-9)
         assertEquals(1.0, Strings.hours(other, jobs, sessions), 1e-9)
     }
 

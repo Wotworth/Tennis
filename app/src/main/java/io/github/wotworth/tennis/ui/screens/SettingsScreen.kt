@@ -57,8 +57,12 @@ fun SettingsScreen() {
         }
     }
     Page("settings") {
-        SectionHeader("strings page")
+        SectionHeader("racquet strings page")
         ChoiceRow("tile layout (pick the one you like)", listOf(1 to "grid", 2 to "hero", 3 to "mixed"), setOf(app.prefs.stringsLayout), { app.prefs.chooseStringsLayout(it) })
+        SectionHeader("launcher tile")
+        ChoiceRow("the WP launcher's tennis tile shows", listOf(false to "the last-used racquet", true to "each racquet in turn"), setOf(app.prefs.tileFlips), {
+            app.prefs.chooseTileFlips(it); app.onDataChanged()
+        })
         DetectionSettingsSection()
         ApiKeySection()
         SettingsExtras.sections.forEach { it() }

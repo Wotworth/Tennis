@@ -15,7 +15,7 @@ import io.github.wotworth.tennis.ui.screens.HealthReportContent
 import io.github.wotworth.tennis.ui.screens.HealthReportState
 import io.github.wotworth.tennis.ui.screens.LIBRARY
 import io.github.wotworth.tennis.ui.screens.SESSIONS
-import io.github.wotworth.tennis.ui.screens.STRINGS
+import io.github.wotworth.tennis.ui.screens.RACQUETS
 import io.github.wotworth.tennis.ui.theme.TennisTheme
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -49,10 +49,20 @@ class ScreenshotTest {
     @Test fun cues() = screen("hub-cues", Screen.Hub(CUES))
     @Test fun cuesWithProposal() = screen("hub-cues-proposal", Screen.Hub(CUES), Sample.fill(proposals = true), both = false)
     @Test fun cuesEmpty() = screen("hub-cues-empty", Screen.Hub(CUES), Sample.empty(), both = false)
-    @Test fun stringsGrid() = screen("hub-strings-1-grid", Screen.Hub(STRINGS), Sample.fill(layout = 1))
-    @Test fun stringsHero() = screen("hub-strings-2-hero", Screen.Hub(STRINGS), Sample.fill(layout = 2))
-    @Test fun stringsMixed() = screen("hub-strings-3-mixed", Screen.Hub(STRINGS), Sample.fill(layout = 3))
-    @Test fun stringsEmpty() = screen("hub-strings-empty", Screen.Hub(STRINGS), Sample.empty(), both = false)
+    private fun bb1(app: TennisApp) = app.repo.data.value.racquets.first { it.name == "Black Blade #1" }.id
+    @Test fun racquets() = screen("hub-racquets", Screen.Hub(RACQUETS))
+    @Test fun racquetsEmpty() = screen("hub-racquets-empty", Screen.Hub(RACQUETS), Sample.empty(), both = false)
+    @Test fun racquetGrid() { val a = Sample.fill(layout = 1); screen("racquet-strings-1-grid", Screen.Racquet(bb1(a)), a) }
+    @Test fun racquetHero() { val a = Sample.fill(layout = 2); screen("racquet-strings-2-hero", Screen.Racquet(bb1(a)), a, both = false) }
+    @Test fun racquetMixed() { val a = Sample.fill(layout = 3); screen("racquet-strings-3-mixed", Screen.Racquet(bb1(a)), a, both = false) }
+    @Test fun racquetHistory() { val a = Sample.fill(); screen("racquet-history", Screen.Racquet(bb1(a), 1), a, both = false) }
+    @Test fun racquetSessions() { val a = Sample.fill(); screen("racquet-sessions", Screen.Racquet(bb1(a), 2), a, both = false) }
+    @Test fun retiredRacquet() { val a = Sample.fill(); screen("racquet-retired", Screen.Racquet(a.repo.data.value.retired.first().id), a, both = false) }
+    @Test fun racquetMenu() {
+        val a = Sample.fill(); val o = io.github.wotworth.tennis.ui.components.Overlays()
+        o.menu("edit racquet" to {}, "retire racquet" to {}, "delete racquet" to {}, "settings" to {})
+        shoot("racquet-menu", false) { AppRoot(a, Navigator(Screen.Racquet(bb1(a))), o) }
+    }
     @Test fun sessions() = screen("hub-sessions", Screen.Hub(SESSIONS))
     @Test fun stats() = screen("hub-stats", Screen.Hub(io.github.wotworth.tennis.ui.screens.STATS))
     @Test fun library() = screen("hub-library", Screen.Hub(LIBRARY), both = false)
@@ -76,7 +86,7 @@ class ScreenshotTest {
         kotlinx.coroutines.runBlocking { app.repo.saveJob(j.copy(mainsPhoto = "pkg-test.jpg")) }
         Sample.waitFor(app) { it.jobs.any { j2 -> j2.mainsPhoto != null } }
         io.github.wotworth.tennis.ui.screens.PhotoCache.load(app, "pkg-test.jpg", 720)
-        screen("hub-strings-photo", Screen.Hub(STRINGS), app, both = false)
+        screen("hub-racquets-photo", Screen.Hub(RACQUETS), app, both = false)
     }
     @Test fun sessionForm() = screen("session-new", Screen.SessionEdit())
     @Test fun proposal() {

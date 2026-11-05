@@ -2,7 +2,7 @@
 
 For the wp-launcher's Claude Code session. Written 4 November 2026 against wp-launcher v0.9.150 (fix-7).
 
-**Status (5–6 Nov): built.** The tennis app's session implemented all of this in Wotworth/wp-launcher on branch `ccr-eb362149-pgs534` (one commit, `9c08e8e`, on top of `ccr-fa86e307-85zu7m` at `e3b6d8e`), with unit tests (`TennisTileTest`) and a CHANGELOG entry, and released it with checkpoint `tennis-tile`. **For the launcher's next session:** fast-forward or merge `ccr-eb362149-pgs534` into your branch before your next release, or the tile goes away again.
+**Status (6 Nov): on launcher main** (merged on top of v0.9.160), with the faces flip below. Earlier: **built (5 Nov).** The tennis app's session implemented all of this in Wotworth/wp-launcher on branch `ccr-eb362149-pgs534` (one commit, `9c08e8e`, on top of `ccr-fa86e307-85zu7m` at `e3b6d8e`), with unit tests (`TennisTileTest`) and a CHANGELOG entry, and released it with checkpoint `tennis-tile`. **For the launcher's next session:** fast-forward or merge `ccr-eb362149-pgs534` into your branch before your next release, or the tile goes away again.
 
 ## What Chris wants
 
@@ -40,3 +40,10 @@ The same shape as the Zune player's Pin Music interface (BACKBURNER 17). Treat e
 ## Not needed from the launcher
 
 No notifications, no background work, no network, no Health Connect access. The tennis app does all detection and keeps the row up to date.
+
+## Added 6 Nov (tennis v0.4): flip through racquets
+
+Built on launcher main, additively.
+
+- `content://io.github.wotworth.tennis.tile/faces`: one row per face, the same columns as `/tile`. With the tennis app set to "each racquet in turn", one face per active racquet (`big` = hours, `small` = "hours · racquet name"); otherwise one face. A waiting proposal is always the only face.
+- The launcher flips the tennis tile through its faces with the playlist tiles' flip and timer (18a), at most 12; one face means no flipping. A tennis app without `/faces` keeps working as before.

@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** overnight run done (5–6 Nov). Released: PH-1 v0.1.3, PH-2 v0.2.4, PH-3 v0.3.5, PH-4 v0.4.7, PH-5 v0.5.8. Waiting for Chris to test on the phone (docs/MORNING.md). Launcher with the tennis tile: v0.9.153.
+**Phase:** update 1 (spec v0.4, 6 Nov): racquets pivot, one racquet per session, learned threshold, network limited to Anthropic, tile flip. Releasing tennis v0.6 and a launcher release from main. Earlier: PH-1 v0.1.3, PH-2 v0.2.4, PH-3 v0.3.5, PH-4 v0.4.7, PH-5 v0.5.8, launcher v0.9.153.
 
 ## Done
 
@@ -15,7 +15,7 @@
 
 - Chris tests the overnight builds (one release per phase; each report has numbered steps) and picks a strings layout (grid, hero, mixed).
 - Chris sets his birth year, and runs debug → try a day on a pre-injury tennis day; tune detection from it.
-- The launcher's session merges wp-launcher branch `ccr-eb362149-pgs534` (tennis tile).
+- Chris tests update 1 (docs/reports/UPDATE-1.md).
 
 - Chris shared the report for 4 Nov (no tennis: injured for the past 30 days). Findings in docs/health-connect-findings.md: Fitbit heart rate every 2–3 s; steps from both Fitbit and the phone (must not be added together); no workout records that day.
 - PH-0 accepted by Chris (5 Nov).
@@ -33,7 +33,7 @@
 
 ## Known issues
 
-- The launcher's own session must merge wp-launcher branch `ccr-eb362149-pgs534` (tennis tile) before its next release.
+- Launcher work is on wp-launcher **main** now (merged 6 Nov on top of v0.9.160). The launcher's other session still works on `ccr-fa86e307-85zu7m`; Chris will point it at main.
 
 - Nothing has run on the phone yet.
 - Wrapped secondary text lines sit close together (the Zune type roles trim line height); revisit in PH-1 if it reads badly on the phone.

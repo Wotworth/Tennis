@@ -24,12 +24,12 @@ data class BackupData(
  * The API key and the settings are not exported (PHO-22).
  */
 object Backup {
-    const val SCHEMA = 1
+    const val SCHEMA = 2
 
     fun toJson(b: BackupData): JSONObject = JSONObject().apply {
         put("app", "io.github.wotworth.tennis")
         put("schema", SCHEMA)
-        put("racquets", JSONArray(b.racquets.map { JSONObject().put("id", it.id).put("name", it.name).put("model", it.model).put("colour", it.colour).put("position", it.position) }))
+        put("racquets", JSONArray(b.racquets.map { JSONObject().put("id", it.id).put("name", it.name).put("model", it.model).put("colour", it.colour).put("position", it.position).put("retired", it.retired) }))
         put("jobs", JSONArray(b.jobs.map { j ->
             JSONObject().put("id", j.id).put("racquetId", j.racquetId).put("date", j.date).put("mains", spec(j.mains)).put("hybrid", j.hybrid)
                 .put("crosses", spec(j.crossesOwn)).put("mainsLb", j.mainsLb ?: JSONObject.NULL).put("crossesLb", j.crossesLb ?: JSONObject.NULL)
@@ -63,7 +63,7 @@ object Backup {
         require(o.optString("app") == "io.github.wotworth.tennis") { "This file isn't a tennis backup." }
         require(o.optInt("schema") <= SCHEMA) { "This backup is from a newer version of the app." }
         return BackupData(
-            racquets = o.optJSONArray("racquets").map { Racquet(it.getLong("id"), it.getString("name"), it.optString("model"), it.optString("colour"), it.optInt("position")) },
+            racquets = o.optJSONArray("racquets").map { Racquet(it.getLong("id"), it.getString("name"), it.optString("model"), it.optString("colour"), it.optInt("position"), it.optBoolean("retired")) },
             jobs = o.optJSONArray("jobs").map {
                 StringJob(it.getLong("id"), it.getLong("racquetId"), it.getLong("date"), spec(it.optJSONObject("mains")), it.optBoolean("hybrid"),
                     spec(it.optJSONObject("crosses")), it.dbl("mainsLb"), it.dbl("crossesLb"), it.optString("shop"), it.lng("priceCents"),

@@ -1,6 +1,6 @@
 # Tennis String Log — Requirements
 
-v0.3, 5 November 2026 (Chris, after accepting PH-0): the app opens on cues; several racquets with their own strings and hours (section 5a); the Windows Phone pivot title instead of the clipped giant title; a richer strings page. v0.2, 5 November 2026: Chris's answers to section 16 (defaults, except cues as a fifth pivot, Sonnet for the photo retry, and hours tracked per racquet). v0.1, 4 November 2026: written by Claude from Chris's brief, after reading the wp-launcher code (tag v0.9.150) and the Zune player (main at `f2d9237`).
+v0.4, 6 November 2026 (Chris, after the overnight builds): racquets page and each racquet's own pivot, retired racquets, one racquet per session, the heart-rate threshold learned from his sessions, network limited to Anthropic, the launcher tile flipping through racquets (5a, 7, 8, 11). v0.3, 5 November 2026 (Chris, after accepting PH-0): the app opens on cues; several racquets with their own strings and hours (section 5a); the Windows Phone pivot title instead of the clipped giant title; a richer strings page. v0.2, 5 November 2026: Chris's answers to section 16 (defaults, except cues as a fifth pivot, Sonnet for the photo retry, and hours tracked per racquet). v0.1, 4 November 2026: written by Claude from Chris's brief, after reading the wp-launcher code (tag v0.9.150) and the Zune player (main at `f2d9237`).
 
 ## 0 How to use this document
 
@@ -57,7 +57,7 @@ Reuse, by copying source files from the Zune player (`ZuneTokens.kt`, the font f
 
 ## 4 Navigation and screens
 
-- NAV-01 One hub with five pivots, swiped horizontally: **cues · strings · sessions · stats · library**. The app opens on **cues** (v0.3). Title (v0.3, Chris's option a): the Windows Phone pivot: a small all-caps `TENNIS` at the top, the pages' large lowercase headers below it, the current one filled with the VIS-03 gradient and the next one peeking in grey from the right. Pages below the hub use the same small title over their own large lowercase header. No clipped giant title anywhere.
+- NAV-01 One hub with five pivots, swiped horizontally: **cues · racquets · sessions · stats · library** (v0.4: "strings" became "racquets"). The app opens on **cues** (v0.3). Title (v0.3, Chris's option a): the Windows Phone pivot: a small all-caps `TENNIS` at the top, the pages' large lowercase headers below it, the current one filled with the VIS-03 gradient and the next one peeking in grey from the right. Pages below the hub use the same small title over their own large lowercase header. No clipped giant title anywhere.
 - NAV-02 **strings** pivot (v0.3), top to bottom: the racquet switcher (RAC-04); tiles in mixed sizes (small, medium, wide) with real data, WP style: a big number over a small label: hours on strings, tension (`55/53` over `lb main/cross`), days strung, feel with its trend line; a wide setup tile (strings, gauges, hybrid, date strung; the package photo behind it once PH-4 exists); small glyph tiles for log session and restrung (and camera from PH-4). No tile without useful content. Below the tiles, this racquet's recent restrings as Zune text rows. Three tile layouts (grid, hero, mixed) are built; settings chooses one until Chris picks (Chris, 5 Nov). The original v0.2 list follows for reference:
   - a wide tile per racquet that has a string job (Q11, v0.2), most recently used racquet first: its hours on the current strings as a big number (e.g. `14.5`) with "hours on these strings" under it (with the racquet's name when there is more than one), and the string job's age ("restrung 23 days ago");
   - a wide tile: the current setup in two lines (`Mains: Solinco Hyper-G 16L @ 52 lb` / `Crosses: Luxilon Alu Power 125 @ 50 lb`), tapping opens the shop order card (STR-20);
@@ -84,9 +84,11 @@ Reuse, by copying source files from the Zune player (`ZuneTokens.kt`, the font f
 
 - RAC-01 Several racquets, each with a name (e.g. "Black Blade #1"), model and colour.
 - RAC-02 Each racquet has its own string jobs: string or hybrid, mains and crosses tension, date strung, shop (STR-01).
-- RAC-03 Hours on a racquet's current strings count only sessions logged with that racquet. A session with several racquets gives each an equal share of its length.
-- RAC-04 The strings page switches racquets with one tap on its name in a row at the top; long-press a name to edit or delete the racquet; `+` adds one.
-- RAC-05 Logging or confirming a session asks which racquets were used, defaulting to those of the last session; more than one can be chosen.
+- RAC-03 Hours on a racquet's current strings count only sessions logged with that racquet, in full (v0.4: one racquet per session, no split).
+- RAC-04 (v0.4, replaces the name row) The **racquets** pivot, People-hub style: one wide tile per active racquet (name, strings, mains/crosses tension, hours on the current strings; the package photo behind it), then a **+ add racquet** tile. No limit; the page scrolls. Tapping a tile opens that racquet's own pivot: its name as the small title, pages **strings** (the current setup in the chosen tile layout, NAV-02), **history** (its restrings) and **sessions** (only sessions with it). Its "…" menu: edit, retire (or bring back), delete, settings.
+- RAC-05 (v0.4) Logging or confirming a session asks for one racquet, preselected: the racquet whose pivot it was opened from, else the last used; tap another name to switch.
+- RAC-06 (v0.4) A retired racquet leaves the racquets page but keeps its restrings and sessions, listed under **retired** at the bottom of that page; its pivot still opens (read-only actions hidden), and "bring back" returns it.
+- RAC-07 (v0.4) The update keeps all data: racquets, restrings and sessions logged before carry over; a session that had two racquets keeps the one chosen first (DAT-04 migration test).
 
 ## 6 Sessions
 
@@ -104,6 +106,8 @@ Chris's Fitbit Charge 6 syncs to the Google Health app, which writes to Health C
 - DET-02 Permissions: READ_HEART_RATE, READ_STEPS, READ_EXERCISE, READ_RESTING_HEART_RATE, and READ_HEALTH_DATA_IN_BACKGROUND (for DET-20). The app MUST provide the permission-rationale/privacy activity Health Connect requires. If Health Connect or a permission is missing, the strings pivot shows nothing about detection and settings explains what to grant.
 - DET-10 **Order:** (1) an ExerciseSession of type tennis (or, Q8, any racquet/other intense type) from any origin: use its start/end; (2) else a sustained heart-rate window: at least 30 min (*tunable*) where the rolling 5-minute (*tunable*) average heart rate stays above the threshold, allowing gaps of up to 5 min (*tunable*) below it; the window is clipped to the first and last minute above the threshold.
 - DET-11 Threshold default: resting heart rate + 50% of heart-rate reserve (*tunable*), max heart rate = 220 − age (Chris's birth year in settings). Shown and editable in settings, with the last detection's numbers for comparison.
+- DET-14 (v0.4) The threshold starts from DET-11's 220 − age estimate only until there are at least 3 sessions with heart-rate data; then it is 88% (*tunable*) of the median average heart rate of the latest 10 such sessions, never under resting + 15. Sessions logged by hand get heart-rate data too: after saving, the stretch of the logged length with the highest average heart rate that day is attached (times, average, maximum, steps) if it is at least resting + 20. The debug screen shows both thresholds and which is in use, and can switch learning off.
+- DET-15 (v0.4) Health Connect access is asked for with past data (history) included, from the report, from settings → check now, and from debug → try a day, which also warns when a day more than 30 days back can't be read without it.
 - DET-12 For the window: duration, average and max heart rate, total steps. These are attached to the session on Yes.
 - DET-13 Windows that overlap a session already logged (by hand or confirmed) are not proposed. A rejected window is never proposed again.
 - DET-20 A periodic WorkManager check every 60 min (*tunable*; Android's minimum is 15), looking back 48 h (*tunable*), because Fitbit sync can lag hours. Also runs when the app opens. No notification is ever posted (SCP-20).
@@ -124,6 +128,7 @@ Modelled on the interface the launcher already uses with the Zune player (its BA
 - TIL-10 **Tap intent:** activity intent, action `io.github.wotworth.tennis.action.OPEN_FROM_TILE`, package `io.github.wotworth.tennis`, optional text extra `proposal_id`.
 - TIL-11 With a `proposal_id` that is still waiting, the app opens straight to its prompt (DET-30); otherwise to the strings pivot.
 - TIL-12 `state` `empty` (no string job yet): `big` is empty and the launcher draws its normal tile.
+- TIL-03 (v0.4) `content://io.github.wotworth.tennis.tile/faces`: the tile's faces, one row each, same columns. Settings → launcher tile: **the last-used racquet** (default: one face, as `/tile`) or **each racquet in turn** (one face per active racquet with strings, last used first); a waiting proposal is always the only face. Retired racquets never show.
 
 ## 9 Stats
 
@@ -147,7 +152,7 @@ Modelled on the interface the launcher already uses with the Zune player (its BA
 - PHO-20 **Step 2, Retry with Claude:** a "retry" button sends the photo (downscaled to at most 1568 px on the long side, JPEG) to the Claude Messages API with Chris's API key, asking for brand, model, gauge, material (inferred from the product name when not printed) as JSON with a fixed schema (structured output). Model `claude-sonnet-5-5` (*tunable*, Q9, v0.2). The result pre-fills the same confirmation fields.
 - PHO-21 Offline (no validated network): the retry button shows "Needs an internet connection" and sends nothing. API errors show a plain message (bad key, rate limit, server error).
 - PHO-22 The API key is entered in settings, stored encrypted with an Android Keystore key, never logged, never exported (DAT), never hard-coded. Settings shows only its last 4 characters and a remove button.
-- PHO-23 Network rules: INTERNET permission used only for `api.anthropic.com`, HTTPS only, enforced in one network class and the network security config (no cleartext). CI fails if any other code uses the network.
+- PHO-23 (v0.4) Network rules: INTERNET only for `api.anthropic.com`. Enforced by Android's network security config: no plain HTTP anywhere, and no trusted certificates for any host except exactly `api.anthropic.com`, so HTTPS to any other host fails. CI's network check fails the build if the config allows more, and proves itself on a config that trusts every host.
 
 ## 12 Data
 

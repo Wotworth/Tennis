@@ -76,7 +76,7 @@ fun RacquetEditScreen(id: Long?) {
         TextBox("name", name, { name = it }, suggestions = emptyList())
         TextBox("model", model, { model = it }, suggestions = d.racquets.map { it.model })
         TextBox("colour", colour, { colour = it }, suggestions = d.racquets.map { it.colour })
-        TennisText("For example: Black Blade #1, Wilson Blade 98 v9, black.", TennisTokens.Type.listSecondary)
+        TennisText("For example: Black Blade #3, Wilson Blade 98 v9, black.", TennisTokens.Type.listSecondary)
     }
 }
 
@@ -117,7 +117,8 @@ fun RestringEditScreen(racquetId: Long, jobId: Long?, camera: Boolean = false) {
             add(BarButton(R.drawable.fluent_delete, "delete") { o.confirm("delete restring?", Strings.setupText(editing), "delete") { scope.launch { app.repo.deleteJob(editing); nav.back() } } })
         }
     }) {
-        if (d.racquets.size > 1) ChoiceRow("racquet", d.racquets.map { it.id to it.name }, setOf(j.racquetId), { j = j.copy(racquetId = it) })
+        val racquetChoices = (d.active + listOfNotNull(d.racquet(j.racquetId))).distinctBy { it.id }
+        if (racquetChoices.size > 1) ChoiceRow("racquet", racquetChoices.map { it.id to it.name }, setOf(j.racquetId), { j = j.copy(racquetId = it) })
         DateField("date strung", j.date, { j = j.copy(date = it) })
         RestringPhotos(j, camera) { j = it }
         SectionHeader(if (j.hybrid) "mains" else "strings")
@@ -157,7 +158,7 @@ private fun SpecFields(s: StringSpec, was: StringSpec, isNew: Boolean, sugg: ((S
 // ---- sessions (SES-01, SES-02, SES-05, RAC-05) ----------------------------------------------
 
 @Composable
-fun SessionEditScreen(id: Long?, proposalId: Long?) {
+fun SessionEditScreen(id: Long?, proposalId: Long?, racquetId: Long? = null) {
     val d = appData()
     if (!d.loaded) return
     val app = LocalApp.current
@@ -167,20 +168,23 @@ fun SessionEditScreen(id: Long?, proposalId: Long?) {
     val zpx = LocalZpx.current
     val editing = id?.let { sid -> d.sessions.firstOrNull { it.session.id == sid } }
     val proposal = proposalId?.let { pid -> d.proposals.firstOrNull { it.id == pid } }
-    val defaultRacquets = app.prefs.lastRacquets.filter { d.racquet(it) != null }.ifEmpty { listOfNotNull((d.racquet(app.prefs.selectedRacquet) ?: d.racquets.firstOrNull())?.id) }
+    // SES-05 (v0.4): one racquet; the one whose page this was opened from, else the last used, else the first.
+    val defaultRacquet = racquetId ?: app.prefs.lastRacquets.firstOrNull { r -> d.active.any { it.id == r } } ?: d.active.firstOrNull()?.id
     val base = editing?.session ?: proposal?.let { p ->
         val zone = java.time.ZoneId.systemDefault()
         Session(date = java.time.Instant.ofEpochMilli(p.startMillis).atZone(zone).toLocalDate().toEpochDay(), minutes = ((p.endMillis - p.startMillis) / 60000).toInt(),
             source = p.source, startMillis = p.startMillis, endMillis = p.endMillis, avgHr = p.avgHr, maxHr = p.maxHr, steps = p.steps)
     } ?: Session(date = Now.day(), minutes = TennisTokens.Sessions.defaultMinutes)
     var s by remember(base) { mutableStateOf(base) }
-    var racquets by remember(base) { mutableStateOf(editing?.racquetIds ?: defaultRacquets) }
-    val ok = s.minutes > 0 && (racquets.isNotEmpty() || d.racquets.isEmpty())
+    var racquet by remember(base) { mutableStateOf(editing?.racquetIds?.firstOrNull() ?: defaultRacquet) }
+    val ok = s.minutes > 0 && (racquet != null || d.active.isEmpty())
     Page(if (proposal != null) "you played" else if (editing == null) "new session" else "session", bar = buildList {
         add(BarButton(R.drawable.fluent_checkmark, "save", ok) {
             scope.launch {
-                app.repo.saveSession(s, racquets)
-                app.prefs.rememberLastRacquets(racquets)
+                val sid = app.repo.saveSession(s, racquet)
+                racquet?.let { app.prefs.rememberLastRacquets(listOf(it)) }
+                // DET-14: give a hand-logged session its heart rate, for the learned threshold.
+                if (s.source == "manual" && s.startMillis == null) app.scope.launch { runCatching { io.github.wotworth.tennis.health.DetectionRunner.attachHeartRate(app, sid) } }
                 proposal?.let { app.repo.setProposalState(it.id, "accepted") }
                 nav.back()
             }
@@ -196,13 +200,12 @@ fun SessionEditScreen(id: Long?, proposalId: Long?) {
             TennisText(listOfNotNull(proposal.avgHr?.let { "$it avg bpm" }, proposal.maxHr?.let { "$it max" }, proposal.steps?.let { "$it steps" }).joinToString(" · "), TennisTokens.Type.listSecondary)
             Spacer(Modifier.height(zpx(14f)))
         } else DateField("date", s.date, { s = s.copy(date = it) })
-        // RAC-05: which racquets, more than one allowed.
-        if (d.racquets.isEmpty()) {
-            TennisText("Add a racquet on the strings page to count hours on its strings.", TennisTokens.Type.listSecondary)
+        // SES-05 (v0.4): one racquet; tap another name to switch.
+        val choices = (d.active + listOfNotNull(racquet?.let { d.racquet(it) }?.takeIf { it.retired })).distinctBy { it.id }
+        if (choices.isEmpty()) {
+            TennisText("Add a racquet on the racquets page to count hours on its strings.", TennisTokens.Type.listSecondary)
             Spacer(Modifier.height(zpx(12f)))
-        } else ChoiceRow("racquet (tap all you used)", d.racquets.map { it.id to it.name }, racquets.toSet(), { r ->
-            racquets = if (r in racquets) racquets - r else racquets + r
-        })
+        } else ChoiceRow("racquet", choices.map { it.id to it.name }, setOfNotNull(racquet), { racquet = it })
         FieldLabel("how long")
         TennisText(Strings.minutesText(s.minutes), TennisTokens.Type.listPrimary)
         Spacer(Modifier.height(zpx(4f)))

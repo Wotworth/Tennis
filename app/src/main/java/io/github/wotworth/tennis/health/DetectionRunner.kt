@@ -33,6 +33,9 @@ object DetectionPrefs {
             checkEveryMinutes = p.getInt("det.checkEvery", d.checkEveryMinutes),
             expiryDays = p.getInt("det.expiryDays", d.expiryDays),
             enabled = p.getInt("det.enabled", 1) == 1,
+            learn = p.getInt("det.learn", 1) == 1,
+            learnShare = p.getFloat("det.learnShare", d.learnShare.toFloat()).toDouble(),
+            learnMinSessions = p.getInt("det.learnMin", d.learnMinSessions),
         )
     }
 
@@ -41,6 +44,7 @@ object DetectionPrefs {
         p.putFloat("det.reserveShare", s.reserveShare.toFloat()); p.putInt("det.birthYear", s.birthYear); p.putInt("det.restingFallback", s.restingFallback)
         p.putInt("det.otherRacquet", if (s.otherRacquetSports) 1 else 0); p.putInt("det.lookbackHours", s.lookbackHours)
         p.putInt("det.checkEvery", s.checkEveryMinutes); p.putInt("det.expiryDays", s.expiryDays); p.putInt("det.enabled", if (s.enabled) 1 else 0)
+        p.putInt("det.learn", if (s.learn) 1 else 0); p.putFloat("det.learnShare", s.learnShare.toFloat()); p.putInt("det.learnMin", s.learnMinSessions)
     }
 }
 
@@ -66,10 +70,37 @@ object DetectionRunner {
             io.github.wotworth.tennis.data.AppData(sessions = dao.sessionsNow().map { io.github.wotworth.tennis.data.SessionWithRacquets(it, emptyList()) }, proposals = dao.proposalsNow(), loaded = true)
         }
         val busy = d.sessions.map { Busy(it.session.date, it.session.startMillis, it.session.endMillis) }
-        val cands = Detection.filter(Detection.detect(data, s, year), busy) { Instant.ofEpochMilli(it).atZone(zone).toLocalDate().toEpochDay() }
+        val th = Detection.thresholdFor(s, Detection.resting(data, s), year, sessionAverages(app))
+        app.prefs.putInt("det.lastThreshold", th)
+        val cands = Detection.filter(Detection.detect(data, s, year, th), busy) { Instant.ofEpochMilli(it).atZone(zone).toLocalDate().toEpochDay() }
         val n = app.repo.applyMerge(Detection.merge(cands, app.repo.dao.proposalsNow(), s, now))
         app.prefs.putLong("det.lastRun", now)
         return Result(true, "checked", n)
+    }
+
+    /** DET-14: the average heart rates of logged sessions, newest first. */
+    suspend fun sessionAverages(app: TennisApp): List<Int> =
+        app.repo.dao.sessionsNow().sortedWith(compareByDescending<io.github.wotworth.tennis.data.Session> { it.date }.thenByDescending { it.startMillis ?: 0 }).mapNotNull { it.avgHr }
+
+    /**
+     * DET-14 (v0.4): a session logged by hand gets its times and heart rate from the hardest
+     * stretch of its length that day, if there is one clearly above resting (resting + 20).
+     * Runs after saving; does nothing without Health Connect access.
+     */
+    suspend fun attachHeartRate(app: TennisApp, sessionId: Long) {
+        val dao = app.repo.dao
+        val sess = dao.sessionsNow().firstOrNull { it.id == sessionId } ?: return
+        if (sess.startMillis != null || sess.source != "manual") return
+        if (app.health.availability() != HealthSource.Availability.Available) return
+        if (!app.health.granted().containsAll(HealthSource.detectionNeeds)) return
+        val s = DetectionPrefs.load(app.prefs)
+        val data = app.health.read(java.time.LocalDate.ofEpochDay(sess.date))
+        val (startMin, avg) = Detection.bestWindow(Detection.perMinute(data), sess.minutes) ?: return
+        if (avg < Detection.resting(data, s) + 20) return
+        val a = startMin * Detection.MINUTE; val b = a + sess.minutes * Detection.MINUTE
+        val (avgHr, maxHr) = Detection.heartStats(data, a, b)
+        val links = dao.sessionRacquetsNow().filter { it.sessionId == sessionId }.map { it.racquetId }
+        app.repo.saveSession(sess.copy(startMillis = a, endMillis = b, avgHr = avgHr, maxHr = maxHr, steps = Detection.steps(data, a, b)), links)
     }
 
     const val WORK = "detect-sessions"

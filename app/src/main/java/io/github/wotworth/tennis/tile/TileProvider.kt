@@ -19,6 +19,8 @@ data class TileRow(val state: String, val big: String, val small: String?, val p
 object TileRows {
     const val AUTHORITY = "io.github.wotworth.tennis.tile"
     val URI: Uri by lazy { Uri.parse("content://$AUTHORITY/tile") }
+    /** TIL-03 (v0.4): every face the tile shows, in order; the launcher flips through them. */
+    val FACES: Uri by lazy { Uri.parse("content://$AUTHORITY/faces") }
     const val ACTION_OPEN = "io.github.wotworth.tennis.action.OPEN_FROM_TILE"
     val COLUMNS = arrayOf("state", "big", "small", "proposal_id", "updated")
 
@@ -32,14 +34,38 @@ object TileRows {
      */
     fun of(d: AppData, lastRacquets: List<Long>, selected: Long, now: Long, window: (Proposal) -> String = { windowText(it) }): TileRow {
         d.waiting.minByOrNull { it.startMillis }?.let { return TileRow("proposal", "Tennis?", window(it), it.id.toString(), now) }
-        val withJobs = d.racquets.filter { r -> d.jobs.any { it.racquetId == r.id } }
-        if (withJobs.isEmpty()) return TileRow("empty", "", null, null, now)
+        val withJobs = strung(d)
+        val r = lastUsed(d, lastRacquets, selected) ?: return TileRow("empty", "", null, null, now)
+        return hoursRow(r, d, withJobs.size > 1, now)
+    }
+
+    /** Active racquets with strings logged. */
+    private fun strung(d: AppData) = d.active.filter { r -> d.jobs.any { it.racquetId == r.id } }
+
+    /** The racquet in the latest session, else the last chosen, else the one opened last, else the first. */
+    fun lastUsed(d: AppData, lastRacquets: List<Long>, selected: Long): io.github.wotworth.tennis.data.Racquet? {
+        val withJobs = strung(d)
         val lastPlayed = d.sessions.maxWithOrNull(compareBy<SessionWithRacquets>({ it.session.date }, { it.session.startMillis ?: 0 }, { it.session.id }))?.racquetIds.orEmpty()
-        val r = (lastPlayed + lastRacquets + selected).firstNotNullOfOrNull { id -> withJobs.firstOrNull { it.id == id } } ?: withJobs.first()
+        return (lastPlayed + lastRacquets + selected).firstNotNullOfOrNull { id -> withJobs.firstOrNull { it.id == id } } ?: withJobs.firstOrNull()
+    }
+
+    private fun hoursRow(r: io.github.wotworth.tennis.data.Racquet, d: AppData, named: Boolean, now: Long): TileRow {
         val job = Strings.currentJob(r.id, d.jobs)!!
         val hours = Strings.hoursText(Strings.hours(job, d.jobs, d.sessions))
-        val small = if (withJobs.size > 1) "hours · ${r.name}" else "hours on these strings"
-        return TileRow("hours", hours, small, null, now)
+        return TileRow("hours", hours, if (named) "hours · ${r.name}" else "hours on these strings", null, now)
+    }
+
+    /**
+     * TIL-03 (v0.4): the tile's faces. A waiting proposal is the only face. Otherwise, with
+     * [flip] off, the one row of [of]; with it on, one face per active racquet with strings,
+     * the last used first, then in the racquets page's order.
+     */
+    fun faces(d: AppData, lastRacquets: List<Long>, selected: Long, now: Long, flip: Boolean, window: (Proposal) -> String = { windowText(it) }): List<TileRow> {
+        val first = of(d, lastRacquets, selected, now, window)
+        if (!flip || first.state != "hours") return listOf(first)
+        val firstId = lastUsed(d, lastRacquets, selected)?.id
+        val ordered = strung(d).sortedBy { if (it.id == firstId) -1 else it.position }
+        return ordered.map { hoursRow(it, d, true, now) }
     }
 }
 
@@ -48,12 +74,13 @@ class TileProvider : ContentProvider() {
     override fun onCreate() = true
 
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? {
-        if (uri.pathSegments != listOf("tile")) return null
+        val path = uri.pathSegments
+        if (path != listOf("tile") && path != listOf("faces")) return null
         val caller = callingPackage
         if (caller != null && caller !in TileRows.READERS) throw SecurityException("The tennis tile is for the WP launcher only")
         val app = context?.applicationContext as? TennisApp ?: return null
-        val row = runBlocking { app.tileRow() }
-        return MatrixCursor(TileRows.COLUMNS, 1).apply { addRow(arrayOf<Any?>(row.state, row.big, row.small, row.proposalId, row.updated)) }
+        val rows = runBlocking { if (path == listOf("faces")) app.tileFaces() else listOf(app.tileRow()) }
+        return MatrixCursor(TileRows.COLUMNS, rows.size).apply { rows.forEach { row -> addRow(arrayOf<Any?>(row.state, row.big, row.small, row.proposalId, row.updated)) } }
     }
 
     override fun getType(uri: Uri) = "vnd.android.cursor.item/vnd.io.github.wotworth.tennis.tile"

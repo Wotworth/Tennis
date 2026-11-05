@@ -115,6 +115,16 @@ jobs:
           echo "Proof: the check rejects ci/test-manifest-disallowed.xml (expected failure)." >> manifest-check.txt
           cat manifest-check.txt
 
+      # PHO-23: only api.anthropic.com can be reached.
+      - name: Network check
+        run: |
+          merged=$(find app/build/intermediates -path '*merged_manifests/release*' -name AndroidManifest.xml | head -1)
+          .github/scripts/check-network.sh "$merged" app/src/main/res/xml/network_security_config.xml | tee network-check.txt
+          if .github/scripts/check-network.sh "$merged" ci/test-nsc-open.xml >> network-check.txt; then
+            echo "::error::The network check did not catch a config that trusts every host"; exit 1
+          fi
+          echo "Proof: the check rejects ci/test-nsc-open.xml (expected failure)." >> network-check.txt
+
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -152,6 +162,10 @@ jobs:
             echo "### Permission check (NFR-05)"
             echo '```'
             cat manifest-check.txt 2>/dev/null || echo "did not run"
+            echo '```'
+            echo "### Network check (PHO-23)"
+            echo '```'
+            cat network-check.txt 2>/dev/null || echo "did not run"
             echo '```'
             echo "### Screenshots"
             ls app/build/outputs/roborazzi 2>/dev/null | sed 's/^/- /' || echo "none"

@@ -13,7 +13,7 @@ object Stats {
         return Strings.sessionsFor(job, d.jobs, d.sessions)
             .sortedWith(compareBy({ it.session.date }, { it.session.startMillis ?: 0 }, { it.session.id }))
             .mapNotNull { s ->
-                hours += s.session.minutes / 60.0 / s.racquetIds.size.coerceAtLeast(1)
+                hours += s.session.minutes / 60.0
                 s.session.feel?.let { hours to it }
             }
     }
@@ -36,7 +36,7 @@ object Stats {
     /** STA-01 per racquet: hours on the current strings, sessions on them, days since the restring. */
     data class Current(val racquetId: Long, val name: String, val hours: Double, val sessions: Int, val days: Long)
 
-    fun current(d: AppData, today: Long): List<Current> = d.racquets.mapNotNull { r ->
+    fun current(d: AppData, today: Long): List<Current> = d.active.mapNotNull { r ->
         val j = Strings.currentJob(r.id, d.jobs) ?: return@mapNotNull null
         Current(r.id, r.name, Strings.hours(j, d.jobs, d.sessions), Strings.sessionsFor(j, d.jobs, d.sessions).size, today - j.date)
     }

@@ -56,8 +56,8 @@ fun SessionsPage() {
 
 fun sessionTitle(s: SessionWithRacquets) = "${Strings.shortDayText(s.session.date, Now.day())} · ${Strings.minutesText(s.session.minutes)}"
 
-fun sessionDetail(s: SessionWithRacquets, d: AppData): String = buildList {
-    add(s.racquetIds.mapNotNull { d.racquet(it)?.name }.joinToString(" + ").ifBlank { "no racquet" })
+fun sessionDetail(s: SessionWithRacquets, d: AppData, withRacquet: Boolean = true): String = buildList {
+    if (withRacquet) add(s.racquetIds.mapNotNull { d.racquet(it)?.name }.firstOrNull() ?: "no racquet")
     s.session.feel?.let { add("feel $it") }
     s.session.avgHr?.let { add("$it avg bpm") }
     s.session.steps?.let { add("$it steps") }

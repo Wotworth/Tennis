@@ -123,4 +123,34 @@ class DetectionTest {
         assertTrue(lines[0], lines[0].endsWith("resting 68 bpm; max 174; threshold 121 bpm"))
         assertTrue(lines.any { it.startsWith("found: 5:10 PM to 6:35 PM (1 h 25 min), heart rate") })
     }
+
+    @Test fun learnedThresholdNeedsThreeSessions() {
+        assertEquals(null, Detection.learnedThreshold(listOf(140, 138), s, 68))
+        // Median 138 × 0.88 = 121.4 → 121.
+        assertEquals(121, Detection.learnedThreshold(listOf(140, 138, 131), s, 68))
+        // Never under resting + 15.
+        assertEquals(98, Detection.learnedThreshold(listOf(90, 92, 95), s, 83))
+        assertEquals(null, Detection.learnedThreshold(listOf(140, 138, 131), s.copy(learn = false), 68))
+    }
+
+    @Test fun learnedThresholdReplacesTheAgeEstimate() {
+        // Someone whose real maximum is lower than 220 − age: sessions average ~125, so the age
+        // threshold (121) is barely under play, and the learned one (110) sits clearly below it.
+        // Median 124.5 × 0.88 = 109.6 → 110.
+        val th = Detection.thresholdFor(s, 68, 2026, listOf(125, 124, 126, 123))
+        assertEquals(110, th)
+        val tennis = hr(at(17, 10), 85) { m -> if (m % 10 < 3) 112 else 128 }
+        assertTrue(Detection.detect(base(tennis), s, 2026).isEmpty() || Detection.detect(base(tennis), s, 2026).single().minutes < 85)
+        assertEquals(85, Detection.detect(base(tennis), s, 2026, th).single().minutes)
+    }
+
+    @Test fun bestWindowForAHandLoggedSession() {
+        val tennis = hr(at(17, 10), 85) { 140 }
+        val mins = Detection.perMinute(base(tennis))
+        val (start, avg) = Detection.bestWindow(mins, 85)!!
+        assertEquals(at(17, 10).toEpochMilli() / Detection.MINUTE, start)
+        assertEquals(140.0, avg, 0.01)
+        // Not enough readings for a window that long: none.
+        assertEquals(null, Detection.bestWindow(Detection.perMinute(base(hr(at(17, 10), 20) { 140 }).copy(heartRate = hr(at(17, 10), 20) { 140 })), 85))
+    }
 }
