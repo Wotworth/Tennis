@@ -13,12 +13,14 @@
 
 ## Next
 
-- Chris installs PH-0, runs the Health Connect report on a day he played, and attaches the shared file. PH-2's detection is designed from it.
+- Chris shared the report for 4 Nov (no tennis: injured for the past 30 days). Findings in docs/health-connect-findings.md: Fitbit heart rate every 2–3 s; steps from both Fitbit and the phone (must not be added together); no workout records that day.
+- Waiting for Chris: accept PH-0, and choose whether to extend the report's range to find a pre-injury tennis day.
 - After Chris accepts PH-0: PH-1 (logging).
 
 ## Open questions
 
-- None.
+- Extend the Health Connect report beyond 30 days (to find a pre-injury tennis day), or calibrate detection later? Recommended: extend (small PH-0 update).
+- Does Fitbit write workouts to Health Connect? Needs a day with a Fitbit workout.
 
 ## Known issues
 
