@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** update 1 (spec v0.4, 6 Nov): racquets pivot, one racquet per session, learned threshold, network limited to Anthropic, tile flip. Tennis v0.6.9 and launcher v0.9.163 (from launcher main) released. Earlier: PH-1 v0.1.3, PH-2 v0.2.4, PH-3 v0.3.5, PH-4 v0.4.7, PH-5 v0.5.8, launcher v0.9.153.
+**Phase:** fix 1 (6 Nov): on-phone package reading fixed for release builds (docs/reports/FIX-1.md). Before that: update 1, tennis v0.6.9 and launcher v0.9.163 (from launcher main).
 
 ## Done
 
@@ -32,6 +32,8 @@
 - Does Fitbit write workouts to Health Connect? Needs a day with a Fitbit workout.
 
 ## Known issues
+
+- Text reading check (hand-started CI workflow) proves ML Kit works in the shrunk build; run it after any change to shrinking or ML Kit.
 
 - Launcher work is on wp-launcher **main** now (merged 6 Nov on top of v0.9.160). The launcher's other session still works on `ccr-fa86e307-85zu7m`; Chris will point it at main.
 

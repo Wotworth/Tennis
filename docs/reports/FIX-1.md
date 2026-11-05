@@ -15,7 +15,7 @@ The release build is shrunk (R8): unused code is removed and the rest renamed to
 - New hand-started CI check, **Text reading check**: builds the release exactly as shrunk but for the x86_64 emulator, starts an emulator, and has the app read a bundled sample package with ML Kit.
 - Before the fix it failed with Chris's exact message: `FAIL java.lang.NullPointerException: Attempt to read from field 'dt5 fs5.a' on a null object reference in method 'java.lang.Object r.t(java.lang.Object)'`.
 - Fix: ML Kit is kept out of shrinking (four keep rules; the APK grows about 0.6 MB).
-- After the fix: CHECK_RESULT
+- After the fix it passed: `OK brand=Solinco model=Hyper-G gauge=16L material=co-poly` (CI run 42123003386).
 - Every release build now also fails if shrinking renames any ML Kit class.
 
 The sample image and the self-test exist only in the check build, not in the release.
