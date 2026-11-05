@@ -17,6 +17,7 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         handle(intent)
+        selfTest(intent)
         setContent { AppRoot(application as TennisApp, nav) }
     }
 
@@ -26,6 +27,27 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handle(intent)
+    }
+
+    /**
+     * CI only (BuildConfig.SELFTEST, the emulatorCheck build): reads the bundled sample package
+     * with ML Kit exactly as a photo would be read, and logs the result for the workflow.
+     */
+    private fun selfTest(intent: android.content.Intent?) {
+        if (!BuildConfig.SELFTEST || intent?.action != "io.github.wotworth.tennis.SELFTEST") return
+        val app = application as TennisApp
+        app.scope.launch {
+            val line = try {
+                val f = java.io.File(cacheDir, "selftest-package.png")
+                assets.open("selftest-package.png").use { input -> f.outputStream().use { input.copyTo(it) } }
+                val text = io.github.wotworth.tennis.photos.Photos.readText(this@MainActivity, f)
+                val spec = io.github.wotworth.tennis.photos.PackageText.read(text)
+                "OK brand=${spec.brand} model=${spec.model} gauge=${spec.gauge} material=${spec.material} text=${text.replace('\n', '|')}"
+            } catch (e: Throwable) {
+                "FAIL ${e.javaClass.name}: ${e.message}"
+            }
+            android.util.Log.i("TennisSelfTest", line)
+        }
     }
 
     /** TIL-11: from the launcher's tile, open the waiting proposal's prompt; otherwise the app as usual. */

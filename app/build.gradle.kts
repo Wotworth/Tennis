@@ -29,8 +29,8 @@ android {
         versionCode = buildNumber
         versionName = "0.$phase.$buildNumber"
         buildConfigField("String", "BUILD_DATE", "\"$buildDate\"")
-        // The S25 is arm64. Leaves out ML Kit's copies for other processors (about 30 MB).
-        ndk { abiFilters += listOf("arm64-v8a") }
+        // Only the CI check build runs the hidden text-reading self-test.
+        buildConfigField("boolean", "SELFTEST", "false")
     }
 
     signingConfigs {
@@ -51,6 +51,17 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("upload")
+            // The S25 is arm64. Leaves out ML Kit's copies for other processors (about 30 MB).
+            ndk { abiFilters += listOf("arm64-v8a") }
+        }
+        // CI only (mlkit-check workflow): the release build exactly as shrunk, but for the
+        // x86_64 emulator, signed with the debug key, with the text-reading self-test.
+        create("emulatorCheck") {
+            initWith(getByName("release"))
+            ndk { abiFilters.clear(); abiFilters += listOf("x86_64") }
+            signingConfig = signingConfigs.getByName("debug")
+            buildConfigField("boolean", "SELFTEST", "true")
+            matchingFallbacks += listOf("release")
         }
     }
 
