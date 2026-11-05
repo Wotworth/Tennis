@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** fix 1 (6 Nov): on-phone package reading fixed for release builds (docs/reports/FIX-1.md). Before that: update 1, tennis v0.6.9 and launcher v0.9.163 (from launcher main).
+**Phase:** fix 1 (6 Nov): on-phone package reading fixed for release builds, v0.6.10 (docs/reports/FIX-1.md). Before that: update 1, tennis v0.6.9 and launcher v0.9.163 (from launcher main).
 
 ## Done
 

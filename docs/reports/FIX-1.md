@@ -1,6 +1,6 @@
 # Fix 1: reading a package photo on the phone
 
-Release: _added once CI publishes it_ (tag `fix-1`).
+Release: [v0.6.10](https://github.com/Wotworth/tennis/releases/tag/v0.6.10) (tag `fix-1`; CI passed, including the new ML Kit shrink check).
 
 ## The bug
 
