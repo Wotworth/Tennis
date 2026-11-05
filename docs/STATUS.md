@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** overnight run through PH-1 to PH-5 (Chris asleep, 5–6 Nov; he accepted PH-0). PH-1 (v0.1.3), PH-2 (v0.2.4), PH-3 (v0.3.5) released. PH-4 released as v0.4. PH-5 built and tested; releasing as v0.5. Overnight run complete after that.
+**Phase:** overnight run done (5–6 Nov). Released: PH-1 v0.1.3, PH-2 v0.2.4, PH-3 v0.3.5, PH-4 v0.4.7, PH-5 v0.5.8. Waiting for Chris to test on the phone (docs/MORNING.md). Launcher tennis-tile release: see Known issues.
 
 ## Done
 

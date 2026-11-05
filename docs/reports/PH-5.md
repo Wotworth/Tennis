@@ -1,6 +1,6 @@
 # PH-5 report: stats (and cues)
 
-Release: _added once CI publishes it_ (tag `ph-5`).
+Release: [v0.5.8](https://github.com/Wotworth/tennis/releases/tag/v0.5.8) (tag `ph-5`; CI passed).
 
 ## Done
 

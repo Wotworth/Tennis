@@ -1,6 +1,6 @@
 # PH-4 report: string package photos
 
-Release: _added once CI publishes it_ (tag `ph-4`). Choices in DECISIONS.md (PHO rows, 5 Nov).
+Release: [v0.4.7](https://github.com/Wotworth/tennis/releases/tag/v0.4.7) (tag `ph-4`; CI passed on the second build, after the permission check fix in DECISIONS.md). Choices in DECISIONS.md (PHO rows, 5 Nov).
 
 ## Done
 
