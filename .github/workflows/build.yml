@@ -115,6 +115,10 @@ jobs:
           echo "Proof: the check rejects ci/test-manifest-disallowed.xml (expected failure)." >> manifest-check.txt
           cat manifest-check.txt
 
+      # PHO-10: release shrinking must leave ML Kit's classes alone (the 6 Nov on-phone reading bug).
+      - name: ML Kit shrink check
+        run: .github/scripts/check-mlkit-kept.sh app/build/outputs/mapping/release/mapping.txt
+
       # PHO-23: only api.anthropic.com can be reached.
       - name: Network check
         run: |
