@@ -1,6 +1,6 @@
 # Cues: smaller, grouped and colour-coded by stroke
 
-Release: _added once CI publishes it_ (tag `cues-1`). Spec v0.5 (CUE-01, CUE-03, CUE-10, VIS-08).
+Release: [v0.6.11](https://github.com/Wotworth/tennis/releases/tag/v0.6.11) (tag `cues-1`; CI passed). Spec v0.5 (CUE-01, CUE-03, CUE-10, VIS-08).
 
 ## What changed
 

@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** cues update (spec v0.5, 6 Nov): smaller, grouped, colour-coded cues; gameplay (docs/reports/CUES-1.md). Before: fix 1 v0.6.10, update 1 v0.6.9, launcher v0.9.163.
+**Phase:** cues update (spec v0.5, 6 Nov): smaller, grouped, colour-coded cues; gameplay, v0.6.11 (docs/reports/CUES-1.md). Before: fix 1 v0.6.10, update 1 v0.6.9, launcher v0.9.163.
 
 ## Done
 
