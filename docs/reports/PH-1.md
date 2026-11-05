@@ -1,6 +1,6 @@
 # PH-1 report: logging, racquets, the pivot title
 
-Release: _added once CI publishes it_ (tag `ph-1`). Built overnight on 5–6 Nov without Chris's input; every choice is in DECISIONS.md.
+Release: [v0.1.3](https://github.com/Wotworth/tennis/releases/tag/v0.1.3) (tag `ph-1`; CI passed: build, 46 tests, permission check, signed). Built overnight on 5–6 Nov without Chris's input; every choice is in DECISIONS.md.
 
 ## Done
 

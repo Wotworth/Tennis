@@ -71,6 +71,7 @@ class ScreenshotTest {
     @Test fun racquetForm() = screen("racquet-new", Screen.RacquetEdit(), both = false)
     @Test fun cueForm() = screen("cue-new", Screen.CueEdit(), both = false)
     @Test fun settings() = screen("settings", Screen.Settings, both = false)
+    @Test fun debug() = screen("debug", Screen.Debug, both = false)
 
     private val tennisDay = HealthReportState(grantedCount = 5, day = FakeDays.day, data = FakeDays.playedTennis())
     @Test fun healthReport() = shoot("health-report", both = false) { TennisTheme { HealthReportContent(tennisDay, {}, {}, {}) } }

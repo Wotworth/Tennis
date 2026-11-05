@@ -5,6 +5,7 @@ android.permission.health.READ_STEPS
 android.permission.health.READ_EXERCISE
 android.permission.health.READ_RESTING_HEART_RATE
 android.permission.health.READ_HEALTH_DATA_HISTORY
+android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND
 # Added by AndroidX core for its own receivers; protects nothing outside the app.
 io.github.wotworth.tennis.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
 # WorkManager (DET-20's hourly check): keeps the CPU awake during a check, re-plans checks after a reboot,

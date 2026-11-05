@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import kotlinx.coroutines.launch
 import io.github.wotworth.tennis.ui.AppRoot
 
 class MainActivity : ComponentActivity() {
@@ -16,5 +17,12 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         setContent { AppRoot(application as TennisApp) }
+    }
+
+    /** DET-20: also check when the app comes to the front (Fitbit may have synced since). */
+    override fun onResume() {
+        super.onResume()
+        val app = application as TennisApp
+        app.scope.launch { runCatching { io.github.wotworth.tennis.health.DetectionRunner.run(app) } }
     }
 }

@@ -73,6 +73,18 @@ class Repository(private val db: TennisDatabase, scope: CoroutineScope, private 
     suspend fun addProposal(p: Proposal): Long = changed { dao.insertProposal(p) }
     suspend fun setProposalState(id: Long, state: String) = changed { dao.setProposalState(id, state) }
 
+    /** DET-20: apply a detection run. Returns how many proposals are new. */
+    suspend fun applyMerge(m: io.github.wotworth.tennis.domain.Detection.Merge): Int {
+        if (m.insert.isEmpty() && m.update.isEmpty() && m.expire.isEmpty()) return 0
+        return changed {
+            db.runInTransactionSuspend {
+                m.expire.forEach { dao.setProposalState(it, "expired") }
+                if (m.update.isNotEmpty()) dao.updateProposals(m.update)
+                m.insert.count { dao.insertProposal(it) > 0 }
+            }
+        }
+    }
+
     suspend fun saveCue(c: Cue): Long = changed {
         if (c.id == 0L) dao.insertCue(c.copy(position = (dao.cuesNow().maxOfOrNull { it.position } ?: -1) + 1))
         else { dao.updateCues(listOf(c)); c.id }

@@ -42,6 +42,7 @@ interface TennisDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun insertProposal(p: Proposal): Long
     @Query("UPDATE proposals SET state = :state WHERE id = :id") suspend fun setProposalState(id: Long, state: String)
+    @Update suspend fun updateProposals(p: List<Proposal>)
 
     @Insert suspend fun insertCue(c: Cue): Long
     @Update suspend fun updateCues(c: List<Cue>)

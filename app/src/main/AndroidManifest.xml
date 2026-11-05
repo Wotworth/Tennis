@@ -8,6 +8,7 @@
     <uses-permission android:name="android.permission.health.READ_EXERCISE" />
     <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
 
     <!-- NFR-05: WorkManager adds this for foreground work, which the app never does. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />

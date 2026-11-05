@@ -159,6 +159,6 @@ object TennisTokens {
 
     /** DET-01: how many days back the Health Connect report can go. */
     object Health {
-        var reportMaxDaysBack by mutableIntStateOf(30)
+        var reportMaxDaysBack by mutableIntStateOf(365)
     }
 }

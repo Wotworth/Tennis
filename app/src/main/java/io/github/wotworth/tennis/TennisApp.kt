@@ -44,6 +44,8 @@ class TennisApp : Application() {
         super.onCreate()
         crashLog = CrashLog(File(filesDir, "logs"))
         installCrashHandler()
+        // DET-20: the hourly check. (Robolectric tests have no WorkManager.)
+        runCatching { io.github.wotworth.tennis.health.DetectionRunner.schedule(this, io.github.wotworth.tennis.health.DetectionPrefs.load(prefs)) }
     }
 
     /** NFR-02: record every uncaught exception, then let Android handle it as usual. */

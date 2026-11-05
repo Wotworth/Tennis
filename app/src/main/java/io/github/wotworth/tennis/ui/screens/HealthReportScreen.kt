@@ -111,8 +111,10 @@ fun HealthReportContent(state: HealthReportState, onAllow: () -> Unit, onDay: (L
         // The day, with earlier and later.
         TennisText(HealthReport.dayTitle(state.day), t.listPrimary)
         Spacer(Modifier.height(zpx(6f)))
-        Row(horizontalArrangement = Arrangement.spacedBy(zpx(24f))) {
+        io.github.wotworth.tennis.ui.components.FlowRowSimple(gap = zpx(18f)) {
             val earliest = LocalDate.now().minusDays(TennisTokens.Health.reportMaxDaysBack.toLong())
+            DayAction("month earlier", state.day.minusDays(30) >= earliest) { onDay(state.day.minusDays(30)) }
+            DayAction("week earlier", state.day.minusDays(7) >= earliest) { onDay(state.day.minusDays(7)) }
             DayAction("earlier day", state.day > earliest) { onDay(state.day.minusDays(1)) }
             DayAction("later day", state.day < LocalDate.now()) { onDay(state.day.plusDays(1)) }
         }

@@ -31,10 +31,17 @@ class HealthSource(private val context: Context) {
 
     suspend fun granted(): Set<String> = client.permissionController.getGrantedPermissions()
 
-    suspend fun read(day: LocalDate, zone: ZoneId = ZoneId.systemDefault()): DayData {
-        val range = TimeRangeFilter.between(day.atStartOfDay(zone).toInstant(), day.plusDays(1).atStartOfDay(zone).toInstant())
+    suspend fun read(day: LocalDate, zone: ZoneId = ZoneId.systemDefault()): DayData =
+        read(day.atStartOfDay(zone).toInstant(), day.plusDays(1).atStartOfDay(zone).toInstant(), zone)
+
+    /** DET-20: any span (the detection's look-back). Resting heart rate is read from a week back. */
+    suspend fun read(from: java.time.Instant, to: java.time.Instant, zone: ZoneId = ZoneId.systemDefault()): DayData {
+        val day = from.atZone(zone).toLocalDate()
+        val range = TimeRangeFilter.between(from, to)
+        val restingRange = TimeRangeFilter.between(from.minus(java.time.Duration.ofDays(7)), to)
         val granted = granted()
-        suspend fun <T : Record> all(type: KClass<T>): List<T> {
+        suspend fun <T : Record> all(type: KClass<T>, span: TimeRangeFilter? = null): List<T> {
+            val range = span ?: range
             if (HealthPermission.getReadPermission(type) !in granted) return emptyList()
             val out = ArrayList<T>()
             var token: String? = null
@@ -55,7 +62,7 @@ class HealthSource(private val context: Context) {
             exercise = all(ExerciseSessionRecord::class).map {
                 ExerciseRecord(it.startTime, it.endTime, it.exerciseType, ExerciseTypes.name(it.exerciseType), it.title, origin(it.metadata))
             },
-            restingHeartRate = all(RestingHeartRateRecord::class).map { RestingRecord(it.time, it.beatsPerMinute, origin(it.metadata)) },
+            restingHeartRate = all(RestingHeartRateRecord::class, restingRange).map { RestingRecord(it.time, it.beatsPerMinute, origin(it.metadata)) },
         )
     }
 
@@ -87,6 +94,14 @@ class HealthSource(private val context: Context) {
             HealthPermission.getReadPermission(ExerciseSessionRecord::class),
             HealthPermission.getReadPermission(RestingHeartRateRecord::class),
             HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY,
+            // DET-20: the hourly check runs in the background.
+            HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND,
+        )
+        /** What detection needs; history is only for the report. */
+        val detectionNeeds: Set<String> = setOf(
+            HealthPermission.getReadPermission(HcHeartRate::class),
+            HealthPermission.getReadPermission(HcSteps::class),
+            HealthPermission.getReadPermission(ExerciseSessionRecord::class),
         )
     }
 }
