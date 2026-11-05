@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** overnight run through PH-1 to PH-5 (Chris asleep, 5–6 Nov; he accepted PH-0). PH-1 released (v0.1.3). PH-2 built and tested; releasing as v0.2.
+**Phase:** overnight run through PH-1 to PH-5 (Chris asleep, 5–6 Nov; he accepted PH-0). PH-1 released (v0.1.3), PH-2 released (v0.2.4). PH-3 built and tested; releasing as v0.3.
 
 ## Done
 
@@ -18,7 +18,8 @@
 - Chris shared the report for 4 Nov (no tennis: injured for the past 30 days). Findings in docs/health-connect-findings.md: Fitbit heart rate every 2–3 s; steps from both Fitbit and the phone (must not be added together); no workout records that day.
 - PH-0 accepted by Chris (5 Nov).
 - PH-1 (v0.3 spec: racquets, pivot title, cues first, three strings layouts): v0.1.3, docs/reports/PH-1.md.
-- PH-2 (detection, debug screen, report back a year): docs/reports/PH-2.md.
+- PH-2 (detection, debug screen, report back a year): v0.2.4, docs/reports/PH-2.md.
+- PH-3 (live tile): tennis provider here; launcher side on Wotworth/wp-launcher branch `ccr-eb362149-pgs534`. docs/reports/PH-3.md.
 - After Chris accepts PH-0: PH-1 (logging).
 
 ## Open questions
@@ -27,6 +28,8 @@
 - Does Fitbit write workouts to Health Connect? Needs a day with a Fitbit workout.
 
 ## Known issues
+
+- The launcher's own session must merge wp-launcher branch `ccr-eb362149-pgs534` (tennis tile) before its next release.
 
 - Nothing has run on the phone yet.
 - Wrapped secondary text lines sit close together (the Zune type roles trim line height); revisit in PH-1 if it reads badly on the phone.

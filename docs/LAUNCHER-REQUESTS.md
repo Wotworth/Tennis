@@ -1,6 +1,8 @@
 # Launcher requests: live tile for the tennis app
 
-For the wp-launcher's Claude Code session. Chris passes this file on as is. Written 4 November 2026 against wp-launcher v0.9.150 (fix-7). Nothing here exists in the launcher yet.
+For the wp-launcher's Claude Code session. Written 4 November 2026 against wp-launcher v0.9.150 (fix-7).
+
+**Status (5–6 Nov): built.** The tennis app's session implemented all of this in Wotworth/wp-launcher on branch `ccr-eb362149-pgs534` (one commit, `9c08e8e`, on top of `ccr-fa86e307-85zu7m` at `e3b6d8e`), with unit tests (`TennisTileTest`) and a CHANGELOG entry, and released it with checkpoint `tennis-tile`. **For the launcher's next session:** fast-forward or merge `ccr-eb362149-pgs534` into your branch before your next release, or the tile goes away again.
 
 ## What Chris wants
 

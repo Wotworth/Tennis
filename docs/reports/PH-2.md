@@ -1,6 +1,6 @@
 # PH-2 report: sessions found from your Fitbit
 
-Release: _added once CI publishes it_ (tag `ph-2`). Built overnight; choices in DECISIONS.md (DET rows, 5 Nov).
+Release: [v0.2.4](https://github.com/Wotworth/tennis/releases/tag/v0.2.4) (tag `ph-2`; CI passed). Built overnight; choices in DECISIONS.md (DET rows, 5 Nov).
 
 ## How it works
 

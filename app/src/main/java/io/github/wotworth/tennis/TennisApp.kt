@@ -28,9 +28,19 @@ class TennisApp : Application() {
     /** PHO-02: package photos, by file name. */
     val photosDir: File get() = File(filesDir, "photos").apply { mkdirs() }
 
-    /** Called after every change to the data. PH-3 tells the launcher tile from here (TIL-02). */
+    /** Called after every change to the data; tells the launcher's tile (TIL-02). */
     fun onDataChanged() {
+        runCatching { contentResolver.notifyChange(io.github.wotworth.tennis.tile.TileRows.URI, null) }
         dataListeners.forEach { runCatching { it() } }
+    }
+
+    /** TIL-01: the tile row, read straight from the database (the provider may start the process). */
+    suspend fun tileRow(): io.github.wotworth.tennis.tile.TileRow {
+        val dao = repo.dao
+        val links = dao.sessionRacquetsNow().groupBy({ it.sessionId }, { it.racquetId })
+        val d = io.github.wotworth.tennis.data.AppData(dao.racquetsNow(), dao.jobsNow(), dao.sessionsNow().map { io.github.wotworth.tennis.data.SessionWithRacquets(it, links[it.id].orEmpty()) },
+            dao.proposalsNow(), loaded = true)
+        return io.github.wotworth.tennis.tile.TileRows.of(d, prefs.lastRacquets, prefs.selectedRacquet, io.github.wotworth.tennis.domain.Now.millis())
     }
     val dataListeners = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
 
