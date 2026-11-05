@@ -1,6 +1,6 @@
 # PH-0 report: foundation and Health Connect report
 
-Release: _added once CI publishes it_ · Key SHA-256 `C9:8E:F4:98:A8:39:C9:7F:94:5A:E3:84:6F:A4:A2:9B:29:F0:8A:D8:52:0C:DD:7F:7C:2C:5F:8B:29:D6:4B:4C`
+Release: [v0.0.2](https://github.com/Wotworth/tennis/releases/tag/v0.0.2) (CI run 2 passed: build, 24 unit and screenshot tests, permission check, APK signed with the release key) · Key SHA-256 `C9:8E:F4:98:A8:39:C9:7F:94:5A:E3:84:6F:A4:A2:9B:29:F0:8A:D8:52:0C:DD:7F:7C:2C:5F:8B:29:D6:4B:4C`
 
 ## Done
 
