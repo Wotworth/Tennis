@@ -48,7 +48,7 @@ import kotlinx.coroutines.launch
 /** STR-02: materials offered as you type. */
 val MATERIALS = listOf("polyester", "co-poly", "multifilament", "synthetic gut", "natural gut", "Kevlar/aramid", "hybrid-other")
 /** CUE-01: headings offered as you type. */
-val HEADINGS = listOf("forehand", "backhand", "serve", "volley", "return", "footwork", "mental")
+val HEADINGS = listOf("forehand", "backhand", "serve", "return", "volley", "footwork", "gameplay", "mental")
 
 // ---- racquets (RAC-01) ----------------------------------------------------------------------
 
@@ -236,7 +236,7 @@ fun ProposalScreen(id: Long) {
             TennisText("Already answered.", TennisTokens.Type.listPrimary)
             return@Page
         }
-        TennisText("Did you play tennis?", TennisTokens.Type.warmupCue)
+        TennisText("Did you play tennis?", TennisTokens.Type.promptTitle)
         Spacer(Modifier.height(zpx(10f)))
         TennisText(windowText(p), TennisTokens.Type.listPrimary)
         Spacer(Modifier.height(zpx(4f)))
@@ -306,7 +306,7 @@ fun CueEditScreen(id: Long?) {
         add(BarButton(R.drawable.fluent_dismiss, "cancel") { nav.back() })
         if (old != null) add(BarButton(R.drawable.fluent_delete, "delete") { o.confirm("delete cue?", old.text, "delete") { scope.launch { app.repo.deleteCue(old); nav.back() } } })
     }) {
-        TextBox("stroke", heading, { heading = it }, suggestions = (HEADINGS + d.cues.map { it.heading }).distinct(), maxSuggestions = 7)
+        TextBox("stroke", heading, { heading = it }, suggestions = (HEADINGS + d.cues.map { it.heading }).distinct(), maxSuggestions = 8)
         TextBox("cue", text, { text = it }, singleLine = false)
         ToggleSwitch("pin to warmup", pinned) { pinned = it }
     }

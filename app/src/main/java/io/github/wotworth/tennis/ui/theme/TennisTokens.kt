@@ -35,6 +35,24 @@ object TennisTokens {
         var panel by mutableStateOf(Color(0xFF1F1F1F))
         /** NAV-08: the application bar (Windows Phone dark theme). */
         var appBar by mutableStateOf(Color(0xFF1F1F1F))
+        /**
+         * CUE-03 (v0.5, Chris 6 Nov): one colour per stroke on the cues page, from the Windows
+         * Phone accent colours, lightened where needed to read on black (unit test: 4.5:1).
+         */
+        val strokes: Map<String, Color> = mapOf(
+            "forehand" to Color(0xFF1BA1E2),   // cyan
+            "backhand" to Color(0xFFFA6800),   // orange
+            "serve" to Color(0xFFF472D0),      // pink
+            "return" to Color(0xFF00ABA9),     // teal
+            "volley" to Color(0xFFF0A30A),     // amber
+            "footwork" to Color(0xFFB18CFF),   // violet, lightened
+            "gameplay" to Color(0xFFA4C400),   // lime
+            "mental" to Color(0xFFA0A9B8),     // steel, lightened
+        )
+        /** Strokes Chris types himself. */
+        var strokeOther by mutableStateOf(Color(0xFFC8C8C8))
+        fun stroke(heading: String): Color = strokes[heading.trim().lowercase()] ?: strokeOther
+
         /** NAV-07: the Windows Phone dark-theme text box, unfocused. */
         var textBox by mutableStateOf(Color(0xFFBFBFBF))
     }
@@ -88,7 +106,13 @@ object TennisTokens {
         val tileTextLarge = Role(20f, Weight.Semilight, 0f, Case.AsTagged, Tone.Primary)
         val tileLabelSmall = Role(9f, Weight.Regular, 0f, Case.Lowercase, Tone.Primary)
         /** CUE-10: a pinned cue on the warmup view, and its heading. */
-        val warmupCue = Role(26f, Weight.Light, 0f, Case.AsTagged, Tone.Primary)
+        val warmupCue = Role(18f, Weight.Semilight, 0f, Case.AsTagged, Tone.Primary)
+        /** CUE-03: a stroke's name over its cues, in the stroke's colour. */
+        val cueHeading = Role(14f, Weight.Semibold, 0.02f, Case.Lowercase, Tone.Primary)
+        /** Cues that aren't pinned, a step smaller. */
+        val cueOther = Role(15f, Weight.Regular, 0f, Case.AsTagged, Tone.Secondary)
+        /** DET-30: the prompt's question. */
+        val promptTitle = Role(26f, Weight.Light, 0f, Case.AsTagged, Tone.Primary)
         /** The shop order card (STR-20): the values, and the labels over them. */
         /** RAC-04: racquet names in the switcher. */
         val racquetName = Role(22f, Weight.Semilight, 0f, Case.AsTagged, Tone.Primary)
@@ -161,6 +185,14 @@ object TennisTokens {
     object Stats {
         var chartHeight by mutableFloatStateOf(130f)
         var jobsInChart by mutableIntStateOf(4)
+    }
+
+    /** CUE-10: spacing on the cues page (zpx). */
+    object Cues {
+        var betweenCues by mutableFloatStateOf(8f)
+        var betweenStrokes by mutableFloatStateOf(18f)
+        var barWidth by mutableFloatStateOf(3f)
+        var barGap by mutableFloatStateOf(9f)
     }
 
     object Lists {

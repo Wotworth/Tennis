@@ -1,6 +1,6 @@
 # Tennis String Log — Requirements
 
-v0.4, 6 November 2026 (Chris, after the overnight builds): racquets page and each racquet's own pivot, retired racquets, one racquet per session, the heart-rate threshold learned from his sessions, network limited to Anthropic, the launcher tile flipping through racquets (5a, 7, 8, 11). v0.3, 5 November 2026 (Chris, after accepting PH-0): the app opens on cues; several racquets with their own strings and hours (section 5a); the Windows Phone pivot title instead of the clipped giant title; a richer strings page. v0.2, 5 November 2026: Chris's answers to section 16 (defaults, except cues as a fifth pivot, Sonnet for the photo retry, and hours tracked per racquet). v0.1, 4 November 2026: written by Claude from Chris's brief, after reading the wp-launcher code (tag v0.9.150) and the Zune player (main at `f2d9237`).
+v0.5, 6 November 2026 (Chris): cues smaller, grouped and colour-coded by stroke; "gameplay" added (CUE-01, CUE-03, CUE-10, VIS-08). v0.4, 6 November 2026 (Chris, after the overnight builds): racquets page and each racquet's own pivot, retired racquets, one racquet per session, the heart-rate threshold learned from his sessions, network limited to Anthropic, the launcher tile flipping through racquets (5a, 7, 8, 11). v0.3, 5 November 2026 (Chris, after accepting PH-0): the app opens on cues; several racquets with their own strings and hours (section 5a); the Windows Phone pivot title instead of the clipped giant title; a richer strings page. v0.2, 5 November 2026: Chris's answers to section 16 (defaults, except cues as a fifth pivot, Sonnet for the photo retry, and hours tracked per racquet). v0.1, 4 November 2026: written by Claude from Chris's brief, after reading the wp-launcher code (tag v0.9.150) and the Zune player (main at `f2d9237`).
 
 ## 0 How to use this document
 
@@ -53,7 +53,7 @@ Reuse, by copying source files from the Zune player (`ZuneTokens.kt`, the font f
 - VIS-05 **Lists** are Zune-style plain text rows: a primary line in the list size, a secondary line in grey; no cards, dividers or icons in rows.
 - VIS-06 **Icons:** Fluent UI System Icons (Filled), MIT, the same set as the launcher's weather tile, monochrome white, one size per context, optically centred. Needed glyphs: clock/timer (log session), arrow-repeat or wrench (restrung), camera, chart, notepad (cues), library/book, heart-pulse (detected session), checkmark, dismiss. If the set has no tennis glyph, use none rather than drawing one; any custom glyph needs Chris's approval from a screenshot first. No illustrations, emoji or multi-colour art anywhere.
 - VIS-07 Motion: the Zune player's pivot swipe, page turnstile/slide-in and tilt, at its tuned values.
-- VIS-08 No accent colours other than VIS-03 and VIS-04. The phone's status bar stays visible.
+- VIS-08 No accent colours other than VIS-03, VIS-04 and, on the cues page only, the stroke colours (CUE-03, v0.5). The phone's status bar stays visible.
 
 ## 4 Navigation and screens
 
@@ -140,9 +140,10 @@ Modelled on the interface the launcher already uses with the Zune player (its BA
 
 ## 10 Swing cues
 
-- CUE-01 A cue: a stroke heading (forehand, backhand, serve, volley, return, footwork, mental; plus free text) and a short text.
+- CUE-01 A cue: a stroke heading (forehand, backhand, serve, return, volley, footwork, gameplay, mental; plus free text) and a short text.
 - CUE-02 The cues page lists cues grouped by heading as text rows; add, edit, delete, drag to reorder, and pin/unpin (pin is a glyph toggle at the row end, Metro style).
 - CUE-10 **cues** pivot (Q5, v0.2) is the warmup view: the pinned cues first, in pinned order, in large Metro text (sized to fit up to 6 cues on one screen, *tunable*), heading in small grey over each cue; keeps the screen on while shown. Below them, the other cues in the list size; editing (CUE-02) opens from a cue's long-press and from the app bar.
+- CUE-03 (v0.5) Cues are grouped by stroke: the stroke's name once, in its colour, with a colour bar beside its cues. Colours are Windows Phone accents (forehand cyan, backhand orange, serve pink, return teal, volley amber, footwork violet, gameplay lime, mental steel; any other stroke light grey), each at least 4.5:1 on black. Pinned cues are set at 18 zpx (was 26) so about six fit on one screen; unpinned ones a step smaller, in grey.
 
 ## 11 String package photos
 

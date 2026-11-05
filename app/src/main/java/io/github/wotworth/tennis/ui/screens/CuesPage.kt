@@ -1,6 +1,9 @@
 package io.github.wotworth.tennis.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -38,17 +41,12 @@ fun CuesPage() {
             Spacer(Modifier.height(zpx(6f)))
             TennisText("Pin the ones you want to read before you play: they show here in large type.", TennisTokens.Type.listSecondary)
         }
-        pinned.forEach { c ->
-            val menu = cueMenu(c, data.cues)
-            androidx.compose.foundation.layout.Column(Modifier.fillMaxWidth().press(onLongClick = menu, description = c.text, onClick = menu).padding(bottom = zpx(16f))) {
-                TennisText(c.heading, TennisTokens.Type.listSecondary)
-                Spacer(Modifier.height(zpx(3f)))
-                TennisText(c.text, TennisTokens.Type.warmupCue)
-            }
-        }
+        // CUE-10, CUE-03 (v0.5): grouped by stroke, the stroke's name once in its colour with a
+        // colour bar beside its cues; pinned first (in pinned order), the rest below, smaller.
+        CueGroups(pinned, data.cues, TennisTokens.Type.warmupCue)
         if (others.isNotEmpty()) {
             if (pinned.isNotEmpty()) SectionHeader("other cues")
-            others.forEach { c -> TextRow(c.text, c.heading, onLongClick = cueMenu(c, data.cues), onClick = cueMenu(c, data.cues)) }
+            CueGroups(others, data.cues, TennisTokens.Type.cueOther)
         }
     }
 }
@@ -73,5 +71,27 @@ private fun cueMenu(c: Cue, all: List<Cue>): () -> Unit {
             add("delete" to { o.confirm("delete cue?", c.text, "delete") { scope.launch { app.repo.deleteCue(c) } } })
         }
         o.menu(*items.toTypedArray())
+    }
+}
+
+/** Cues grouped by stroke, in order of each stroke's first cue (CUE-03). */
+@Composable
+private fun CueGroups(cues: List<Cue>, all: List<Cue>, role: TennisTokens.Role) {
+    val zpx = LocalZpx.current
+    val c = TennisTokens.Cues
+    cues.groupBy { it.heading.trim().lowercase() }.forEach { (heading, group) ->
+        val colour = TennisTokens.Colors.stroke(heading)
+        androidx.compose.foundation.layout.Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min).padding(bottom = zpx(c.betweenStrokes))) {
+            androidx.compose.foundation.layout.Box(Modifier.width(zpx(c.barWidth)).fillMaxHeight().background(colour))
+            androidx.compose.foundation.layout.Column(Modifier.padding(start = zpx(c.barGap))) {
+                androidx.compose.foundation.text.BasicText(heading.ifBlank { "other" }, style = io.github.wotworth.tennis.ui.theme.textStyleFor(TennisTokens.Type.cueHeading).copy(color = colour))
+                Spacer(Modifier.height(zpx(5f)))
+                group.forEachIndexed { i, cue ->
+                    val menu = cueMenu(cue, all)
+                    TennisText(cue.text, role, Modifier.fillMaxWidth().press(onLongClick = menu, description = cue.text, onClick = menu))
+                    if (i < group.lastIndex) Spacer(Modifier.height(zpx(c.betweenCues)))
+                }
+            }
+        }
     }
 }

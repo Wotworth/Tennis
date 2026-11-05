@@ -34,4 +34,17 @@ class ColorsTest {
         val hex = Regex("""name="tile">#([0-9A-Fa-f]{8})<""").find(xml)!!.groupValues[1]
         assertEquals(TennisTokens.Colors.tile.toArgb(), hex.toLong(16).toInt())
     }
+
+    @Test fun strokeColoursReadOnBlack() {
+        for ((stroke, c) in TennisTokens.Colors.strokes + ("other" to TennisTokens.Colors.strokeOther)) {
+            val r = contrast(c, TennisTokens.Colors.background)
+            assertTrue("$stroke is $r:1 on black", r >= 4.5)
+        }
+    }
+
+    @Test fun strokeColoursAreDistinctAndCaseInsensitive() {
+        assertEquals(TennisTokens.Colors.strokes.size, TennisTokens.Colors.strokes.values.toSet().size)
+        assertEquals(TennisTokens.Colors.strokes.getValue("gameplay"), TennisTokens.Colors.stroke(" Gameplay "))
+        assertEquals(TennisTokens.Colors.strokeOther, TennisTokens.Colors.stroke("drop shot"))
+    }
 }

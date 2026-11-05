@@ -60,6 +60,8 @@ object Sample {
             r.saveCue(Cue(heading = "forehand", text = "Keep the racket face flat on the backswing.", pinned = true))
             r.saveCue(Cue(heading = "serve", text = "Toss up and a little in front. Reach up to it.", pinned = true))
             r.saveCue(Cue(heading = "backhand", text = "Turn the shoulders early.", pinned = true))
+            r.saveCue(Cue(heading = "forehand", text = "Step into the ball: momentum moving forward.", pinned = true))
+            r.saveCue(Cue(heading = "gameplay", text = "Cross-court until I get a short ball.", pinned = true))
             r.saveCue(Cue(heading = "footwork", text = "Split step as they hit."))
             r.saveCue(Cue(heading = "mental", text = "Breathe out on contact."))
             if (proposals) {
@@ -69,7 +71,7 @@ object Sample {
             app.prefs.selectRacquet(bb1)
             app.prefs.chooseStringsLayout(layout)
         }
-        waitFor(app) { it.cues.size == 5 && it.sessions.size == 12 && it.racquets.any { r -> r.retired } && (!proposals || it.proposals.isNotEmpty()) }
+        waitFor(app) { it.cues.size == 7 && it.sessions.size == 12 && it.racquets.any { r -> r.retired } && (!proposals || it.proposals.isNotEmpty()) }
         return app
     }
 }

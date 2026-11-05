@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** fix 1 (6 Nov): on-phone package reading fixed for release builds, v0.6.10 (docs/reports/FIX-1.md). Before that: update 1, tennis v0.6.9 and launcher v0.9.163 (from launcher main).
+**Phase:** cues update (spec v0.5, 6 Nov): smaller, grouped, colour-coded cues; gameplay (docs/reports/CUES-1.md). Before: fix 1 v0.6.10, update 1 v0.6.9, launcher v0.9.163.
 
 ## Done
 
