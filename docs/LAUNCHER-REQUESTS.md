@@ -47,3 +47,7 @@ Built on launcher main, additively.
 
 - `content://io.github.wotworth.tennis.tile/faces`: one row per face, the same columns as `/tile`. With the tennis app set to "each racquet in turn", one face per active racquet (`big` = hours, `small` = "hours · racquet name"); otherwise one face. A waiting proposal is always the only face.
 - The launcher flips the tennis tile through its faces with the playlist tiles' flip and timer (18a), at most 12; one face means no flipping. A tennis app without `/faces` keeps working as before.
+
+## Added 6 Nov (tennis v0.6): text fits the tile
+
+Built on launcher main, additively: the tennis tile's line under the number is cut with "…" to the width of the number (88% of the tile). Only the tennis tile. The tennis app now sends shorter text (`14.5` over `hours on strings`; with several racquets `14.5 h` over the racquet's name), and `empty` when Chris turns the live tile off.

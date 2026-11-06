@@ -52,7 +52,9 @@ object TileRows {
     private fun hoursRow(r: io.github.wotworth.tennis.data.Racquet, d: AppData, named: Boolean, now: Long): TileRow {
         val job = Strings.currentJob(r.id, d.jobs)!!
         val hours = Strings.hoursText(Strings.hours(job, d.jobs, d.sessions))
-        return TileRow("hours", hours, if (named) "hours · ${r.name}" else "hours on these strings", null, now)
+        // TIL-01 (v0.6): kept short for the tile. With several racquets the number carries the unit
+        // and the racquet's name is the line under it (the launcher cuts it to fit).
+        return if (named) TileRow("hours", "$hours h", r.name, null, now) else TileRow("hours", hours, "hours on strings", null, now)
     }
 
     /**

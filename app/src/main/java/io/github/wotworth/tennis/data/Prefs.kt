@@ -24,10 +24,21 @@ class Prefs(context: Context) {
         private set
     fun rememberLastRacquets(ids: List<Long>) { lastRacquets = ids; sp.edit().putString("lastRacquets", ids.joinToString(",")).apply() }
 
-    /** TIL-03 (v0.4): the launcher tile flips through all active racquets instead of showing the last used. */
-    var tileFlips by mutableStateOf(sp.getBoolean("tileFlips", false))
+    /**
+     * TIL-04 (v0.6): what the launcher tile shows: [TILE_OFF] (no live content: the plain racket
+     * icon), [TILE_LAST] (the last-used racquet) or [TILE_FLIP] (each racquet in turn, TIL-03).
+     */
+    var tileMode by mutableIntStateOf(sp.getInt("tileMode", if (sp.getBoolean("tileFlips", false)) TILE_FLIP else TILE_LAST))
         private set
-    fun chooseTileFlips(v: Boolean) { tileFlips = v; sp.edit().putBoolean("tileFlips", v).apply() }
+    fun chooseTileMode(v: Int) { tileMode = v; sp.edit().putInt("tileMode", v).apply() }
+    val tileFlips: Boolean get() = tileMode == TILE_FLIP
+    fun chooseTileFlips(v: Boolean) = chooseTileMode(if (v) TILE_FLIP else TILE_LAST)
+
+    companion object {
+        const val TILE_OFF = 0
+        const val TILE_LAST = 1
+        const val TILE_FLIP = 2
+    }
 
     /** NAV-02: which strings page layout to show (1, 2 or 3), for Chris to choose. */
     var stringsLayout by mutableIntStateOf(sp.getInt("stringsLayout", 1))

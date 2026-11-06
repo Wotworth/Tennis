@@ -35,12 +35,15 @@ class TennisApp : Application() {
     }
 
     /** TIL-01: the tile row, read straight from the database (the provider may start the process). */
-    suspend fun tileRow(): io.github.wotworth.tennis.tile.TileRow =
-        io.github.wotworth.tennis.tile.TileRows.of(tileData(), prefs.lastRacquets, prefs.selectedRacquet, io.github.wotworth.tennis.domain.Now.millis())
+    suspend fun tileRow(): io.github.wotworth.tennis.tile.TileRow = tileFaces().first()
 
     /** TIL-03 (v0.4): all the tile's faces. */
-    suspend fun tileFaces(): List<io.github.wotworth.tennis.tile.TileRow> =
-        io.github.wotworth.tennis.tile.TileRows.faces(tileData(), prefs.lastRacquets, prefs.selectedRacquet, io.github.wotworth.tennis.domain.Now.millis(), prefs.tileFlips)
+    suspend fun tileFaces(): List<io.github.wotworth.tennis.tile.TileRow> {
+        val now = io.github.wotworth.tennis.domain.Now.millis()
+        // TIL-04: off: no live content at all (not even a found session); the launcher shows the icon.
+        if (prefs.tileMode == io.github.wotworth.tennis.data.Prefs.TILE_OFF) return listOf(io.github.wotworth.tennis.tile.TileRow("empty", "", null, null, now))
+        return io.github.wotworth.tennis.tile.TileRows.faces(tileData(), prefs.lastRacquets, prefs.selectedRacquet, now, prefs.tileFlips)
+    }
 
     private suspend fun tileData(): io.github.wotworth.tennis.data.AppData {
         val dao = repo.dao

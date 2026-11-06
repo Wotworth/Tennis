@@ -18,6 +18,12 @@ import io.github.wotworth.tennis.ui.screens.SESSIONS
 import io.github.wotworth.tennis.ui.screens.RACQUETS
 import io.github.wotworth.tennis.ui.theme.TennisTheme
 import org.junit.Test
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.unit.dp
 import org.junit.runner.RunWith
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
@@ -107,6 +113,19 @@ class ScreenshotTest {
     @Test fun healthNoAccess() = shoot("health-no-access", both = false) { TennisTheme { HealthReportContent(HealthReportState(day = FakeDays.day), {}, {}, {}) } }
     @Test fun healthMissing() = shoot("health-missing", both = false) {
         TennisTheme { HealthReportContent(HealthReportState(availability = HealthSource.Availability.Missing), {}, {}, {}) }
+    }
+
+    /** TIL-04: the plain racket icon, on the tile green, as a medium tile and as the app icon. */
+    @Test fun racketIcon() = shoot("racket-icon", both = false) {
+        TennisTheme {
+            androidx.compose.foundation.layout.Row(androidx.compose.ui.Modifier.padding(24.dp)) {
+                io.github.wotworth.tennis.ui.components.GlyphTile("tennis", io.github.wotworth.tennis.R.drawable.glyph_racket, io.github.wotworth.tennis.ui.theme.LocalZpx.current(116f))
+                androidx.compose.foundation.layout.Spacer(androidx.compose.ui.Modifier.width(io.github.wotworth.tennis.ui.theme.LocalZpx.current(8f)))
+                androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.size(io.github.wotworth.tennis.ui.theme.LocalZpx.current(116f)).background(io.github.wotworth.tennis.ui.theme.TennisTokens.Colors.tile)) {
+                    androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(io.github.wotworth.tennis.R.drawable.ic_launcher_foreground), null, androidx.compose.ui.Modifier.fillMaxSize())
+                }
+            }
+        }
     }
 
     companion object {

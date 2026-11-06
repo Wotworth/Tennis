@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  TIL-04, VIS-06 (Chris asked for it, 6 Nov): a plain tennis racket in the Fluent filled style
+  (Fluent has no tennis glyph): solid white shapes on a 24-unit grid, the head as a ring with a
+  3 x 3 string grid, the throat and handle, angled 45 degrees. Drawn for this app.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
+    <group android:rotation="-45" android:pivotX="12" android:pivotY="12">
+        <!-- Head: an elliptical ring (outer minus inner). -->
+        <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
+            android:pathData="M12,1.6 C15.4,1.6 17.8,4.6 17.8,8.3 C17.8,12 15.4,15 12,15 C8.6,15 6.2,12 6.2,8.3 C6.2,4.6 8.6,1.6 12,1.6 Z M12,3.1 C9.5,3.1 7.7,5.4 7.7,8.3 C7.7,11.2 9.5,13.5 12,13.5 C14.5,13.5 16.3,11.2 16.3,8.3 C16.3,5.4 14.5,3.1 12,3.1 Z" />
+        <!-- Strings, clipped to the inside of the head. -->
+        <group>
+            <clip-path android:pathData="M12,3.1 C9.5,3.1 7.7,5.4 7.7,8.3 C7.7,11.2 9.5,13.5 12,13.5 C14.5,13.5 16.3,11.2 16.3,8.3 C16.3,5.4 14.5,3.1 12,3.1 Z" />
+            <path android:fillColor="#FFFFFFFF" android:pathData="M9.6,2 h0.7 v13 h-0.7 Z M11.65,2 h0.7 v13 h-0.7 Z M13.7,2 h0.7 v13 h-0.7 Z M6,5.9 h12 v0.7 h-12 Z M6,7.95 h12 v0.7 h-12 Z M6,10 h12 v0.7 h-12 Z" />
+        </group>
+        <!-- Throat: two arms from the head to the handle. -->
+        <path android:fillColor="#FFFFFFFF" android:pathData="M9.2,13.4 L10.3,12.8 L12.6,16.4 L11.4,16.4 Z M14.8,13.4 L13.7,12.8 L11.4,16.4 L12.6,16.4 Z" />
+        <!-- Handle, with a square butt cap. -->
+        <path android:fillColor="#FFFFFFFF" android:pathData="M11,16.2 h2 v6 h-2 Z M10.9,15.4 L13.1,15.4 L12.7,16.6 L11.3,16.6 Z" />
+        <path android:fillColor="#FFFFFFFF" android:pathData="M10.7,21.6 h2.6 v1 h-2.6 Z" />
+    </group>
+</vector>
