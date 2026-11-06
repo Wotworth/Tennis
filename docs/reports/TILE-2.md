@@ -1,6 +1,6 @@
 # Live tile: your cues, sized to fit
 
-Releases: tennis _added once CI publishes it_ (tag `tile-2`); launcher _added once CI publishes it_ (from launcher main). Spec v0.7 (TIL-05).
+Releases: tennis [v0.6.13](https://github.com/Wotworth/tennis/releases/tag/v0.6.13) (tag `tile-2`); launcher [v0.9.173](https://github.com/Wotworth/wp-launcher/releases/tag/v0.9.173) (from launcher main, includes fix-8 from v0.9.167). Spec v0.7 (TIL-05).
 
 ## How it works
 
