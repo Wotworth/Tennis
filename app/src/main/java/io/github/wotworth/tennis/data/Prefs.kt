@@ -32,6 +32,11 @@ class Prefs(context: Context) {
         private set
     fun chooseTileMode(v: Int) { tileMode = v; sp.edit().putInt("tileMode", v).apply() }
     val tileFlips: Boolean get() = tileMode == TILE_FLIP
+
+    /** TIL-05 (v0.7): the live tile on (flip through cues) or off (just the racket icon). Was "just the icon" in v0.6: off. */
+    var liveTile by mutableStateOf(sp.getBoolean("liveTile", sp.getInt("tileMode", TILE_LAST) != TILE_OFF))
+        private set
+    fun chooseLiveTile(v: Boolean) { liveTile = v; sp.edit().putBoolean("liveTile", v).apply() }
     fun chooseTileFlips(v: Boolean) = chooseTileMode(if (v) TILE_FLIP else TILE_LAST)
 
     companion object {

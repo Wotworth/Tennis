@@ -40,16 +40,19 @@ class TennisApp : Application() {
     /** TIL-03 (v0.4): all the tile's faces. */
     suspend fun tileFaces(): List<io.github.wotworth.tennis.tile.TileRow> {
         val now = io.github.wotworth.tennis.domain.Now.millis()
-        // TIL-04: off: no live content at all (not even a found session); the launcher shows the icon.
-        if (prefs.tileMode == io.github.wotworth.tennis.data.Prefs.TILE_OFF) return listOf(io.github.wotworth.tennis.tile.TileRow("empty", "", null, null, now))
-        return io.github.wotworth.tennis.tile.TileRows.faces(tileData(), prefs.lastRacquets, prefs.selectedRacquet, now, prefs.tileFlips)
+        // TIL-05 (v0.7): one face: a waiting session, else cues (the launcher fits them) or off.
+        return listOf(io.github.wotworth.tennis.tile.TileCues.state(tileData(), prefs.liveTile, now))
     }
+
+    /** TIL-05: the cues the tile flips through, and its back. */
+    suspend fun tileCues(): List<io.github.wotworth.tennis.data.Cue> = io.github.wotworth.tennis.tile.TileCues.cues(tileData())
+    suspend fun tileBack(): Pair<String, String> = io.github.wotworth.tennis.tile.TileCues.back(tileData(), io.github.wotworth.tennis.domain.Now.day())
 
     private suspend fun tileData(): io.github.wotworth.tennis.data.AppData {
         val dao = repo.dao
         val links = dao.sessionRacquetsNow().groupBy({ it.sessionId }, { it.racquetId })
         return io.github.wotworth.tennis.data.AppData(dao.racquetsNow(), dao.jobsNow(), dao.sessionsNow().map { io.github.wotworth.tennis.data.SessionWithRacquets(it, links[it.id].orEmpty()) },
-            dao.proposalsNow(), loaded = true)
+            dao.proposalsNow(), dao.cuesNow(), loaded = true)
     }
     val dataListeners = java.util.concurrent.CopyOnWriteArrayList<() -> Unit>()
 

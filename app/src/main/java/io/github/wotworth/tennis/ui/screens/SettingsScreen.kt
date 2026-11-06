@@ -18,6 +18,7 @@ import io.github.wotworth.tennis.ui.components.LocalOverlays
 import io.github.wotworth.tennis.ui.components.Page
 import io.github.wotworth.tennis.ui.components.SectionHeader
 import io.github.wotworth.tennis.ui.components.TextRow
+import io.github.wotworth.tennis.ui.components.ToggleSwitch
 import io.github.wotworth.tennis.ui.components.press
 import io.github.wotworth.tennis.ui.theme.LocalZpx
 import io.github.wotworth.tennis.ui.theme.TennisText
@@ -60,11 +61,9 @@ fun SettingsScreen() {
         SectionHeader("racquet strings page")
         ChoiceRow("tile layout (pick the one you like)", listOf(1 to "grid", 2 to "hero", 3 to "mixed"), setOf(app.prefs.stringsLayout), { app.prefs.chooseStringsLayout(it) })
         SectionHeader("launcher tile")
-        ChoiceRow("the WP launcher's tennis tile shows", listOf(
-            io.github.wotworth.tennis.data.Prefs.TILE_LAST to "the last-used racquet",
-            io.github.wotworth.tennis.data.Prefs.TILE_FLIP to "each racquet in turn",
-            io.github.wotworth.tennis.data.Prefs.TILE_OFF to "just the icon (live tile off)",
-        ), setOf(app.prefs.tileMode), { app.prefs.chooseTileMode(it); app.onDataChanged() })
+        // TIL-05 (v0.7): on: the WP launcher's tile flips through your cues; off: just the racket.
+        ToggleSwitch("live tile (flips through your cues)", app.prefs.liveTile) { app.prefs.chooseLiveTile(it); app.onDataChanged() }
+        TennisText("A session found from your Fitbit shows on the tile either way, until you answer it.", TennisTokens.Type.listSecondary)
         DetectionSettingsSection()
         ApiKeySection()
         SettingsExtras.sections.forEach { it() }

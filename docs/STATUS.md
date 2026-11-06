@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** tile update (spec v0.6, 6 Nov): live tile off option, racket icon, text fits the tile (docs/reports/TILE-1.md). Before: cues v0.6.11, fix 1 v0.6.10, update 1 v0.6.9; launcher v0.9.163.
+**Phase:** live tile v2 (spec v0.7, 6 Nov): flips through cues that fit, live tile on/off, sessions take over (docs/reports/TILE-2.md). Before: tile-1 v0.6.12, cues v0.6.11, fix 1 v0.6.10, update 1 v0.6.9; launcher v0.9.163.
 
 ## Done
 

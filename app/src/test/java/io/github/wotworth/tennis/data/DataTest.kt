@@ -36,7 +36,8 @@ class DataTest {
         val app = Sample.fill()
         val bb2 = app.repo.data.value.racquets.first { it.name == "Black Blade #2" }
         runBlocking { app.repo.deleteRacquet(bb2) }
-        Sample.waitFor(app) { it.racquets.size == 3 }
+        // Wait for the racquet and its session links to go (two tables, published separately).
+        Sample.waitFor(app) { d -> d.racquets.size == 3 && d.sessions.none { bb2.id in it.racquetIds } && d.jobs.none { it.racquetId == bb2.id } }
         val d = app.repo.data.value
         assertEquals(12, d.sessions.size)
         assertTrue(d.jobs.none { it.racquetId == bb2.id })

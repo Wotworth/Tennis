@@ -71,16 +71,48 @@ object TileRows {
     }
 }
 
+/**
+ * TIL-05 (v0.7): the tile's state: a waiting session ("proposal", whether the live tile is on or
+ * off), else "cues" (the launcher flips through the cues that fit) or "off" (the plain icon).
+ */
+object TileCues {
+    val CUES: Uri by lazy { Uri.parse("content://${TileRows.AUTHORITY}/cues") }
+    val BACK: Uri by lazy { Uri.parse("content://${TileRows.AUTHORITY}/back") }
+
+    fun state(d: AppData, liveTile: Boolean, now: Long, window: (Proposal) -> String = { windowText(it) }): TileRow {
+        d.waiting.minByOrNull { it.startMillis }?.let { return TileRow("proposal", "Tennis?", window(it), it.id.toString(), now) }
+        return TileRow(if (liveTile) "cues" else "off", "", null, null, now)
+    }
+
+    /** The cues for the tile: pinned first, in the cues page's order, then the rest. */
+    fun cues(d: AppData): List<io.github.wotworth.tennis.data.Cue> =
+        d.cues.sortedWith(compareBy({ !it.pinned }, { it.position }, { it.id })).filter { it.text.isNotBlank() }
+
+    /**
+     * The back: the last session's day and length ("Wed 4 Nov" over "1 h 30 min"); with none
+     * logged, this month's count ("0" over "sessions this month").
+     */
+    fun back(d: AppData, today: Long): Pair<String, String> {
+        val last = d.sessions.maxWithOrNull(compareBy({ it.session.date }, { it.session.startMillis ?: 0 }, { it.session.id }))
+            ?: return "0" to "sessions this month"
+        return Strings.shortDayText(last.session.date, today) to Strings.minutesText(last.session.minutes)
+    }
+}
+
 /** TIL-01: the read-only provider the launcher's tile reads. */
 class TileProvider : ContentProvider() {
     override fun onCreate() = true
 
     override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? {
         val path = uri.pathSegments
-        if (path != listOf("tile") && path != listOf("faces")) return null
+        if (path != listOf("tile") && path != listOf("faces") && path != listOf("cues") && path != listOf("back")) return null
         val caller = callingPackage
         if (caller != null && caller !in TileRows.READERS) throw SecurityException("The tennis tile is for the WP launcher only")
         val app = context?.applicationContext as? TennisApp ?: return null
+        when (path) {
+            listOf("cues") -> return MatrixCursor(arrayOf("text", "heading")).apply { runBlocking { app.tileCues() }.forEach { addRow(arrayOf<Any?>(it.text, it.heading)) } }
+            listOf("back") -> return MatrixCursor(arrayOf("big", "small"), 1).apply { val (b, sm) = runBlocking { app.tileBack() }; addRow(arrayOf<Any?>(b, sm)) }
+        }
         val rows = runBlocking { if (path == listOf("faces")) app.tileFaces() else listOf(app.tileRow()) }
         return MatrixCursor(TileRows.COLUMNS, rows.size).apply { rows.forEach { row -> addRow(arrayOf<Any?>(row.state, row.big, row.small, row.proposalId, row.updated)) } }
     }
