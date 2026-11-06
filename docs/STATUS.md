@@ -35,7 +35,7 @@
 
 - Text reading check (hand-started CI workflow) proves ML Kit works in the shrunk build; run it after any change to shrinking or ML Kit.
 
-- Launcher work is on wp-launcher **main** now (merged 6 Nov on top of v0.9.160). The launcher's other session still works on `ccr-fa86e307-85zu7m`; Chris will point it at main.
+- Launcher work is on wp-launcher **main**. The launcher's other session still releases from `ccr-fa86e307-85zu7m` (it released v0.9.167, fix-8, from there on 6 Nov). Before every launcher release from main, merge that branch into main first, or the release drops its fixes. Done for v0.9.167 on 6 Nov (main 52730cf).
 
 - Nothing has run on the phone yet.
 - Wrapped secondary text lines sit close together (the Zune type roles trim line height); revisit in PH-1 if it reads badly on the phone.
