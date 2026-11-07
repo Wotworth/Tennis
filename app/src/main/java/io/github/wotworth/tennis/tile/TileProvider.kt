@@ -89,14 +89,11 @@ object TileCues {
         d.cues.sortedWith(compareBy({ !it.pinned }, { it.position }, { it.id })).filter { it.text.isNotBlank() }
 
     /**
-     * The back: the last session's day and length ("Wed 4 Nov" over "1 h 30 min"); with none
-     * logged, this month's count ("0" over "sessions this month").
+     * TIL-05 (v0.8, Chris 7 Nov): no back face; the tile shows only cues (and a found session).
+     * `/back` stays for launchers that read it, and answers an empty row, which they treat as no back.
      */
-    fun back(d: AppData, today: Long): Pair<String, String> {
-        val last = d.sessions.maxWithOrNull(compareBy({ it.session.date }, { it.session.startMillis ?: 0 }, { it.session.id }))
-            ?: return "0" to "sessions this month"
-        return Strings.shortDayText(last.session.date, today) to Strings.minutesText(last.session.minutes)
-    }
+    @Suppress("UNUSED_PARAMETER")
+    fun back(d: AppData, today: Long): Pair<String, String> = "" to ""
 }
 
 /** TIL-01: the read-only provider the launcher's tile reads. */

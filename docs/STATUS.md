@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** live tile v2 (spec v0.7, 6 Nov): flips through cues that fit, live tile on/off, sessions take over: tennis v0.6.13, launcher v0.9.173 (docs/reports/TILE-2.md). Before: tile-1 v0.6.12, cues v0.6.11, fix 1 v0.6.10, update 1 v0.6.9; launcher v0.9.163.
+**Phase:** tile-3 (spec v0.8, 7 Nov): live tile shows cues only, no back face (docs/reports/TILE-3.md). Before: tile-2 tennis v0.6.13 + launcher v0.9.173.
 
 ## Done
 

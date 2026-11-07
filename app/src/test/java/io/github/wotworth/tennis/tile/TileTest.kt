@@ -42,13 +42,10 @@ class TileTest {
         assertEquals("Keep the racket face flat on the backswing.", cues.first().text)
     }
 
-    @Test fun backIsTheLastSession() {
-        // The last sample session: Wed 4 Nov, 2 h.
-        assertEquals("Wed 4 Nov" to "2 h", runBlocking { Sample.fill().tileBack() })
-    }
-
-    @Test fun backWithNoSessionsIsThisMonthsCount() {
-        assertEquals("0" to "sessions this month", runBlocking { Sample.empty().tileBack() })
+    @Test fun noBackFace() {
+        // v0.8 (Chris, 7 Nov): cues only; an empty back row means the launcher shows no back.
+        assertEquals("" to "", runBlocking { Sample.fill().tileBack() })
+        assertEquals("" to "", runBlocking { Sample.empty().tileBack() })
     }
 
     @Test fun oldOffSettingCarriesOver() {
@@ -66,7 +63,7 @@ class TileTest {
             assertEquals(7, c.count); c.moveToFirst()
             assertEquals("forehand", c.getString(c.getColumnIndexOrThrow("heading")))
         }
-        r.query(TileCues.BACK, null, null, null, null)!!.use { c -> c.moveToFirst(); assertEquals("Wed 4 Nov", c.getString(c.getColumnIndexOrThrow("big"))) }
+        r.query(TileCues.BACK, null, null, null, null)!!.use { c -> c.moveToFirst(); assertEquals("", c.getString(c.getColumnIndexOrThrow("big"))) }
         r.query(TileRows.FACES, null, null, null, null)!!.use { assertEquals(1, it.count) }
     }
 }
