@@ -1,6 +1,6 @@
 # Live tile: cues only
 
-Release: _added once CI publishes it_ (tag `tile-3`). Spec v0.8 (TIL-05).
+Release: [v0.6.14](https://github.com/Wotworth/tennis/releases/tag/v0.6.14) (tag `tile-3`; CI passed). Spec v0.8 (TIL-05).
 
 From Chris's screenshot (7 Nov): the tile showed "0 sessions this mo…", the back face (last session, or this month's count when none is logged). The back face is gone: the tile flips through cues only, and "Tennis?" takes over when a session is found. Tennis app only; launcher v0.9.173 needs no update.
 
