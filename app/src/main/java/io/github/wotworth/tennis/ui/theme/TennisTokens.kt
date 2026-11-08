@@ -53,6 +53,24 @@ object TennisTokens {
         var strokeOther by mutableStateOf(Color(0xFFC8C8C8))
         fun stroke(heading: String): Color = strokes[heading.trim().lowercase()] ?: strokeOther
 
+        /**
+         * TIL-06 (v0.9, Chris 8 Nov): the same stroke colours on the launcher tile, each lightened
+         * just enough to read at 3:1 on the tile green (the app's colours read on black, not on
+         * green). Unit test checks every one.
+         */
+        val strokesOnTile: Map<String, Color> = mapOf(
+            "forehand" to Color(0xFF92D2F1),
+            "backhand" to Color(0xFFFDBD8F),
+            "serve" to Color(0xFFF9B3E6),
+            "return" to Color(0xFF85D7D6),
+            "volley" to Color(0xFFF5C25D),
+            "footwork" to Color(0xFFD3BFFF),
+            "gameplay" to Color(0xFFBDD547),
+            "mental" to Color(0xFFC4CAD3),
+        )
+        var strokeOtherOnTile by mutableStateOf(Color(0xFFC9C9C9))
+        fun strokeOnTile(heading: String): Color = strokesOnTile[heading.trim().lowercase()] ?: strokeOtherOnTile
+
         /** NAV-07: the Windows Phone dark-theme text box, unfocused. */
         var textBox by mutableStateOf(Color(0xFFBFBFBF))
     }

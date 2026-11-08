@@ -107,7 +107,13 @@ class TileProvider : ContentProvider() {
         if (caller != null && caller !in TileRows.READERS) throw SecurityException("The tennis tile is for the WP launcher only")
         val app = context?.applicationContext as? TennisApp ?: return null
         when (path) {
-            listOf("cues") -> return MatrixCursor(arrayOf("text", "heading")).apply { runBlocking { app.tileCues() }.forEach { addRow(arrayOf<Any?>(it.text, it.heading)) } }
+            // TIL-06: each cue's stroke and its tile colour (ARGB number).
+            listOf("cues") -> return MatrixCursor(arrayOf("text", "heading", "colour")).apply {
+                runBlocking { app.tileCues() }.forEach { c ->
+                    addRow(arrayOf<Any?>(c.text, c.heading.trim().lowercase().ifBlank { null },
+                        io.github.wotworth.tennis.ui.theme.TennisTokens.Colors.strokeOnTile(c.heading).value.shr(32).toLong()))
+                }
+            }
             listOf("back") -> return MatrixCursor(arrayOf("big", "small"), 1).apply { val (b, sm) = runBlocking { app.tileBack() }; addRow(arrayOf<Any?>(b, sm)) }
         }
         val rows = runBlocking { if (path == listOf("faces")) app.tileFaces() else listOf(app.tileRow()) }

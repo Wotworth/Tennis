@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** tile-3 (spec v0.8, 7 Nov): live tile shows cues only, no back face, v0.6.14 (docs/reports/TILE-3.md). Before: tile-2 tennis v0.6.13 + launcher v0.9.173.
+**Phase:** tile-4 (spec v0.9, 8 Nov): stroke above each cue on the tile (docs/reports/TILE-4.md). Before: tile-3 v0.6.14; launcher v0.9.179 (other session), v0.9.173 (main).
 
 ## Done
 

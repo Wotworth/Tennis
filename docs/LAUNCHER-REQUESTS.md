@@ -60,3 +60,7 @@ Built on launcher main, additively (see the launcher CHANGELOG).
 - `/cues`: one row per cue, `text` and `heading`, pinned cues first.
 - `/back`: one row, `big` and `small` (the last session's day and length, or "0" over "sessions this month").
 - The launcher fits each cue to the tile it is drawn on: whole words, 15 epx or at least 12 epx, inside the 8 epx label inset and above the label; cues that don't fit are skipped; none fits: the icon. Faces alternate cue, back, cue, back on the playlist flip timer; a small tile doesn't flip.
+
+## Added 8 Nov (tennis v0.9): the stroke above each cue
+
+Built on launcher main, additively. `/cues` rows now also carry `colour` (an ARGB number, the stroke's tile colour). The launcher draws the stroke (`heading`, lowercase) above the cue in that colour, semibold 11 epx, and reserves its line when fitting the cue.

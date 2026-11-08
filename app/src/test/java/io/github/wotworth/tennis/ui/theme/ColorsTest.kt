@@ -47,4 +47,12 @@ class ColorsTest {
         assertEquals(TennisTokens.Colors.strokes.getValue("gameplay"), TennisTokens.Colors.stroke(" Gameplay "))
         assertEquals(TennisTokens.Colors.strokeOther, TennisTokens.Colors.stroke("drop shot"))
     }
+
+    @Test fun strokeColoursReadOnTheTile() {
+        for ((stroke, c) in TennisTokens.Colors.strokesOnTile + ("other" to TennisTokens.Colors.strokeOtherOnTile)) {
+            val r = contrast(c, TennisTokens.Colors.tile)
+            assertTrue("$stroke on the tile is $r:1", r >= 3.0)
+        }
+        assertEquals(TennisTokens.Colors.strokes.keys, TennisTokens.Colors.strokesOnTile.keys)
+    }
 }

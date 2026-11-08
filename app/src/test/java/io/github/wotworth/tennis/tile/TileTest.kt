@@ -62,6 +62,8 @@ class TileTest {
         r.query(TileCues.CUES, null, null, null, null)!!.use { c ->
             assertEquals(7, c.count); c.moveToFirst()
             assertEquals("forehand", c.getString(c.getColumnIndexOrThrow("heading")))
+            // TIL-06: the forehand's tile colour, as the launcher reads it.
+            assertEquals(0xFF92D2F1.toInt(), c.getString(c.getColumnIndexOrThrow("colour")).toLong().toInt())
         }
         r.query(TileCues.BACK, null, null, null, null)!!.use { c -> c.moveToFirst(); assertEquals("", c.getString(c.getColumnIndexOrThrow("big"))) }
         r.query(TileRows.FACES, null, null, null, null)!!.use { assertEquals(1, it.count) }
