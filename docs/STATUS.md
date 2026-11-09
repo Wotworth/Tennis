@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** tile-4 (spec v0.9, 8 Nov): stroke above each cue on the tile (docs/reports/TILE-4.md). Before: tile-3 v0.6.14; launcher v0.9.179 (other session), v0.9.173 (main).
+**Phase:** tile-4 (spec v0.9, 8 Nov): stroke above each cue on the tile: tennis v0.6.15, launcher v0.9.181 from main (docs/reports/TILE-4.md).
 
 ## Done
 

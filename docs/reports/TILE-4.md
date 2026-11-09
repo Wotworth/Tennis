@@ -1,6 +1,6 @@
 # Live tile: the stroke above each cue
 
-Releases: tennis _added once CI publishes it_ (tag `tile-4`); launcher _added once CI publishes it_ (from launcher main). Spec v0.9 (TIL-06).
+Releases: tennis [v0.6.15](https://github.com/Wotworth/tennis/releases/tag/v0.6.15) (tag `tile-4`); launcher [v0.9.181](https://github.com/Wotworth/wp-launcher/releases/tag/v0.9.181) (from launcher main, includes v0.9.179). Spec v0.9 (TIL-06).
 
 From Chris's screenshot (8 Nov): "Don't forget about the follow through" didn't say which stroke. Now each cue on the tile has its stroke above it in small letters ("forehand"), in the stroke's colour.
 
