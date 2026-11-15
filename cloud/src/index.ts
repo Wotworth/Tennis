@@ -95,6 +95,120 @@ async function route(req: Request, env: Env): Promise<Response> {
     await env.DB.prepare("UPDATE session_conditions SET applied = 1 WHERE id = ?").bind(Number(p[1])).run();
     return json({ ok: true });
   }
+  // ---- detector feedback (Chris, 15 Nov) ----
+  if (m === "POST" && p[0] === "checks" && p.length === 1) {
+    need(req, env, "write");
+    return postChecks(env, await body(req));
+  }
+  if (m === "GET" && p[0] === "checks" && p[1] === "next" && p.length === 2) {
+    need(req, env, "read");
+    return nextChecks(env, url);
+  }
+  if (m === "POST" && p[0] === "checks" && p[2] === "answer" && p.length === 3) {
+    need(req, env, "read");
+    return answerCheck(env, Number(p[1]), await body(req));
+  }
+  if (m === "GET" && p[0] === "checks" && p[1] === "answered" && p.length === 2) {
+    need(req, env, "write");
+    const r = await env.DB.prepare(
+      `SELECT id, session_id AS sessionId, frame_ref AS frameRef, pred_x AS predX, pred_y AS predY, width, height,
+              answer, ans_x AS ansX, ans_y AS ansY, answered_utc AS answeredUtc
+         FROM ball_checks WHERE answer IS NOT NULL AND applied = 0 ORDER BY id`).all();
+    return json(r.results);
+  }
+  if (m === "POST" && p[0] === "checks" && p[2] === "applied" && p.length === 3) {
+    need(req, env, "write");
+    await env.DB.prepare("UPDATE ball_checks SET applied = 1 WHERE id = ?").bind(Number(p[1])).run();
+    return json({ ok: true });
+  }
+  if (m === "GET" && p[0] === "checks" && p[1] === "waiting" && p.length === 2) {
+    need(req, env, "read"); // for the tile: the rows, the app counts them
+    const r = await env.DB.prepare("SELECT id FROM ball_checks WHERE answer IS NULL").all();
+    return json(r.results);
+  }
+  if (m === "POST" && p[0] === "sessions" && p[2] === "flags" && p.length === 3) {
+    need(req, env, "read");
+    return postFlag(env, p[1], await body(req));
+  }
+  if (m === "GET" && p[0] === "flags" && p.length === 1) {
+    need(req, env, "write");
+    const status = url.searchParams.get("status") ?? "open";
+    const r = await env.DB.prepare(
+      `SELECT id, session_id AS sessionId, kind, rally, shot, reason, t, created_utc AS createdUtc, status, note
+         FROM flags WHERE status = ? ORDER BY id`).bind(status).all();
+    return json(r.results);
+  }
+  if (m === "POST" && p[0] === "flags" && p[2] === "status" && p.length === 3) {
+    need(req, env, "write");
+    const b = await body(req);
+    if (!["open", "applied", "reviewed"].includes(b.status)) throw new HttpError(400, "bad status");
+    await env.DB.prepare("UPDATE flags SET status = ?, note = ? WHERE id = ?").bind(b.status, typeof b.note === "string" ? b.note : null, Number(p[1])).run();
+    return json({ ok: true });
+  }
+  // ---- opponents (Chris, 15 Nov): names only here ----
+  if (m === "GET" && p[0] === "opponents" && p.length === 1) {
+    need(req, env, "read");
+    return listOpponents(env);
+  }
+  if (m === "POST" && p[0] === "opponents" && p.length === 1) {
+    need(req, env, "read");
+    const b = await body(req);
+    const name = cleanName(b.name);
+    const r = await env.DB.prepare("INSERT INTO opponents (name, created_utc) VALUES (?, ?) RETURNING id").bind(name, now()).first<any>();
+    return json({ id: r.id, name });
+  }
+  if (m === "PUT" && p[0] === "opponents" && p.length === 2) {
+    need(req, env, "read");
+    const b = await body(req);
+    await env.DB.prepare("UPDATE opponents SET name = ? WHERE id = ?").bind(cleanName(b.name), Number(p[1])).run();
+    return json({ ok: true });
+  }
+  if (m === "POST" && p[0] === "opponents" && p[2] === "merge" && p.length === 3) {
+    need(req, env, "read");
+    const b = await body(req);
+    const from = Number(p[1]), into = Number(b.into);
+    if (!Number.isInteger(into) || into === from) throw new HttpError(400, "merge into another opponent");
+    await env.DB.batch([
+      env.DB.prepare("UPDATE session_opponents SET opponent_id = ? WHERE opponent_id = ?").bind(into, from),
+      env.DB.prepare("DELETE FROM opponents WHERE id = ?").bind(from),
+    ]);
+    return json({ ok: true });
+  }
+  if (m === "DELETE" && p[0] === "opponents" && p.length === 2) {
+    need(req, env, "read");
+    const id = Number(p[1]);
+    await env.DB.batch([
+      env.DB.prepare("UPDATE session_opponents SET opponent_id = NULL WHERE opponent_id = ?").bind(id),
+      env.DB.prepare("DELETE FROM opponents WHERE id = ?").bind(id),
+    ]);
+    return json({ ok: true });
+  }
+  if (m === "POST" && p[0] === "sessions" && p[2] === "opponent" && p.length === 3) {
+    need(req, env, "read");
+    const b = await body(req);
+    const opp = b.opponentId === null ? null : Number(b.opponentId);
+    if (opp !== null && !Number.isInteger(opp)) throw new HttpError(400, "opponentId: a number or null (skip)");
+    await env.DB.prepare(
+      `INSERT INTO session_opponents (session_id, opponent_id, answered_utc) VALUES (?, ?, ?)
+       ON CONFLICT(session_id) DO UPDATE SET opponent_id = excluded.opponent_id, answered_utc = excluded.answered_utc`,
+    ).bind(p[1], opp, now()).run();
+    return json({ ok: true });
+  }
+  if (m === "GET" && p[0] === "opponents" && p.length === 2) {
+    need(req, env, "read");
+    const id = Number(p[1]);
+    const o: any = await env.DB.prepare("SELECT id, name FROM opponents WHERE id = ?").bind(id).first();
+    if (!o) throw new HttpError(404, "no such opponent");
+    const s = await env.DB.prepare(
+      `SELECT s.id, s.start_utc AS startUtc, s.headline, s.shot_count AS shots
+         FROM session_opponents so JOIN sessions s ON s.id = so.session_id
+        WHERE so.opponent_id = ? AND s.status = 'ready' ORDER BY s.start_utc DESC`).bind(id).all();
+    const st = await env.DB.prepare(
+      `SELECT t.session_id AS sessionId, t.player, t.shot_type AS shotType, t.metric, t.median, t.iqr, t.n
+         FROM session_stats t JOIN session_opponents so ON so.session_id = t.session_id
+        WHERE so.opponent_id = ? ORDER BY t.session_id`).bind(id).all();
+    return json({ id: o.id, name: o.name, sessions: s.results, stats: st.results });
+  }
   if (m === "GET" && p[0] === "identity" && p[1] === "pending" && p.length === 2) {
     need(req, env, "write");
     return pendingIdentity(env);
@@ -219,8 +333,8 @@ async function putData(env: Env, id: string, b: any): Promise<Response> {
   }
   for (const st of stats) {
     q.push(env.DB.prepare(
-      "INSERT INTO session_stats (session_id, shot_type, metric, median, iqr, n) VALUES (?, ?, ?, ?, ?, ?)",
-    ).bind(id, st.shotType, st.metric, num(st.median), num(st.iqr), num(st.n)));
+      "INSERT INTO session_stats (session_id, shot_type, metric, median, iqr, n, player) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    ).bind(id, st.shotType, st.metric, num(st.median), num(st.iqr), num(st.n), st.player === "opponent" ? "opponent" : "chris"));
   }
   q.push(env.DB.prepare(
     `UPDATE sessions SET duration_s = ?, shot_count = ?, rally_count = ?, headline = ?, identity_pending = ?,
@@ -241,9 +355,11 @@ async function pendingIdentity(env: Env): Promise<Response> {
 // ---------- app side ----------
 async function listSessions(env: Env): Promise<Response> {
   const r = await env.DB.prepare(
-    `SELECT id, start_utc AS startUtc, court_id AS court, duration_s AS durationS, shot_count AS shots,
-            rally_count AS rallies, headline, mode, identity_pending AS identityPending
-       FROM sessions WHERE status = 'ready' ORDER BY start_utc DESC`,
+    `SELECT s.id, s.start_utc AS startUtc, s.court_id AS court, s.duration_s AS durationS, s.shot_count AS shots,
+            s.rally_count AS rallies, s.headline, s.mode, s.identity_pending AS identityPending,
+            so.opponent_id AS opponentId, o.name AS opponent, so.session_id IS NOT NULL AS opponentAnswered
+       FROM sessions s LEFT JOIN session_opponents so ON so.session_id = s.id LEFT JOIN opponents o ON o.id = so.opponent_id
+      WHERE s.status = 'ready' ORDER BY s.start_utc DESC`,
   ).all();
   return json(r.results);
 }
@@ -292,7 +408,7 @@ async function trends(env: Env, url: URL): Promise<Response> {
   const r = await env.DB.prepare(
     `SELECT s.id AS sessionId, s.start_utc AS startUtc, t.median, t.iqr, t.n
        FROM session_stats t JOIN sessions s ON s.id = t.session_id
-      WHERE t.metric = ? AND t.shot_type = ? AND s.status = 'ready' AND s.identity_pending = 0
+      WHERE t.metric = ? AND t.shot_type = ? AND t.player = 'chris' AND s.status = 'ready' AND s.identity_pending = 0
         AND s.start_utc >= ? AND s.start_utc <= ?
       ORDER BY s.start_utc`,
   ).bind(metric, shotType, from, to).all();
@@ -322,6 +438,73 @@ async function postConditions(env: Env, id: string, b: any): Promise<Response> {
   await env.DB.prepare("INSERT INTO session_conditions (session_id, indoor, answered_utc) VALUES (?, ?, ?)")
     .bind(id, b.indoor ? 1 : 0, now()).run();
   return json({ ok: true });
+}
+
+// ---------- detector feedback and opponents ----------
+async function postChecks(env: Env, b: any): Promise<Response> {
+  const items: any[] = Array.isArray(b.checks) ? b.checks : [];
+  if (items.length === 0 || items.length > 200) throw new HttpError(400, "send 1 to 200 checks");
+  const q = items.map((c) => env.DB.prepare(
+    `INSERT INTO ball_checks (session_id, frame_ref, crop_path, pred_x, pred_y, width, height, created_utc)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(session_id, frame_ref) DO NOTHING`,
+  ).bind(text(c.sessionId, "sessionId"), text(c.frameRef, "frameRef"), safePath(text(c.cropPath, "cropPath")),
+    num(c.predX), num(c.predY), Number(c.width), Number(c.height), now()));
+  await env.DB.batch(q);
+  return json({ ok: true, count: items.length });
+}
+
+async function nextChecks(env: Env, url: URL): Promise<Response> {
+  const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit") ?? 20)));
+  const r = await env.DB.prepare(
+    `SELECT id, session_id AS sessionId, crop_path AS cropPath, pred_x AS predX, pred_y AS predY, width, height
+       FROM ball_checks WHERE answer IS NULL ORDER BY id LIMIT ?`).bind(limit).all();
+  const out = [];
+  for (const c of r.results as any[]) out.push({ ...c, url: await link(env, url, "get", c.sessionId, c.cropPath) });
+  return json(out);
+}
+
+async function answerCheck(env: Env, id: number, b: any): Promise<Response> {
+  if (!["ok", "moved", "none"].includes(b.answer)) throw new HttpError(400, "answer: ok, moved or none");
+  const x = b.answer === "moved" ? num(b.x) : null, y = b.answer === "moved" ? num(b.y) : null;
+  if (b.answer === "moved" && (x === null || y === null)) throw new HttpError(400, "moved needs x and y");
+  await env.DB.prepare("UPDATE ball_checks SET answer = ?, ans_x = ?, ans_y = ?, answered_utc = ? WHERE id = ?")
+    .bind(b.answer, x, y, now(), id).run();
+  return json({ ok: true });
+}
+
+const REASONS = ["wrong speed", "wrong call", "not my shot", "not a real shot"];
+
+async function postFlag(env: Env, id: string, b: any): Promise<Response> {
+  if (b.kind === "looks wrong") {
+    if (!REASONS.includes(b.reason)) throw new HttpError(400, `reason: one of ${REASONS.join(", ")}`);
+    if (!Number.isInteger(b.rally) || !Number.isInteger(b.shot)) throw new HttpError(400, "rally and shot");
+    await env.DB.prepare("INSERT INTO flags (session_id, kind, rally, shot, reason, created_utc) VALUES (?, 'looks wrong', ?, ?, ?, ?)")
+      .bind(id, b.rally, b.shot, b.reason, now()).run();
+  } else if (b.kind === "missed shot") {
+    if (num(b.t) === null) throw new HttpError(400, "t: seconds into the session");
+    await env.DB.prepare("INSERT INTO flags (session_id, kind, rally, t, created_utc) VALUES (?, 'missed shot', ?, ?, ?)")
+      .bind(id, Number.isInteger(b.rally) ? b.rally : null, b.t, now()).run();
+  } else {
+    throw new HttpError(400, "kind: 'looks wrong' or 'missed shot'");
+  }
+  return json({ ok: true });
+}
+
+async function listOpponents(env: Env): Promise<Response> {
+  // most recently played first (then newest added); the app suggests, never the Worker
+  const r = await env.DB.prepare(
+    `SELECT o.id, o.name, MAX(s.start_utc) AS lastPlayed
+       FROM opponents o
+       LEFT JOIN session_opponents so ON so.opponent_id = o.id
+       LEFT JOIN sessions s ON s.id = so.session_id
+      GROUP BY o.id ORDER BY lastPlayed IS NULL, lastPlayed DESC, o.id DESC`).all();
+  return json(r.results);
+}
+
+function cleanName(v: unknown): string {
+  const s = typeof v === "string" ? v.trim().replace(/\s+/g, " ") : "";
+  if (s.length === 0 || s.length > 60) throw new HttpError(400, "a name of 1 to 60 characters");
+  return s;
 }
 
 // ---------- helpers ----------

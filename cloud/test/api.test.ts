@@ -167,3 +167,79 @@ describe("indoor flag (Chris, 15 Nov)", () => {
     expect((await call("GET", "/conditions/pending", R)).status).toBe(401);
   });
 });
+
+describe("ball checks (Chris, 15 Nov)", () => {
+  it("the PC posts crops, the app answers one at a time, the PC pulls the answers", async () => {
+    await readySession("a");
+    const checks = [1, 2, 3].map((i) => ({ sessionId: "a", frameRef: `c1-f${i}`, cropPath: `checks/c1-f${i}.jpg`, predX: 128, predY: 120, width: 256, height: 256 }));
+    expect((await call("POST", "/checks", W, { checks })).status).toBe(200);
+    await call("POST", "/checks", W, { checks });                               // re-sent: no duplicates
+    const next: any = await (await call("GET", "/checks/next?limit=20", R)).json();
+    expect(next).toHaveLength(3);
+    expect(next[0].url).toContain("sig=");
+    await call("POST", `/checks/${next[0].id}/answer`, R, { answer: "ok" });
+    await call("POST", `/checks/${next[1].id}/answer`, R, { answer: "moved", x: 140, y: 101 });
+    await call("POST", `/checks/${next[2].id}/answer`, R, { answer: "none" });
+    expect((await call("POST", `/checks/${next[2].id}/answer`, R, { answer: "moved" })).status).toBe(400);
+    const got: any = await (await call("GET", "/checks/answered", W)).json();
+    expect(got.map((c: any) => c.answer)).toEqual(["ok", "moved", "none"]);
+    expect(got[1]).toMatchObject({ ansX: 140, ansY: 101 });
+    await call("POST", `/checks/${got[0].id}/applied`, W);
+    expect(await (await call("GET", "/checks/answered", W)).json()).toHaveLength(2);
+    expect(await (await call("GET", "/checks/waiting", R)).json()).toHaveLength(0);
+  });
+});
+
+describe("flags (Chris, 15 Nov)", () => {
+  it("logs 'looks wrong' with a reason and 'missed shot' with a time; the PC lists and closes them", async () => {
+    await readySession("a");
+    expect((await call("POST", "/sessions/a/flags", R, { kind: "looks wrong", rally: 3, shot: 2, reason: "wrong speed" })).status).toBe(200);
+    expect((await call("POST", "/sessions/a/flags", R, { kind: "looks wrong", rally: 3, shot: 2, reason: "bad vibes" })).status).toBe(400);
+    expect((await call("POST", "/sessions/a/flags", R, { kind: "missed shot", rally: 4, t: 812.4 })).status).toBe(200);
+    const open: any = await (await call("GET", "/flags?status=open", W)).json();
+    expect(open.map((f: any) => f.kind)).toEqual(["looks wrong", "missed shot"]);
+    await call("POST", `/flags/${open[1].id}/status`, W, { status: "applied", note: "added shot at 812.6 s" });
+    expect(await (await call("GET", "/flags?status=open", W)).json()).toHaveLength(1);
+  });
+});
+
+describe("opponents (Chris, 15 Nov)", () => {
+  it("adds, picks for a session, renames, merges and deletes; most recently played first", async () => {
+    await readySession("s1");
+    const a: any = await (await call("POST", "/opponents", R, { name: "  Test   Opponent One " })).json();
+    const b: any = await (await call("POST", "/opponents", R, { name: "Test Opponent Two" })).json();
+    expect(a.name).toBe("Test Opponent One");
+    await call("POST", "/sessions/s1/opponent", R, { opponentId: a.id });
+    let list: any = await (await call("GET", "/opponents", R)).json();
+    expect(list[0].id).toBe(a.id);                                            // played most recently
+    const sessions: any = await (await call("GET", "/sessions", R)).json();
+    expect(sessions[0].opponent).toBe("Test Opponent One");
+    await call("PUT", `/opponents/${a.id}`, R, { name: "Test Opponent 1" });
+    expect((await (await call("GET", "/sessions", R)).json() as any)[0].opponent).toBe("Test Opponent 1");
+    await call("POST", `/opponents/${a.id}/merge`, R, { into: b.id });         // a duplicate of b
+    expect((await (await call("GET", "/sessions", R)).json() as any)[0].opponentId).toBe(b.id);
+    const page: any = await (await call("GET", `/opponents/${b.id}`, R)).json();
+    expect(page.sessions.map((s: any) => s.id)).toEqual(["s1"]);
+    await call("DELETE", `/opponents/${b.id}`, R);
+    list = await (await call("GET", "/opponents", R)).json();
+    expect(list).toEqual([]);
+    expect((await (await call("GET", "/sessions", R)).json() as any)[0].opponentId).toBeNull();
+  });
+
+  it("'skip / unknown' is an answer too, and a blank name is refused", async () => {
+    await readySession("s1");
+    await call("POST", "/sessions/s1/opponent", R, { opponentId: null });
+    const s: any = await (await call("GET", "/sessions", R)).json();
+    expect(s[0].opponentAnswered).toBe(1);
+    expect((await call("POST", "/opponents", R, { name: "   " })).status).toBe(400);
+  });
+
+  it("opponent figures never enter Chris's trends", async () => {
+    await call("POST", "/sessions", W, { id: "x", startUtc: "2026-11-14T15:00:00Z" });
+    await call("PUT", "/sessions/x/data", W, { session: {}, rallies: [], shots: [], complete: true,
+      stats: [{ shotType: "forehand", metric: "speed", median: 27, iqr: 1, n: 5, player: "chris" },
+              { shotType: "forehand", metric: "speed", median: 31, iqr: 1, n: 5, player: "opponent" }] });
+    const t: any = await (await call("GET", "/trends?metric=speed&shotType=forehand", R)).json();
+    expect(t.map((r: any) => r.median)).toEqual([27]);
+  });
+});
