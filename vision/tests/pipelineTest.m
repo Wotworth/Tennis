@@ -25,6 +25,14 @@ end
 R = load(resultFile);
 rep = tv.synth.compare(R.result, T.truth, T.cams, T.sc);
 disp(rep); disp(rep.calls'); disp(rep.missing)
+for r = 1:numel(R.result.segs)                 % what the pipeline saw, for diagnosis
+    for g = R.result.segs{r}'
+        fprintf('rally %d segment %.3f-%.3f rms %.2f n %d/%d\n', r, g.t0, max(g.t), g.rmsPx, g.n);
+    end
+    for e = R.result.events{r}
+        fprintf('rally %d %s at %.3f (%.2f %.2f %.2f)\n', r, e.type, e.t, e.p);
+    end
+end
 % On CI, keep the outputs where the workflow prints them (they become the app's sample session)
 if ~isempty(getenv('CI'))
     keep = fullfile(pwd, 'out', 'pipeline');

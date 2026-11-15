@@ -31,7 +31,10 @@ for k = 1:n - 1
     tc = tt(i);  pc = (Pa(i, :) + Pb(i, :)) / 2;
     [~, Va] = tv.recon.segmentModel(a.x, a.t0, tc, air);
     [~, Vb] = tv.recon.segmentModel(b.x, b.t0, max(tc, b.t0), air);
-    if pc(3) < 0.3 && Va(3) < 0 && Vb(3) > 0
+    if abs(pc(1)) < 0.5 && pc(3) - c.ballRadius < tv.court.netHeight(pc(2))
+        % at the net plane, below the tape: the net, never a bounce (there is no court under the net)
+        ev(end+1) = struct('type', 'net', 't', tc, 'p', pc, 'segBefore', k, 'segAfter', k + 1); %#ok<AGROW>
+    elseif pc(3) < 0.3 && Va(3) < 0 && Vb(3) > 0
         [tb, pb] = bouncePoint(a, b, air, c);
         ev(end+1) = struct('type', 'bounce', 't', tb, 'p', pb, 'segBefore', k, 'segAfter', k + 1); %#ok<AGROW>
     elseif abs(pc(1)) < 0.8 && norm(Vb) < 6
