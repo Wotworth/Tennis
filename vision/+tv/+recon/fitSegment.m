@@ -22,12 +22,24 @@ if ~ok, return; end
 t0 = seg.t0;
 w = ones(size(obs, 1), 1);
 o = optimset('Display', 'off', 'MaxIter', 60, 'TolFun', 1e-9, 'TolX', 1e-9);
-x = x0(:)';
-for pass = 1:3                                      % Huber reweighting
-    x = lsqnonlin(@(x) residuals(x, w), x, [], [], o);
-    x = x(:)';
-    r = pixelErrors(x);
-    w = min(1, 2 ./ max(r, eps));                   % Huber, 2 px
+% physical limits: lift coefficient parts within +/-0.6, drag 0.3-0.8
+lb = [-Inf -Inf -Inf -Inf -Inf -Inf -0.6 -0.6 0.3];
+ub = [ Inf  Inf  Inf  Inf  Inf  Inf  0.6  0.6 0.8];
+x = min(max(x0(:)', lb), ub);
+if ~all(isfinite(residuals(x, w)))
+    % a start from a neighbouring flight can be far off: start afresh
+    [x, ok] = tv.recon.initSegment(obs, t, cams, prior.CD);
+    if ~ok || ~all(isfinite(residuals(x, w))), return; end
+end
+try
+    for pass = 1:3                                  % Huber reweighting
+        x = lsqnonlin(@(x) residuals(x, w), x, lb, ub, o);
+        x = x(:)';
+        r = pixelErrors(x);
+        w = min(1, 2 ./ max(r, eps));               % Huber, 2 px
+    end
+catch
+    return                                          % seg.ok stays false
 end
 r = pixelErrors(x);
 seg.x = x;  seg.w = w;  seg.ok = true;
