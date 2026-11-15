@@ -1,0 +1,29 @@
+# Tennis Vision cloud API (cloud/): type check and tests. Deploying needs Chris's
+# Cloudflare account and is done by hand in TV-PH-4 (cloud/README.md).
+name: Cloud tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cloud/**'
+      - '.github/workflows/cloud.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: cloud
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cloud/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test

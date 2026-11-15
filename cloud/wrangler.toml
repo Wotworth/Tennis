@@ -1,0 +1,15 @@
+# Tennis Vision cloud API (TV-API-01 to 04). Deployed in TV-PH-4 with Chris's Cloudflare account.
+# Secrets (never in this file): wrangler secret put WRITE_TOKEN / READ_TOKEN / LINK_KEY
+name = "tennis-api"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tennis"
+database_id = "FILL-IN-AT-DEPLOY"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "tennis-sessions"

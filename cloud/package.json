@@ -1,0 +1,15 @@
+{
+  "name": "tennis-api",
+  "private": true,
+  "description": "Tennis Vision cloud API (TV-API-01 to 04): Cloudflare Worker, D1 database, R2 storage.",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261031.1",
+    "typescript": "6.0.3",
+    "vitest": "3.2.4"
+  }
+}

@@ -11,6 +11,7 @@ on:
       - 'vision/**'
       - 'cloud/**'
       - '.github/workflows/vision.yml'
+      - '.github/workflows/cloud.yml'
   workflow_dispatch:
     inputs:
       release_title:
