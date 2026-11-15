@@ -1,5 +1,8 @@
 % Provisional lens models from GoPro's published MISSION 1 angles (TV-CAL-04).
+% Shared by every section (in matlab.unittest each section sees only this part)
 cfg = tv.readJson(fullfile(fileparts(mfilename('fullpath')), '..', 'config', 'placement.json'));
+W   = tv.lens.build(cfg.lenses, 'Wide', '16:9');
+cam = tv.placement.pose([0 0 3], 90, -10);
 
 %% Linear 16:9 puts the published horizontal half-angle on the frame edge
 L = tv.lens.build(cfg.lenses, 'Linear', '16:9');
@@ -24,8 +27,6 @@ for a = {'16:9', '4:3'}
 end
 
 %% A point straight ahead lands in the middle of the picture
-W = tv.lens.build(cfg.lenses, 'Wide', '16:9');
-cam = tv.placement.pose([0 0 3], 90, -10);
 [u, v, ok] = tv.lens.project(W, cam, cam.pos + 10 * cam.R(3, :));
 assert(ok && abs(u) < 1e-9 && abs(v) < 1e-9)
 
