@@ -14,7 +14,7 @@ for r = 1:size(R.rallyWindows, 1)
     args = sprintf('-ss %.3f -t %.3f -i "%s" -vf scale=-2:%d -c:a aac', w(1), w(2) - w(1), src, h);
     ok = false;
     if tv.util.useGpu()
-        st = system(sprintf('%s -y -v error %s -c:v h264_nvenc -preset p5 -cq 23 "%s"', tv.util.ffmpeg(), args, clip));
+        st = tv.util.shell(sprintf('%s -y -v error %s -c:v h264_nvenc -preset p5 -cq 23 "%s"', tv.util.ffmpeg(), args, clip));
         ok = st == 0;
     end
     if ~ok

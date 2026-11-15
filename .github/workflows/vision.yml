@@ -21,6 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install FFmpeg (the pipeline's video tool, TV-ARCH-02)
+        run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+
       - name: Set up MATLAB
         uses: matlab-actions/setup-matlab@v2
         with:

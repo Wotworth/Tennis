@@ -16,7 +16,7 @@ if scale ~= 1, vf = sprintf('-vf scale=%d:%d:flags=area', W, H); end
 base = sprintf('-ss %.6f -i "%s" -frames:v %d %s -f rawvideo -pix_fmt rgb24 "%s"', t, info.file, count, vf, raw);
 ok = false;
 if tv.util.useGpu()
-    [st, ~] = system(sprintf('%s -y -v error -hwaccel cuda %s', tv.util.ffmpeg(), base));
+    [st, ~] = tv.util.shell(sprintf('%s -y -v error -hwaccel cuda %s', tv.util.ffmpeg(), base));
     ok = st == 0;
 end
 if ~ok, tv.util.run(sprintf('%s -y -v error %s', tv.util.ffmpeg(), base)); end
