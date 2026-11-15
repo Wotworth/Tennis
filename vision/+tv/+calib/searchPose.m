@@ -17,7 +17,7 @@ function [cam, report] = searchPose(bg, lens, opts)
 %   RETUNE(real footage): search ranges, steps and the line caps.
 if nargin < 3, opts = struct(); end
 d = struct('xStep', 3, 'yStep', 2, 'maxRange', 27, 'heights', [2.5 3.5], ...
-           'yawFan', -45:15:45, 'pitchFan', -12:6:12, 'cap', 12, 'keep', 12, 'nPixels', 250);
+           'yawFan', -45:15:45, 'pitchFan', -12:6:12, 'cap', 12, 'keep', 24, 'nPixels', 250);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 c = tv.court.constants();
@@ -49,7 +49,7 @@ for i = 1:size(pos2, 1)
 end
 [~, o] = sort(trials(:, 7));
 best = [];  bestCost = Inf;  report = struct();
-tried = 0;
+tried = 0;  cands = zeros(0, 6);
 for i = o(:)'
     t = trials(i, :);
     % skip near-duplicates of a start already refined
@@ -60,11 +60,13 @@ for i = o(:)'
     % judge refined poses by the lines they truly match: matched points,
     % less a heavy penalty for line error above 1 px (TV-CAL-13)
     cst = -rep.inliers + 2000 * max(0, rep.rmsPx - 1) + 100 * score(camR);
+    cands(end+1, :) = [camR.pos, rep.inliers, rep.rmsPx, cst]; %#ok<AGROW>
     if cst < bestCost, bestCost = cst; best = camR; report = rep; end
     if tried >= opts.keep, break; end
 end
 cam = best;
 report.searchCost = bestCost;
+report.candidates = cands;          % [x y z inliers rmsPx cost] per refined start
 report.trials = size(trials, 1);
 
     function s = score(cm)
