@@ -187,6 +187,8 @@ object TennisTokens {
         var scrubberHeight by mutableFloatStateOf(26f)       // zpx
         var hrBarHeight by mutableFloatStateOf(10f)          // zpx
         var lineAlpha by mutableFloatStateOf(0.55f)          // court lines on black
+        /** A picked court labels the next vision session that ends after the pick and starts within this many hours of it. */
+        var courtPickHours by mutableFloatStateOf(12f)
     }
 
     object Easings {

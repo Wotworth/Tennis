@@ -68,10 +68,13 @@ object Sample {
                 val start = LocalDate.of(2026, 11, 5).atTime(17, 10).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
                 r.addProposal(Proposal(startMillis = start, endMillis = start + 85 * 60_000, source = "heart_rate", avgHr = 134, maxHr = 166, steps = 5900))
             }
+            val reynolds = r.saveCourt(io.github.wotworth.tennis.data.Court(name = "Reynolds Field Court 1", layout = 1, lensMode = "16:9"))
+            r.saveCourt(io.github.wotworth.tennis.data.Court(name = "Armory indoor 3", layout = 2, lensMode = "4:3 open gate", indoor = true))
+            r.labelVisionSession(io.github.wotworth.tennis.data.VisionLabel(io.github.wotworth.tennis.vision.VisionStore.SAMPLE_ID, reynolds))
             app.prefs.selectRacquet(bb1)
             app.prefs.chooseStringsLayout(layout)
         }
-        waitFor(app) { it.cues.size == 7 && it.sessions.size == 12 && it.racquets.any { r -> r.retired } && (!proposals || it.proposals.isNotEmpty()) }
+        waitFor(app) { it.cues.size == 7 && it.sessions.size == 12 && it.racquets.any { r -> r.retired } && it.courts.size == 2 && it.visionLabels.size == 1 && (!proposals || it.proposals.isNotEmpty()) }
         return app
     }
 }

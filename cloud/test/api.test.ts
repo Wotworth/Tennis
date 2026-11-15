@@ -146,3 +146,24 @@ describe("no health data (Chris, 15 Nov)", () => {
     expect((await call("POST", "/sessions/a/health", W, { avgHr: 140 })).status).toBe(404);
   });
 });
+
+describe("indoor flag (Chris, 15 Nov)", () => {
+  it("takes only an indoor flag from the app; the PC fetches it and marks it applied", async () => {
+    await readySession("a");
+    expect((await call("POST", "/sessions/a/conditions", R, { indoor: true })).status).toBe(200);
+    const pending: any = await (await call("GET", "/conditions/pending", W)).json();
+    expect(pending).toHaveLength(1);
+    expect(pending[0]).toMatchObject({ sessionId: "a", indoor: true });
+    await call("POST", `/conditions/${pending[0].id}/applied`, W);
+    expect(await (await call("GET", "/conditions/pending", W)).json()).toEqual([]);
+  });
+
+  it("refuses a court name, a photo or anything else alongside the flag", async () => {
+    await readySession("a");
+    expect((await call("POST", "/sessions/a/conditions", R, { indoor: true, name: "Reynolds Field Court 1" })).status).toBe(400);
+    expect((await call("POST", "/sessions/a/conditions", R, { indoor: "yes" })).status).toBe(400);
+    expect((await call("POST", "/sessions/a/conditions", R, { photo: "abc" })).status).toBe(400);
+    expect((await call("POST", "/sessions/nope/conditions", R, { indoor: true })).status).toBe(404);
+    expect((await call("GET", "/conditions/pending", R)).status).toBe(401);
+  });
+});

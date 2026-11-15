@@ -15,8 +15,12 @@ data class AppData(
     val proposals: List<Proposal> = emptyList(),
     val cues: List<Cue> = emptyList(),
     val strings: List<StringItem> = emptyList(),
+    val courts: List<Court> = emptyList(),
+    val visionLabels: List<VisionLabel> = emptyList(),
     val loaded: Boolean = false,
 ) {
+    fun court(id: Long?) = courts.firstOrNull { it.id == id }
+    fun visionLabel(sessionId: String) = visionLabels.firstOrNull { it.sessionId == sessionId }
     val waiting: List<Proposal> get() = proposals.filter { it.state == "waiting" }
     fun racquet(id: Long) = racquets.firstOrNull { it.id == id }
     /** RAC-06: the racquets on the main page. */
@@ -32,8 +36,9 @@ class Repository(private val db: TennisDatabase, scope: CoroutineScope, private 
             val byId = sr.groupBy({ it.sessionId }, { it.racquetId })
             Triple(r, j, s.map { SessionWithRacquets(it, byId[it.id].orEmpty()) })
         },
-        dao.proposals(), dao.cues(), dao.strings(),
-    ) { (r, j, s), p, c, st -> AppData(r, j, s, p, c, st, loaded = true) }
+        dao.proposals(), dao.cues(),
+        combine(dao.strings(), dao.courts(), dao.visionLabels()) { st, co, vl -> Triple(st, co, vl) },
+    ) { (r, j, s), p, c, (st, co, vl) -> AppData(r, j, s, p, c, st, co, vl, loaded = true) }
         .stateIn(scope, SharingStarted.Eagerly, AppData())
 
     private suspend fun <T> changed(block: suspend () -> T): T = block().also { onChange() }
@@ -59,6 +64,10 @@ class Repository(private val db: TennisDatabase, scope: CoroutineScope, private 
         if (existing == null) dao.insertString(StringItem(spec = spec, photo = photo))
         else if (existing.photo == null && photo != null) dao.updateString(existing.copy(photo = photo))
     }
+
+    suspend fun saveCourt(c: Court): Long = changed { if (c.id == 0L) dao.insertCourt(c) else { dao.updateCourt(c); c.id } }
+    suspend fun deleteCourt(c: Court) = changed { dao.deleteCourt(c) }
+    suspend fun labelVisionSession(l: VisionLabel) = changed { dao.putVisionLabel(l) }
 
     suspend fun saveString(s: StringItem): Long = changed { if (s.id == 0L) dao.insertString(s) else { dao.updateString(s); s.id } }
     suspend fun deleteString(s: StringItem) = changed { dao.deleteString(s) }
@@ -103,14 +112,17 @@ class Repository(private val db: TennisDatabase, scope: CoroutineScope, private 
     suspend fun replaceAll(b: BackupData) = changed {
         db.runInTransactionSuspend {
             dao.clearSessions(); dao.clearRacquets(); dao.clearProposals(); dao.clearCues(); dao.clearStrings()
+            dao.clearVisionLabels(); dao.clearCourts()
             dao.insertRacquets(b.racquets); dao.insertJobs(b.jobs); dao.insertSessions(b.sessions)
             // v0.4: one racquet per session; an older backup's extra racquets are dropped (first kept).
             dao.insertSessionRacquets(b.sessionRacquets.distinctBy { it.sessionId }); dao.insertProposals(b.proposals); dao.insertCues(b.cues); dao.insertStrings(b.strings)
+            dao.insertCourts(b.courts); dao.insertVisionLabels(b.visionLabels)
         }
     }
 
     suspend fun snapshot() = BackupData(
         dao.racquetsNow(), dao.jobsNow(), dao.sessionsNow(), dao.sessionRacquetsNow(), dao.proposalsNow(), dao.cuesNow(), dao.stringsNow(),
+        dao.courtsNow(), dao.visionLabelsNow(),
     )
 
     companion object {

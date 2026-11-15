@@ -17,14 +17,17 @@ data class BackupData(
     val proposals: List<Proposal> = emptyList(),
     val cues: List<Cue> = emptyList(),
     val strings: List<StringItem> = emptyList(),
+    val courts: List<Court> = emptyList(),
+    val visionLabels: List<VisionLabel> = emptyList(),
 )
 
 /**
  * DAT-02: one zip with `data.json` (every record, with a schema version) and the photos.
- * The API key and the settings are not exported (PHO-22).
+ * The API key and the settings are not exported (PHO-22). Schema 3 adds Tennis Vision courts
+ * and session labels: the backup is Chris's own file, kept with his phone's data.
  */
 object Backup {
-    const val SCHEMA = 2
+    const val SCHEMA = 3
 
     fun toJson(b: BackupData): JSONObject = JSONObject().apply {
         put("app", "io.github.wotworth.tennis")
@@ -49,6 +52,8 @@ object Backup {
         }))
         put("cues", JSONArray(b.cues.map { JSONObject().put("id", it.id).put("heading", it.heading).put("text", it.text).put("pinned", it.pinned).put("position", it.position) }))
         put("strings", JSONArray(b.strings.map { JSONObject().put("id", it.id).put("spec", spec(it.spec)).put("photo", it.photo ?: JSONObject.NULL).put("notes", it.notes) }))
+        put("courts", JSONArray(b.courts.map { JSONObject().put("id", it.id).put("name", it.name).put("layout", it.layout).put("lensMode", it.lensMode).put("indoor", it.indoor).put("photo", it.photo ?: JSONObject.NULL) }))
+        put("visionLabels", JSONArray(b.visionLabels.map { JSONObject().put("sessionId", it.sessionId).put("courtId", it.courtId ?: JSONObject.NULL).put("indoor", it.indoor).put("indoorSent", it.indoorSent) }))
     }
 
     private fun spec(s: StringSpec) = JSONObject().put("brand", s.brand).put("model", s.model).put("gauge", s.gauge).put("material", s.material)
@@ -80,6 +85,8 @@ object Backup {
             },
             cues = o.optJSONArray("cues").map { Cue(it.getLong("id"), it.getString("heading"), it.getString("text"), it.optBoolean("pinned"), it.optInt("position")) },
             strings = o.optJSONArray("strings").map { StringItem(it.getLong("id"), spec(it.optJSONObject("spec")), it.str("photo"), it.optString("notes")) },
+            courts = o.optJSONArray("courts").map { Court(it.getLong("id"), it.getString("name"), it.optInt("layout", 1), it.optString("lensMode", "16:9"), it.optBoolean("indoor"), it.str("photo")) },
+            visionLabels = o.optJSONArray("visionLabels").map { VisionLabel(it.getString("sessionId"), it.lng("courtId"), it.optBoolean("indoor"), it.optBoolean("indoorSent")) },
         )
     }
 

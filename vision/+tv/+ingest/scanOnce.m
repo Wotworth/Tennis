@@ -18,6 +18,11 @@ for r = present
     tv.ingest.importCard(r{1}, icfg);
 end
 state.seen = intersect(state.seen, present);
+% the app's answers (indoor flags, "which one is you?"), every few minutes
+if ~isempty(cfg.client) && (~isfield(state, 'lastAnswers') || etime(clock, state.lastAnswers) > cfg.answersSeconds)
+    state.lastAnswers = clock;
+    tv.ops.applyAnswers(cfg, cfg.client, @tv.pipeline.run, @(o, id, r) tv.upload.session(o, id, r, cfg.client));
+end
 % pair and process one waiting session
 R = tv.ingest.recordings(cfg.archive, cfg.cameras);
 if isempty(R), return; end
@@ -36,7 +41,8 @@ for s = sessions(:)'
     cfg.notify('Processing started', id);
     files = {R(s.cam1).files{1}, R(s.cam2).files{1}};
     res = tv.pipeline.run(files, out, cfg.pipeline);
-    cfg.notify('Session ready', sprintf('%s: %d rallies, %d shots.', id, numel(res.rallies), numel(res.shots)));
+    if ~isempty(cfg.client), tv.upload.session(out, id, res, cfg.client); end
+    cfg.notify('Session ready', sprintf('%s: %s.', id, res.dataForUpload.session.headline));
     cfg.lightFn('off');
     state.done{end+1} = id;
     break                                     % one session per pass (TV-OPS-04)

@@ -38,6 +38,7 @@ fun SessionsPage() {
     val scope = rememberCoroutineScope()
     PivotColumn {
         ProposalTiles()
+        CourtPickRow()
         VisionTiles()
         if (data.loaded && data.sessions.isEmpty()) {
             TennisText("No sessions yet.", TennisTokens.Type.listPrimary)

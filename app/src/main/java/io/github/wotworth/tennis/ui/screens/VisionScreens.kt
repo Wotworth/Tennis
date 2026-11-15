@@ -93,9 +93,11 @@ fun VisionTiles() {
     val nav = LocalNav.current
     val zpx = LocalZpx.current
     val l = TennisTokens.Layout
+    val d = io.github.wotworth.tennis.ui.appData()
     app.vision.sessions(app.prefs.visionSample).forEach { v ->
         val fastest = v.shots.mapNotNull { it.speedContact }.maxOrNull()
-        Tile(if (v.sample) "vision · sample" else "vision", zpx(l.tileMedium * 2 + l.tileGap), zpx(l.tileMedium * 0.75f),
+        val court = d.court(d.visionLabel(v.id)?.courtId)?.name
+        Tile(listOfNotNull("vision", court, if (v.sample) "sample" else null).joinToString(" · "), zpx(l.tileMedium * 2 + l.tileGap), zpx(l.tileMedium * 0.75f),
             description = "vision session ${visionDay(v)}", onClick = { nav.open(Screen.Vision(v.id)) }) {
             TileLines(listOf("${visionDay(v)} · ${v.shots.size} shots",
                 listOf("${v.rallies.size} rallies", "fastest ${Units.mph(fastest)}").joinToString(" · ")))
@@ -167,6 +169,15 @@ private fun VisionSummary(v: VisionSession) {
         SectionHeader("air")
         TextRow(listOfNotNull(v.airRho?.let { "%.3f kg/m³".format(Locale.US, it) }, v.wind.takeIf { it.size >= 2 }?.let { "wind ${Units.mph(hypot(it[0], it[1]))}" }).joinToString(" · "),
             v.sessionCD?.let { "ball drag %.3f (lower: worn balls)".format(Locale.US, it) })
+        val d = io.github.wotworth.tennis.ui.appData()
+        d.visionLabel(v.id)?.let { lab ->
+            SectionHeader("court")
+            TextRow(d.court(lab.courtId)?.name ?: "a deleted court", when {
+                !lab.indoor -> "outdoor"
+                lab.indoorSent -> "indoor: sent to the PC, which redid the air and spin"
+                else -> "indoor: goes to the PC (just the flag) once the cloud is set up"
+            })
+        }
         v.crossing?.let { c ->
             SectionHeader("cameras")
             TextRow(if (c.low.isEmpty()) "good angles everywhere" else "weak angle: ${c.low.joinToString("; ")}", c.text)

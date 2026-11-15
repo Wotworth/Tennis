@@ -20,6 +20,17 @@ The parts of the original that are reasoning rather than requirements are kept i
 8. **Opponents' stats.** Only Chris's stats are shown; other players are labelled Player A, Player B, and so on. Asking regular partners whether they mind being recorded is Chris's job.
 9. **Active calories.** TV-HC-01 reads active calories. That needs one new phone permission, READ_ACTIVE_CALORIES_BURNED, added to `ci/allowed-permissions.txt` in TV-PH-4.
 
+10. **Camera layouts (15 Nov).** Chris uses one of two, depending on the court:
+    - (1) both cameras on one side, level with each baseline (side fence on outer courts, light stands if needed);
+    - (2) the back-fence corners at both ends, on one side (typical on middle courts).
+
+    He checks coverage with the Quik live view and does not measure fence distances. Neither layout is hard-coded. Calibration runs from the court lines every session, and the court's half-turn symmetry is resolved by the pose combination where both cameras agree on the ball and the players. The stereo crossing angle over the court goes into session.json; zones below the usable angle are named in the ntfy message.
+11. **Courts in the app (15 Nov).** The app works offline and asks for no location permission.
+    - **Adding a court:** a typed name, the layout (1 or 2), the lens mode that worked (16:9 or 4:3 Open Gate), an indoor switch, and an optional photo of the camera mounts.
+    - **Picking a court:** shows its setup. A court picked before playing labels the next vision session that overlaps that time.
+    - **Indoor courts:** the app sends only an indoor flag for that session (no name, no photo). The PC reruns from the physics stage with indoor settings (wind 0, indoor temperature and humidity), like an identity answer.
+    - Names and photos stay on the phone, and never go to the PC or the repository.
+
 ## 1. Scope, architecture, conventions
 
 Three components, built in phases (section 7):
@@ -360,6 +371,7 @@ m v̇ = m g − ½ ρ A C_D |u| u + ½ ρ A C_L |u|² (ω̂ × û),  u = v − w
 - TV-API-02 D1 tables: sessions, rallies, shots, courts, cameras, processing_runs. Index shots by session, hitter and shot type. **[15 Nov]** No health table.
 - TV-API-03 Separate write (PC) and read (app) tokens; no public access to R2.
 - TV-API-04 Identity answers: `POST /sessions/{id}/identity` and `GET /identity/pending`. The Worker stores answers only and computes no statistics.
+- TV-API-05 **[15 Nov]** Indoor flags: `POST /sessions/{id}/conditions` with exactly `{"indoor": true|false}` (anything else is refused), `GET /conditions/pending` and `POST /conditions/{id}/applied` for the PC.
 - TV-APP-01 A Sessions tile and list in the existing Metro style. Each row shows date, court, duration, shots and one headline stat.
 - TV-APP-02 Session detail pivots: Summary · Court · Shots · Rallies · 3D · Health.
 - TV-APP-03 Court view: bounce spots coloured by speed or spin effect, filterable by shot type and hitter. Tapping a spot opens that shot's card and the video at that moment.

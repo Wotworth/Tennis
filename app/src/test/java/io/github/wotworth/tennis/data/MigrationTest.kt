@@ -11,7 +11,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** DAT-04: data logged with v0.1–v0.5 (schema 1) survives the v0.4 spec update (schema 2). */
+/** DAT-04: data logged with v0.1–v0.5 (schema 1) survives the v0.4 spec update (schema 2), and schema 2 the courts (schema 3). */
 @RunWith(AndroidJUnit4::class)
 class MigrationTest {
     @get:Rule val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), TennisDatabase::class.java)
@@ -35,10 +35,24 @@ class MigrationTest {
         }
         // The app opens the migrated file normally.
         val ctx = InstrumentationRegistry.getInstrumentation().targetContext
-        val db = Room.databaseBuilder(ctx, TennisDatabase::class.java, "m.db").addMigrations(TennisDatabase.MIGRATION_1_2).build()
+        val db = Room.databaseBuilder(ctx, TennisDatabase::class.java, "m.db").addMigrations(TennisDatabase.MIGRATION_1_2, TennisDatabase.MIGRATION_2_3).build()
         val r = runBlocking { db.dao().racquetsNow() }
         assertEquals(listOf("Black Blade #1", "Black Blade #2"), r.map { it.name })
         assertFalse(r.any { it.retired })
         db.close()
+    }
+
+    @Test fun twoToThreeAddsCourtsAndKeepsEverything() {
+        helper.createDatabase("m3.db", 2).use { db ->
+            db.execSQL("INSERT INTO racquets (id, name, model, colour, position, retired) VALUES (1, 'Black Blade #1', 'Blade 98', 'black', 0, 0)")
+            db.execSQL("INSERT INTO sessions (id, date, minutes, feel, source, notes) VALUES (1, 20001, 90, 4, 'manual', '')")
+        }
+        helper.runMigrationsAndValidate("m3.db", 3, true, TennisDatabase.MIGRATION_2_3).use { db ->
+            db.query("SELECT COUNT(*) FROM racquets").use { it.moveToFirst(); assertEquals(1, it.getInt(0)) }
+            db.query("SELECT COUNT(*) FROM sessions").use { it.moveToFirst(); assertEquals(1, it.getInt(0)) }
+            db.execSQL("INSERT INTO courts (name, layout, lensMode, indoor, photo) VALUES ('Reynolds Field Court 1', 1, '16:9', 0, NULL)")
+            db.execSQL("INSERT INTO vision_labels (sessionId, courtId, indoor, indoorSent) VALUES ('s1', 1, 0, 0)")
+            db.query("SELECT COUNT(*) FROM vision_labels").use { it.moveToFirst(); assertEquals(1, it.getInt(0)) }
+        }
     }
 }

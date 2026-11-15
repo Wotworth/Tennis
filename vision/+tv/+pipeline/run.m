@@ -18,6 +18,9 @@ function result = run(files, outDir, cfg)
 if nargin < 3 || isempty(cfg), cfg = tv.pipeline.defaults(); end
 if ~exist(outDir, 'dir'), mkdir(outDir); end
 key0 = [files{1} '|' files{2} '|' fileStamp(files{1}) '|' fileStamp(files{2})];
+% what this session was run with, so an app answer can rerun it later (tv.ops.applyAnswers)
+saved = rmfield(cfg, intersect(fieldnames(cfg), {'notify'}));
+save(fullfile(outDir, 'run.mat'), 'files');  S0 = struct('cfg', saved);  save(fullfile(outDir, 'run.mat'), '-struct', 'S0', '-append');
 k = @(varargin) [key0 '|' jsonencode(varargin)];
 
 % --- probe ---------------------------------------------------------------------------
@@ -42,6 +45,9 @@ if ~isempty(Y.crossing.low), cfg.notify('Camera angle', Y.crossing.text); end
 % --- reconstruction ---------------------------------------------------------------------------------
 air0 = tv.physics.defaultParams();
 air0.rho = tv.air.density(cfg.weather.tempC, cfg.weather.relHumidity, cfg.weather.pressurePa);
+if cfg.indoor   % TV-IND-01: indoor temperature and humidity, pressure from the weather, no wind
+    air0.rho = tv.air.density(cfg.indoorDefaults.tempC, cfg.indoorDefaults.relHumidity, cfg.weather.pressurePa);
+end
 air0.wind = [0.5 * cfg.weather.wind10, 0];            % TV-PHY-04: half the 10 m forecast
 if cfg.indoor, air0.wind = [0 0 0]; end
 X = tv.pipeline.stage(outDir, 'recon', k(sync, Y.symmetry.chosen, cfg.weather, cfg.indoor, cfg.CDprior, cfg.refineRounds), ...
@@ -51,10 +57,13 @@ X = tv.pipeline.stage(outDir, 'recon', k(sync, Y.symmetry.chosen, cfg.weather, c
 P = tv.pipeline.stage(outDir, 'players', k(cfg.playerHz, Y.symmetry.chosen), @() trackPlayers(rec, C, X.sync, cfg));
 
 % --- metrics ------------------------------------------------------------------------------------
-M = tv.pipeline.stage(outDir, 'metrics', k(cfg.lines), @() measure(X, R, cams, P));
+if isfield(cfg, 'chrisLabel') && ~isempty(cfg.chrisLabel), P = relabel(P, cfg.chrisLabel); end
+M = tv.pipeline.stage(outDir, 'metrics', k(cfg.lines, P.info.chris), @() measure(X, R, cams, P));
 
 % --- outputs ----------------------------------------------------------------------------------------
-result = struct('rec', rec, 'cams', cams, 'calib', C.report, 'symmetry', Y.symmetry, 'crossing', Y.crossing, ...
+[up.summary, up.data] = tv.upload.payload(struct('rec', rec, 'shots', M.shots, 'rallies', M.rallies, ...
+    'summary', M.summary, 'air', X.air, 'players', P));
+result = struct('summaryForUpload', up.summary, 'dataForUpload', up.data, 'rec', rec, 'cams', cams, 'calib', C.report, 'symmetry', Y.symmetry, 'crossing', Y.crossing, ...
     'rallyWindows', R.windows, ...
     'sync', X.sync, 'air', X.air, 'segs', {X.segs}, 'events', {X.events}, 'players', P, ...
     'shots', M.shots, 'rallies', M.rallies, 'summary', M.summary, 'refine', X.report);
@@ -172,6 +181,13 @@ for t = T
 end
 [P.tracks, P.info] = tv.players.track(samples);
 P.question = any(P.info.confidence < 0.9);      % TV-PLY-07: ask once in the app
+end
+
+function P = relabel(P, label)
+% TV-PLY-07: Chris answered "which one is you?" with a player label. Labels
+% were given to the tracks in order (Player A, B, ...) when Chris was unknown.
+k = double(label(end)) - double('A') + 1;
+if k >= 1 && k <= numel(P.tracks), P.info.chris = k; P.info.confidence(k) = 1; P.question = false; end
 end
 
 function M = measure(X, R, cams, P)

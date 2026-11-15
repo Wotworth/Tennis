@@ -104,7 +104,10 @@ private fun barFor(pivot: Int): List<BarButton> {
         CUES -> listOf(BarButton(R.drawable.fluent_add, "add cue") { nav.open(Screen.CueEdit()) })
         RACQUETS -> listOf(BarButton(R.drawable.fluent_add, "add racquet") { nav.open(Screen.RacquetEdit()) })
         SESSIONS -> listOf(BarButton(R.drawable.fluent_add, "log session") { nav.open(Screen.SessionEdit()) })
-        LIBRARY -> listOf(BarButton(R.drawable.fluent_add, "add string") { nav.open(Screen.StringEdit()) })
+        LIBRARY -> listOf(
+            BarButton(R.drawable.fluent_add, "add string") { nav.open(Screen.StringEdit()) },
+            BarButton(R.drawable.fluent_pin, "add court") { nav.open(Screen.CourtEdit()) },
+        )
         else -> emptyList()
     }
 }

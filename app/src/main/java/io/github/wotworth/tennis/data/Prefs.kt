@@ -53,6 +53,19 @@ class Prefs(context: Context) {
         private set
     fun answerVisionSampleIdentity(v: String?) { visionSampleIdentity = v; sp.edit().putString("visionSampleIdentity", v).apply() }
 
+    /**
+     * Tennis Vision courts (Chris, 15 Nov): the court picked before playing, and when. The next
+     * vision session that overlaps that time gets its name; then the pick clears.
+     */
+    var courtPickId by mutableStateOf(sp.getLong("courtPickId", -1L).takeIf { it >= 0 })
+        private set
+    var courtPickMillis by mutableStateOf(sp.getLong("courtPickMillis", 0L))
+        private set
+    fun pickCourt(id: Long?, millis: Long = System.currentTimeMillis()) {
+        courtPickId = id; courtPickMillis = if (id == null) 0L else millis
+        sp.edit().putLong("courtPickId", id ?: -1L).putLong("courtPickMillis", courtPickMillis).apply()
+    }
+
     companion object {
         const val TILE_OFF = 0
         const val TILE_LAST = 1

@@ -26,7 +26,9 @@ class Stmt {
 export class FakeD1 {
   db = new DatabaseSync(":memory:");
   constructor() {
-    this.db.exec(readFileSync(new URL("../migrations/0001_init.sql", import.meta.url), "utf8"));
+    for (const m of ["0001_init.sql", "0002_conditions.sql"]) {
+      this.db.exec(readFileSync(new URL(`../migrations/${m}`, import.meta.url), "utf8"));
+    }
   }
   prepare(sql: string) {
     return new Stmt(this.db, sql);

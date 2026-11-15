@@ -69,6 +69,26 @@ class ScreenshotTest {
         o.menu("edit racquet" to {}, "retire racquet" to {}, "delete racquet" to {}, "settings" to {})
         shoot("racquet-menu", false) { AppRoot(a, Navigator(Screen.Racquet(bb1(a))), o) }
     }
+    // Tennis Vision (TV-APP-01 to 05) and courts (Chris, 15 Nov)
+    @Test fun visionSummary() = screen("vision-summary", Screen.Vision(io.github.wotworth.tennis.vision.VisionStore.SAMPLE_ID, 0))
+    @Test fun visionCourt() = screen("vision-court", Screen.Vision(io.github.wotworth.tennis.vision.VisionStore.SAMPLE_ID, 1))
+    @Test fun visionShots() = screen("vision-shots", Screen.Vision(io.github.wotworth.tennis.vision.VisionStore.SAMPLE_ID, 2), both = false)
+    @Test fun visionRallies() = screen("vision-rallies", Screen.Vision(io.github.wotworth.tennis.vision.VisionStore.SAMPLE_ID, 3), both = false)
+    @Test fun vision3d() = screen("vision-3d", Screen.Vision(io.github.wotworth.tennis.vision.VisionStore.SAMPLE_ID, 4))
+    @Test fun visionHealth() = screen("vision-health", Screen.Vision(io.github.wotworth.tennis.vision.VisionStore.SAMPLE_ID, 5), both = false)
+    @Test fun visionShot() = screen("vision-shot", Screen.VisionShot(io.github.wotworth.tennis.vision.VisionStore.SAMPLE_ID, 1, 3))
+    @Test fun libraryCourts() = screen("hub-library-courts", Screen.Hub(LIBRARY))
+    @Test fun court() { val a = Sample.fill(); screen("court", Screen.Court(a.repo.data.value.courts.first { it.indoor }.id), a, both = false) }
+    @Test fun courtPicked() {
+        val a = Sample.fill(); val c = a.repo.data.value.courts.first { !it.indoor }
+        a.prefs.pickCourt(c.id, 1_800_000_000_000L)
+        screen("court-picked", Screen.Court(c.id), a, both = false)
+    }
+    @Test fun sessionsWithPick() {
+        val a = Sample.fill(); a.prefs.pickCourt(a.repo.data.value.courts.first { it.indoor }.id, 1_800_000_000_000L)
+        screen("hub-sessions-court-pick", Screen.Hub(SESSIONS), a, both = false)
+    }
+    @Test fun courtForm() = screen("court-new", Screen.CourtEdit(), both = false)
     @Test fun sessions() = screen("hub-sessions", Screen.Hub(SESSIONS))
     @Test fun stats() = screen("hub-stats", Screen.Hub(io.github.wotworth.tennis.ui.screens.STATS))
     @Test fun library() = screen("hub-library", Screen.Hub(LIBRARY), both = false)

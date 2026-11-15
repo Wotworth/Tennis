@@ -18,6 +18,19 @@ interface TennisDao {
     @Query("SELECT * FROM cues ORDER BY position, id") fun cues(): Flow<List<Cue>>
     @Query("SELECT * FROM strings ORDER BY brand, model, gauge") fun strings(): Flow<List<StringItem>>
 
+    @Query("SELECT * FROM courts ORDER BY name COLLATE NOCASE, id") fun courts(): Flow<List<Court>>
+    @Query("SELECT * FROM vision_labels") fun visionLabels(): Flow<List<VisionLabel>>
+    @Query("SELECT * FROM courts ORDER BY name COLLATE NOCASE, id") suspend fun courtsNow(): List<Court>
+    @Query("SELECT * FROM vision_labels") suspend fun visionLabelsNow(): List<VisionLabel>
+    @Insert suspend fun insertCourt(c: Court): Long
+    @Update suspend fun updateCourt(c: Court)
+    @Delete suspend fun deleteCourt(c: Court)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putVisionLabel(l: VisionLabel)
+    @Query("DELETE FROM courts") suspend fun clearCourts()
+    @Query("DELETE FROM vision_labels") suspend fun clearVisionLabels()
+    @Insert suspend fun insertCourts(c: List<Court>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun insertVisionLabels(l: List<VisionLabel>)
+
     @Query("SELECT * FROM racquets ORDER BY position, id") suspend fun racquetsNow(): List<Racquet>
     @Query("SELECT * FROM string_jobs ORDER BY date DESC, id DESC") suspend fun jobsNow(): List<StringJob>
     @Query("SELECT * FROM sessions ORDER BY date DESC, id DESC") suspend fun sessionsNow(): List<Session>

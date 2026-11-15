@@ -30,11 +30,19 @@ fun LibraryPage() {
     val scope = rememberCoroutineScope()
     val zpx = LocalZpx.current
     PivotColumn {
-        if (d.loaded && d.jobs.isEmpty() && d.strings.isEmpty()) {
+        if (d.loaded && d.jobs.isEmpty() && d.strings.isEmpty() && d.courts.isEmpty()) {
             TennisText("Nothing here yet.", TennisTokens.Type.listPrimary)
             Spacer(Modifier.height(zpx(6f)))
-            TennisText("Restrings you log, and the strings in them, are listed here.", TennisTokens.Type.listSecondary)
+            TennisText("Restrings you log, the strings in them, and your courts are listed here.", TennisTokens.Type.listSecondary)
             return@PivotColumn
+        }
+        if (d.courts.isNotEmpty()) {
+            SectionHeader("courts")
+            d.courts.forEach { c ->
+                TextRow(c.name, courtLine(c) + if (app.prefs.courtPickId == c.id) " · picked" else "",
+                    onLongClick = { o.menu("playing here now" to { app.prefs.pickCourt(c.id) }, "edit" to { nav.open(Screen.CourtEdit(c.id)) }) },
+                ) { nav.open(Screen.Court(c.id)) }
+            }
         }
         if (d.jobs.isNotEmpty()) {
             SectionHeader("restrings")

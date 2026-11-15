@@ -126,3 +126,35 @@ data class StringItem(
 
 /** A session with its racquets, as the screens use it. */
 data class SessionWithRacquets(val session: Session, val racquetIds: List<Long>)
+
+/**
+ * Tennis Vision courts (Chris, 15 Nov). Kept on the phone only: names and photos never go to the
+ * PC or the repository. layout: 1 = both cameras on one side, level with each baseline (side
+ * fence or light stands); 2 = the back-fence corners at both ends, on one side. lensMode: the
+ * mode that worked there, "16:9" or "4:3 open gate".
+ */
+@Entity(tableName = "courts")
+data class Court(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val layout: Int = 1,
+    val lensMode: String = "16:9",
+    val indoor: Boolean = false,
+    val photo: String? = null,
+)
+
+/**
+ * Which court a vision session was played on (by the court picked before playing). indoor: the
+ * flag the app sends for that session (no name, no photo); indoorSent: whether it has gone.
+ */
+@Entity(
+    tableName = "vision_labels",
+    foreignKeys = [ForeignKey(entity = Court::class, parentColumns = ["id"], childColumns = ["courtId"], onDelete = ForeignKey.SET_NULL)],
+    indices = [Index("courtId")],
+)
+data class VisionLabel(
+    @PrimaryKey val sessionId: String,
+    val courtId: Long?,
+    val indoor: Boolean = false,
+    val indoorSent: Boolean = false,
+)

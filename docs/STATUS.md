@@ -22,6 +22,7 @@ Built and tested without cameras (details: docs/reports/TV-BUILD-1.md):
 6. Cloud Worker, D1 schema, R2 (not deployed).
 7. App vision screens with a bundled sample session.
 8. PC setup script (written, not run, not syntax-checked).
+9. Courts (Chris, 15 Nov): app courts (name, layout, lens mode, indoor, mount photo), "playing here now" labels the next vision session; indoor flag to the Worker; PC reruns from physics, re-uploads. Names and photos stay on the phone.
 Retune list: docs/VISION-RETUNE.md.
 
 Next for vision: buy the hardware; then TV-PH-0's lens calibration and trial sessions.

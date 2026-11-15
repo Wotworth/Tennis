@@ -24,4 +24,15 @@ cfg.retention = @() tv.ops.retention(cfg);
 cfg.copyOpts = struct();
 cfg.pipeline = tv.pipeline.defaults();
 cfg.pipeline.notify = cfg.notify;
+if isfield(s, 'indoorDefaults'), cfg.pipeline.indoorDefaults = s.indoorDefaults; end
+% the cloud API (TV-PH-4): endpoint in the config, write token in secrets.local.json
+cfg.client = [];
+cfg.answersSeconds = 300;                   % TV-PLY-07: check for app answers every 5 minutes
+sf = fullfile(fileparts(file), 'secrets.local.json');
+if isfield(s, 'upload') && ~strncmp(s.upload.endpoint, 'FILL', 4) && exist(sf, 'file')
+    sec = jsondecode(fileread(sf));
+    if isfield(sec, 'uploadToken') && ~isempty(sec.uploadToken)
+        cfg.client = tv.upload.httpClient(s.upload.endpoint, sec.uploadToken);
+    end
+end
 end

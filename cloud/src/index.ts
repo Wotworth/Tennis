@@ -79,6 +79,22 @@ async function route(req: Request, env: Env): Promise<Response> {
     need(req, env, "read"); // the app has only the read token; this is its one write
     return postIdentity(env, p[1], await body(req));
   }
+  if (m === "POST" && p[0] === "sessions" && p[2] === "conditions" && p.length === 3) {
+    need(req, env, "read"); // the app's second write: the indoor flag only
+    return postConditions(env, p[1], await body(req));
+  }
+  if (m === "GET" && p[0] === "conditions" && p[1] === "pending" && p.length === 2) {
+    need(req, env, "write");
+    const r = await env.DB.prepare(
+      "SELECT id, session_id AS sessionId, indoor, answered_utc AS answeredUtc FROM session_conditions WHERE applied = 0 ORDER BY id",
+    ).all();
+    return json(r.results.map((x: any) => ({ ...x, indoor: !!x.indoor })));
+  }
+  if (m === "POST" && p[0] === "conditions" && p[2] === "applied" && p.length === 3) {
+    need(req, env, "write");
+    await env.DB.prepare("UPDATE session_conditions SET applied = 1 WHERE id = ?").bind(Number(p[1])).run();
+    return json({ ok: true });
+  }
   if (m === "GET" && p[0] === "identity" && p[1] === "pending" && p.length === 2) {
     need(req, env, "write");
     return pendingIdentity(env);
@@ -291,6 +307,20 @@ async function postIdentity(env: Env, id: string, b: any): Promise<Response> {
   ).bind(id, Number(a.stretch ?? 0), text(a.label, "label"), now()));
   q.push(env.DB.prepare("UPDATE sessions SET identity_pending = 0 WHERE id = ?").bind(id));
   await env.DB.batch(q);
+  return json({ ok: true });
+}
+
+// Chris, 15 Nov: for an indoor court the app sends only an indoor flag for the session. The
+// body must be exactly {"indoor": true|false}: anything else (a court name, a photo) is refused,
+// so it can never be stored here. The PC reruns the physics with indoor settings.
+async function postConditions(env: Env, id: string, b: any): Promise<Response> {
+  if (typeof b !== "object" || b === null || Object.keys(b).length !== 1 || typeof b.indoor !== "boolean") {
+    throw new HttpError(400, "send only {\"indoor\": true or false}");
+  }
+  const s = await env.DB.prepare("SELECT id FROM sessions WHERE id = ?").bind(id).first();
+  if (!s) throw new HttpError(404, "no such session");
+  await env.DB.prepare("INSERT INTO session_conditions (session_id, indoor, answered_utc) VALUES (?, ?, ?)")
+    .bind(id, b.indoor ? 1 : 0, now()).run();
   return json({ ok: true });
 }
 
