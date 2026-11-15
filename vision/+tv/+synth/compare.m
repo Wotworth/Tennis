@@ -17,8 +17,10 @@ for k = 1:2
 end
 % timing: the session time of camera 2's middle frame vs the truth for it
 r2 = result.rec(2);  n = round(r2.nFrames / 2);
-tPipe = tv.recon.detTimes(2, n, 1, result.rec, result.sync) - result.sync.shutter / 2;
-clock2 = cams(2).recordStart + r2.pts(n + 1);
+% judged at the middle row, where the ball mostly is (offset and readout trade off across rows)
+vMid = r2.height / 2;
+tPipe = tv.recon.detTimes(2, n, vMid, result.rec, result.sync) - result.sync.shutter / 2;
+clock2 = cams(2).recordStart + r2.pts(n + 1) + cams(2).readout * (vMid - 1) / r2.height;
 tTrue = tv.synth.truthTime(cams(2), clock2);
 % session time 0 = camera 1's first frame = truth time cams(1).recordStart
 rep.syncErrMs = 1000 * (tPipe - (tTrue - tv.synth.truthTime(cams(1), cams(1).recordStart)));
@@ -28,12 +30,13 @@ W = result.rallyWindows;
 rep.rallyCapture = mean(arrayfun(@(t) any(t >= W(:, 1) & t <= W(:, 2)), ts));
 rep.shotsTrue = numel(truth.shots);
 rep.shotsFound = 0;
+rep.missing = [];  rep.calls = {};
 rep.speedErr = [];  rep.bounceErr = [];  rep.spinEffectErr = [];  rep.hitterOk = [];  rep.callOk = [];
 names = {sc.players.name};
 for s = truth.shots'
     if isempty(result.shots), break; end
     [dt, i] = min(abs([result.shots.t] - s.tHit));
-    if dt > 0.03, continue; end
+    if dt > 0.03, rep.missing(end+1) = s.tHit; continue; end
     m = result.shots(i);
     rep.shotsFound = rep.shotsFound + 1;
     rep.speedErr(end+1) = abs(m.speedContact - s.speedHit);
@@ -44,6 +47,7 @@ for s = truth.shots'
     want = names{s.hitter};
     got = m.hitter;  if ~strcmp(got, 'Chris') && ~strcmp(got, 'unknown'), got = 'Opponent'; end
     rep.hitterOk(end+1) = strcmp(got, want);
-    rep.callOk(end+1) = strcmp(m.call, s.result) || (strcmp(s.result, 'net') && strcmp(m.call, 'net'));
+    rep.callOk(end+1) = strcmp(m.call, s.result);
+    rep.calls{end+1} = sprintf('%.2f %s->%s', s.tHit, s.result, m.call);
 end
 end
