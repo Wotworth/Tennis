@@ -1,9 +1,9 @@
 function writeJson(file, s)
 %WRITEJSON  Write a struct to a JSON file, pretty-printed where supported.
-try
-    txt = jsonencode(s, 'PrettyPrint', true);
-catch
+if exist('OCTAVE_VERSION', 'builtin')
     txt = jsonencode(s);                       % Octave: no PrettyPrint
+else
+    txt = jsonencode(s, 'PrettyPrint', true);
 end
 fid = fopen(file, 'w');
 if fid < 0, error('tv:io', 'Cannot write %s', file); end

@@ -21,7 +21,7 @@ sc.readout       = [0.0080, 0.0085];          % s, rolling-shutter readout per c
 sc.clockOffset   = [0, 0.0137];               % s, Delta: camera 2 clock -> truth (TV-SYNC)
 sc.clockDrift    = [0, 40e-6];                % epsilon: camera 2 runs 40 ppm slow
 sc.recordStart   = [0, -0.4370];              % s, each camera's clock at its first frame
-sc.duration      = 21;                        % s of footage from camera 1's start
+sc.duration      = 26;                        % s of footage from camera 1's start
 sc.coarseError   = [0.004, -0.011];           % s, error in each file's start time (a frame or two)
 sc.aimErrorDeg   = [0.6 -0.4 0.3; -0.5 0.5 -0.2];  % yaw, pitch, roll errors vs the planned aim
 sc.serials       = {'C3501325000001', 'C3501325000002'};
@@ -54,7 +54,7 @@ sc.rallies(1).shots  = { [5.0  2.3], 42, 0.05, 'top';
                          [8.8  3.0], 28, 0.14, 'top';
                          [-8.2  1.2], 19, 0.10, 'slice';
                          [12.6 -1.5], 30, 0.12, 'top' };    % long: out by 0.7 m
-sc.rallies(2).start  = 14.5;  sc.rallies(2).server = 2;   sc.rallies(2).serverEnd = -1;
+sc.rallies(2).start  = 19.5;  sc.rallies(2).server = 2;   sc.rallies(2).serverEnd = -1;
 sc.rallies(2).shots  = { [4.6  1.9], 38, 0.05, 'top';
                          [-7.5 3.4], 22, 0.12, 'top';
                          [9.6 -3.6], 27, 0.15, 'top';
