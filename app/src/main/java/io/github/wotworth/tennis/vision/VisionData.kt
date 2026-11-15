@@ -22,7 +22,14 @@ data class VisionSession(
     val crossing: Crossing?,
     val identityQuestion: Boolean,
     val heartRate: List<HrSample> = emptyList(),
+    val tempC: Double? = null,
+    val synthetic: Boolean = false,
 ) {
+    /** Before "which one is you?" is answered, players are Player A and Player B; after, one is "you". */
+    fun who(hitter: String, chrisLabel: String?): String = when {
+        hitter == "Chris" || (chrisLabel != null && hitter == chrisLabel) -> "you"
+        else -> hitter
+    }
     val durationS: Double get() = (rallies.maxOfOrNull { it.stop } ?: 0.0) - (rallies.minOfOrNull { it.start } ?: 0.0)
     fun shot(rally: Int, index: Int) = shots.firstOrNull { it.rally == rally && it.index == index }
     fun trajectory(rally: Int, index: Int) = trajectories.firstOrNull { it.rally == rally && it.shot == index }
@@ -84,6 +91,8 @@ object VisionJson {
             },
             identityQuestion = s.optJSONObject("identity")?.optBoolean("question") ?: false,
             heartRate = hr?.let { h -> array(h).map { HrSample(it.getDouble("t"), it.getInt("bpm")) } } ?: emptyList(),
+            tempC = air?.num("tempC"),
+            synthetic = s.optBoolean("synthetic"),
         )
     }
 
@@ -128,4 +137,16 @@ object VisionJson {
     }
 
     private fun JSONObject.num(k: String): Double? = if (isNull(k) || !has(k)) null else optDouble(k).takeIf { !it.isNaN() }
+}
+
+/** TV-APP-06: one session's figures for the trends (the PC computes them; the app only draws). */
+data class TrendPoint(val epochDay: Long, val forehandSpinEffect: Double, val forehandDepth: Double, val shots: Int)
+
+object TrendJson {
+    fun read(text: String): List<TrendPoint> {
+        val a = JSONObject(text).getJSONArray("sessions")
+        return (0 until a.length()).map { a.getJSONObject(it) }.map {
+            TrendPoint(it.getLong("epochDay"), it.getDouble("forehandSpinEffect"), it.getDouble("forehandDepth"), it.optInt("shots"))
+        }
+    }
 }

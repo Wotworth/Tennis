@@ -44,6 +44,8 @@ sealed interface Screen {
     /** Tennis Vision (TV-APP-02, 04). */
     data class Vision(val id: String, val pivot: Int = 0) : Screen
     data class VisionShot(val id: String, val rally: Int, val index: Int) : Screen
+    data class VisionIdentity(val id: String) : Screen
+    data object VisionTrends : Screen
     data class Court(val id: Long) : Screen
     data class CourtEdit(val id: Long? = null) : Screen
 }
@@ -84,6 +86,8 @@ fun AppRoot(app: TennisApp, nav: Navigator = remember { Navigator() }, overlays:
                     is Screen.Proposal -> io.github.wotworth.tennis.ui.screens.ProposalScreen(s.id)
                     is Screen.Vision -> io.github.wotworth.tennis.ui.screens.VisionSessionScreen(s.id, s.pivot)
                     is Screen.VisionShot -> io.github.wotworth.tennis.ui.screens.VisionShotScreen(s.id, s.rally, s.index)
+                    Screen.VisionTrends -> io.github.wotworth.tennis.ui.screens.VisionTrendsScreen()
+                    is Screen.VisionIdentity -> io.github.wotworth.tennis.ui.screens.VisionIdentityScreen(s.id)
                     is Screen.Court -> io.github.wotworth.tennis.ui.screens.CourtScreen(s.id)
                     is Screen.CourtEdit -> io.github.wotworth.tennis.ui.screens.CourtEditScreen(s.id)
                 }

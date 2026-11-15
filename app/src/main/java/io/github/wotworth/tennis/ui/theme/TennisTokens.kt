@@ -189,6 +189,10 @@ object TennisTokens {
         var lineAlpha by mutableFloatStateOf(0.55f)          // court lines on black
         /** A picked court labels the next vision session that ends after the pick and starts within this many hours of it. */
         var courtPickHours by mutableFloatStateOf(12f)
+        var spinEffectHighFt by mutableFloatStateOf(12f)    // top of the spin-effect colour scale
+        var hrChartHeight by mutableFloatStateOf(120f)       // zpx
+        var trendHeight by mutableFloatStateOf(110f)         // zpx
+        var courtMapHeight by mutableFloatStateOf(300f)      // zpx: the whole court on one screen
     }
 
     object Easings {

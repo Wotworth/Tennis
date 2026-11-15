@@ -7,6 +7,7 @@ on:
     branches: [main]
     paths:
       - 'vision/**'
+      - 'docs/preview/data/**'
       - '.github/workflows/vision.yml'
   workflow_dispatch:
 
@@ -47,6 +48,12 @@ jobs:
         uses: matlab-actions/run-command@v2
         with:
           command: addpath('vision', 'vision/tools'); placementCheck('vision/config/placement.json', 'out/placement'); disp(version)
+
+      - name: Preview plots (TV-OUT-05) from the synthetic preview session
+        if: success() || failure()
+        uses: matlab-actions/run-command@v2
+        with:
+          command: addpath('vision', 'vision/tools'); previewPlots('docs/preview/data', 'out/preview-plots')
 
       - name: Print results into the log (artifact downloads are blocked in cloud sessions)
         if: always()

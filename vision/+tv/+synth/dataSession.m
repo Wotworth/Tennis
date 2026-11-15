@@ -117,7 +117,7 @@ if isServe
     if second
         speed = (chris * 36 + ~chris * 33) + 2.5 * randn();  CL = 0.12 + 0.03 * randn();
     else
-        speed = (chris * 48 + ~chris * 44) + 3 * randn();    CL = 0.04 + 0.02 * rand();
+        speed = (chris * 45 + ~chris * 42) + 2.2 * randn();  CL = 0.04 + 0.02 * rand();
         if rand() < 0.35, target(1) = dir * (c.serviceLine + 0.1 + 0.6 * rand()); end   % fault: long
     end
     spinDir = 1;
@@ -145,7 +145,7 @@ while t < total
     inRally = any(t >= [rallies.start] & t <= [rallies.stop]);
     target = 118 + 18 * t / total + inRally * (28 + 6 * rand());
     if t < 300, target = 100 + 0.06 * t; end
-    bpm = bpm + 0.18 * (target - bpm) + 1.5 * randn();
+    bpm = bpm + 0.12 * (target - bpm) + 0.7 * randn();
     if ~any(t >= gaps(:, 1) & t <= gaps(:, 2))
         hr(end+1) = struct('t', round(t * 10) / 10, 'bpm', round(bpm)); %#ok<AGROW>
     end

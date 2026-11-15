@@ -55,6 +55,7 @@ fun StatsPage() {
                     "${Strings.hoursText(y.avgHours)} h played per string job on average")
             }
         }
+        VisionTrends()
     }
 }
 
