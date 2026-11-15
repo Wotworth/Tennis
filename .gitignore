@@ -9,3 +9,7 @@ local.properties
 *.keystore
 *.p12
 *.b64
+# Tennis Vision: the real config holds home location, court GPS and tokens (TV-ARCH-20). Never commit it.
+vision/config/tennisvision.json
+vision/config/*.local.json
+out/

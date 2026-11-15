@@ -1,0 +1,26 @@
+{
+  "about": "Camera placement check (TV-CAL-03, TV-CAL-04). Lens angles are GoPro's published MISSION 1 / MISSION 1 PRO digital-lens field of view, HyperSmooth off, from GoPro's support article 'MISSION 1 AND MISSION 1 PRO: Digital Lenses FOV Information'. PROVISIONAL until a camera's lens is calibrated (TV-CAL-01). Frame sizes for 4:3 are assumed (3840 x 2880).",
+  "lenses": [
+    {"name": "Wide",      "aspect": "16:9", "hfov": 128, "vfov": 75, "dfov": 144, "widthPx": 3840, "heightPx": 2160, "model": "radial"},
+    {"name": "Wide",      "aspect": "4:3",  "hfov": 128, "vfov": 99, "dfov": 156, "widthPx": 3840, "heightPx": 2880, "model": "radial"},
+    {"name": "Linear",    "aspect": "16:9", "hfov": 100, "vfov": 67, "dfov": 107, "widthPx": 3840, "heightPx": 2160, "model": "rectilinear"},
+    {"name": "Linear",    "aspect": "4:3",  "hfov": 100, "vfov": 83, "dfov": 112, "widthPx": 3840, "heightPx": 2880, "model": "rectilinear"}
+  ],
+  "superView": "SuperView 16:9 is 128 x 99 x 156 deg: the 4:3 Wide picture stretched sideways to 16:9. Not used (spec: never SuperView).",
+  "recommendLens": "Wide",
+  "aspects": ["16:9", "4:3"],
+  "fenceDistances": [2, 3, 4, 5, 6, 7, 8, 9, 10],
+  "standDistances": [3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5],
+  "heights": [2.5, 3.0, 3.5],
+  "mountX": {"from": 6.4, "step": 0.5, "runBack": 6.4},
+  "volume": {"behindBaseline": 3, "maxHeight": 4, "step": 2.0},
+  "criteria": {
+    "pixelSigma": 1.0,
+    "maxBounceErrorCm": 5,
+    "minBallPx": 4,
+        "aimToleranceDeg": 2,
+    "standBand": [3, 5],
+    "standIfErrorOverCm": 3
+  },
+  "layoutFence": 4
+}

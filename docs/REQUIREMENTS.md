@@ -14,7 +14,7 @@ This spec is the single source of truth for a personal Android app that logs ten
 
 **Permissions.** NFR-05: CI fails if the release manifest declares a permission not listed in `ci/allowed-permissions.txt`; INTERNET is added to it only in PH-4 (PHO-23).
 
-**When the spec is silent or wrong.** (1) If something is unspecified, choose what a Windows Phone app would do, implement it, and log it in `DECISIONS.md` (date, ID, choice, reason). (2) If a requirement conflicts with Android or another requirement, stop and ask Chris. (3) Add nothing the spec doesn't list: no accounts, analytics, ads, cloud sync or reminders.
+**When the spec is silent or wrong.** (1) If something is unspecified, choose what a Windows Phone app would do, implement it, and log it in `DECISIONS.md` (date, ID, choice, reason). (2) If a requirement conflicts with Android or another requirement, stop and ask Chris. (3) Add nothing the spec doesn't list: no accounts, analytics, ads, cloud sync or reminders. Exception (Chris, 15 Nov): the Tennis Vision sessions in `VISION-REQUIREMENTS.md` come from one Worker host, from TV-PH-4.
 
 **Cost discipline.** Chris pays for compute and reviews from his phone. Keep each change to the current phase, and don't regenerate files that already pass.
 

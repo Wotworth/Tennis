@@ -8,6 +8,9 @@ on:
       - 'docs/**'
       - 'reference/**'
       - '**.md'
+      - 'vision/**'
+      - 'cloud/**'
+      - '.github/workflows/vision.yml'
   workflow_dispatch:
     inputs:
       release_title:

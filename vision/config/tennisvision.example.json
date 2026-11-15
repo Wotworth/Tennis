@@ -1,0 +1,19 @@
+{
+  "about": "Template for config/tennisvision.json (TV-ARCH-20). Copy it on the closet PC and fill it in there. The real file holds Chris's home location and court coordinates and is never committed (.gitignore). Tokens are not stored here at all: they live in Windows Credential Manager.",
+  "cameras": [
+    {"serial": "FILL-ON-PC", "role": "cam1"},
+    {"serial": "FILL-ON-PC", "role": "cam2"}
+  ],
+  "home": {"zip": "FILL-ON-PC", "lat": null, "lon": null},
+  "courts": [
+    {"name": "FILL-ON-PC", "lat": null, "lon": null, "indoor": false, "sideFenceM": null}
+  ],
+  "indoorDefaults": {"tempC": 18, "relHumidity": 0.5},
+  "player": {"heightM": 1.89},
+  "folders": {"staging": "C:\\TennisVision\\staging", "archive": "D:\\TennisVision\\raw", "sessions": "C:\\TennisVision\\sessions", "logs": "C:\\TennisVision\\logs"},
+  "wipeCardAfterImport": true,
+  "retentionDays": {"raw": 30, "rallySegments": 90},
+  "upload": {"endpoint": "FILL-IN-TV-PH-4"},
+  "alerts": {"ntfyServer": "https://ntfy.sh", "topicCredential": "TennisVision/ntfy"},
+  "thresholds": {"freeSpaceMinFraction": 0.15, "archiveCleanupFraction": 0.85}
+}
