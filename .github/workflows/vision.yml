@@ -43,6 +43,7 @@ jobs:
           test-results-junit: test-results/vision.xml
 
       - name: Placement check (TV-CAL-04)
+        if: success() || failure()
         uses: matlab-actions/run-command@v2
         with:
           command: addpath('vision', 'vision/tools'); placementCheck('vision/config/placement.json', 'out/placement'); disp(version)
@@ -50,7 +51,7 @@ jobs:
       - name: Print results into the log (artifact downloads are blocked in cloud sessions)
         if: always()
         run: |
-          for f in $(find out -type f \( -name '*.png' -o -name '*.md' -o -name '*.csv' -o -name '*.json' \) 2>/dev/null); do
+          for f in $(find out -type f \( -name '*.png' -o -name '*.md' -o -name '*.csv' -o -name '*.json' -o -name '*.gz' \) 2>/dev/null); do
             echo "=== BEGIN-B64 $f"; base64 -w 0 "$f"; echo; echo "=== END-B64"
           done
 

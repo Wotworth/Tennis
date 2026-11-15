@@ -23,6 +23,15 @@ end
 R = load(resultFile);
 rep = tv.synth.compare(R.result, T.truth, T.cams, T.sc);
 disp(rep)
+% On CI, keep the outputs where the workflow prints them (they become the app's sample session)
+if ~isempty(getenv('CI'))
+    keep = fullfile(pwd, 'out', 'pipeline');
+    if ~exist(keep, 'dir'), mkdir(keep); end
+    for f = {'session.json', 'shots.json', 'rallies.json', 'trajectories.json.gz'}
+        if exist(fullfile(root, 'out', f{1}), 'file'), copyfile(fullfile(root, 'out', f{1}), keep); end
+    end
+    tv.util.writeJson(fullfile(keep, 'compare.json'), rep);
+end
 
 %% Camera poses from the court lines: within 5 cm and 0.2 degrees
 assert(all(rep.cameraPosM < 0.05) && all(rep.cameraRotDeg < 0.2))
