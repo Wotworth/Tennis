@@ -38,6 +38,13 @@ jobs:
         with:
           command: addpath('vision', 'vision/tools'); placementCheck('vision/config/placement.json', 'out/placement'); disp(version)
 
+      - name: Print results into the log (artifact downloads are blocked in cloud sessions)
+        if: always()
+        run: |
+          for f in $(find out -type f \( -name '*.png' -o -name '*.md' -o -name '*.csv' -o -name '*.json' \) 2>/dev/null); do
+            echo "=== BEGIN-B64 $f"; base64 -w 0 "$f"; echo; echo "=== END-B64"
+          done
+
       - name: Keep the results
         if: always()
         uses: actions/upload-artifact@v4
