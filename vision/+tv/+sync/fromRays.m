@@ -7,6 +7,8 @@ function [delta, curve] = fromRays(tracksByCam, cams, rec, sync, searchMs)
 %   minimised over +/- searchMs milliseconds (default 60) in 0.5 ms steps,
 %   then refined. This is the bridge from the coarse start-time sync (a frame
 %   or two) to the fine fit (TV-SYNC-03).
+%   RETUNE(real footage): the search range (+/- 60 ms) if GPS or timecode sync
+%   turns out worse than a frame or two.
 if nargin < 5, searchMs = 60; end
 s = sync;  s.delta = 0;
 P = tv.recon.pieces(tracksByCam, rec, s);

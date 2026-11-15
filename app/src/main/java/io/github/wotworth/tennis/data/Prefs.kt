@@ -39,6 +39,20 @@ class Prefs(context: Context) {
     fun chooseLiveTile(v: Boolean) { liveTile = v; sp.edit().putBoolean("liveTile", v).apply() }
     fun chooseTileFlips(v: Boolean) = chooseTileMode(if (v) TILE_FLIP else TILE_LAST)
 
+    /**
+     * Tennis Vision: show the sample session (made from synthetic footage) on the sessions page,
+     * until real sessions come from the closet PC (TV-PH-4). On by default so the screens can be
+     * reviewed on the phone.
+     */
+    var visionSample by mutableStateOf(sp.getBoolean("visionSample", true))
+        private set
+    fun chooseVisionSample(v: Boolean) { visionSample = v; sp.edit().putBoolean("visionSample", v).apply() }
+
+    /** TV-PLY-07, sample session only: the answer to "which one is you?" (real answers go to the PC). */
+    var visionSampleIdentity by mutableStateOf(sp.getString("visionSampleIdentity", null))
+        private set
+    fun answerVisionSampleIdentity(v: String?) { visionSampleIdentity = v; sp.edit().putString("visionSampleIdentity", v).apply() }
+
     companion object {
         const val TILE_OFF = 0
         const val TILE_LAST = 1

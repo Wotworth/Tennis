@@ -25,6 +25,7 @@ class TennisApp : Application() {
     val database by lazy { TennisDatabase.open(this) }
     val repo by lazy { Repository(database, scope) { onDataChanged() } }
     val prefs by lazy { Prefs(this) }
+    val vision by lazy { io.github.wotworth.tennis.vision.VisionStore(this) }
     /** PHO-02: package photos, by file name. */
     val photosDir: File get() = File(filesDir, "photos").apply { mkdirs() }
 

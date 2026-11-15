@@ -41,6 +41,9 @@ sealed interface Screen {
     data class StringEdit(val id: Long? = null) : Screen
     /** DET-30: the Yes/No prompt. */
     data class Proposal(val id: Long) : Screen
+    /** Tennis Vision (TV-APP-02, 04). */
+    data class Vision(val id: String, val pivot: Int = 0) : Screen
+    data class VisionShot(val id: String, val rally: Int, val index: Int) : Screen
 }
 
 /** A plain back stack; back always ends at the hub (NAV-06). */
@@ -77,6 +80,8 @@ fun AppRoot(app: TennisApp, nav: Navigator = remember { Navigator() }, overlays:
                     is Screen.CueEdit -> CueEditScreen(s.id)
                     is Screen.StringEdit -> StringEditScreen(s.id)
                     is Screen.Proposal -> io.github.wotworth.tennis.ui.screens.ProposalScreen(s.id)
+                    is Screen.Vision -> io.github.wotworth.tennis.ui.screens.VisionSessionScreen(s.id, s.pivot)
+                    is Screen.VisionShot -> io.github.wotworth.tennis.ui.screens.VisionShotScreen(s.id, s.rally, s.index)
                 }
                 OverlayHost(overlays)
             }

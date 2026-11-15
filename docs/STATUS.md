@@ -1,6 +1,6 @@
 # Status
 
-**Phase:** tile-4 (spec v0.9, 8 Nov): stroke above each cue on the tile: tennis v0.6.15, launcher v0.9.181 from main (docs/reports/TILE-4.md).
+**Phase:** TV-PH-0 (Tennis Vision, docs/VISION-REQUIREMENTS.md), building ahead without hardware (Chris, 15 Nov). The app's last accepted phase: tile-4 (accepted 15 Nov).
 
 ## Done
 
@@ -10,6 +10,21 @@
 - In the session: release APK builds and signs with the new key; 24 unit and screenshot tests pass. Report: docs/reports/PH-0.md.
 - Release key generated in the session (EC P-256, alias `tennis`). SHA-256 fingerprint:
   `C9:8E:F4:98:A8:39:C9:7F:94:5A:E3:84:6F:A4:A2:9B:29:F0:8A:D8:52:0C:DD:7F:7C:2C:5F:8B:29:D6:4B:4C`
+
+## Tennis Vision (TV-PH-0, building ahead without hardware)
+
+Built and tested without cameras (details: docs/reports/TV-BUILD-1.md):
+1. Placement check and fence lookup table (docs/reports/TV-PH-0a.md), provisional lens figures.
+2. Physics core: flight model, RK4 vs ode45, air density, court model.
+3. Synthetic footage generator (TV-TST-01).
+4. Pipeline end to end on synthetic footage: layout-free calibration with symmetry resolved by agreement, crossing-angle report and alert, timing, detection (GPU with CPU fallback), tracks, flights, wind and drag, events, players and identity, metrics, outputs.
+5. Card import, telemetry (GoPro HERO8 sample), pairing, courts.
+6. Cloud Worker, D1 schema, R2 (not deployed).
+7. App vision screens with a bundled sample session.
+8. PC setup script (written, not run, not syntax-checked).
+Retune list: docs/VISION-RETUNE.md.
+
+Next for vision: buy the hardware; then TV-PH-0's lens calibration and trial sessions.
 
 ## Next
 
@@ -28,17 +43,7 @@
 
 ## Open questions
 
-- Tennis Vision spec (Chris, 16 Nov, pasted in chat; not yet in the repo because it names his employer and the repo is public). Waiting on Chris before any vision work:
-  - Tile-4 accepted on the phone?
-  - Where MATLAB code is tested: GitHub CI (MathWorks' free MATLAB action for public repos) vs. sessions attached to the closet PC. No MATLAB or Octave in cloud sessions.
-  - Public repo: keep home location, court GPS and tokens out of Git (ignored config on the PC), commit the spec scrubbed; or make the repo private.
-  - TV-HC-04 sends heart-rate summaries to the cloud; CLAUDE.md forbids health data off the phone. Default proposed: summaries stay on the phone.
-  - The app reaching a Cloudflare Worker (or the PC over Tailscale) conflicts with "only network use is the Claude retry" and spec section 0 "no cloud sync".
-  - First step before buying hardware: placement check with GoPro's published lens figures (does the Wide lens cover the ~117 degrees the baseline spots need?) plus no-hardware foundations (air density, RK4, court model, tests).
-  - Vision PH-0 open questions: which courts (fence distance from the doubles sideline), opponents' stats.
-
-- Chris's birth year (DET-11 threshold); defaults to 1980 until he sets it.
-- Does Fitbit write workouts to Health Connect? Needs a day with a Fitbit workout.
+- Tennis Vision: Chris's answers of 15 Nov are in VISION-REQUIREMENTS.md section A. Open: capture mode (decided at the end of TV-PH-2), the usable crossing angle (20 deg, provisional).
 
 ## Known issues
 

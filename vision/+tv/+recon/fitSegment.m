@@ -8,6 +8,7 @@ function seg = fitSegment(obs, cams, rec, sync, air, prior, x0)
 %   (TV-PHY-04).
 %   obs rows: [cam frame u v]. x0: starting values (tv.recon.initSegment).
 %   Returns seg: x, t0, rmsPx, n (detections per camera), obs, t, weights.
+%   RETUNE(real footage): the Huber limit (2 px) and the number of passes.
 if nargin < 6 || isempty(prior), prior = struct('CD', 0.507, 'CDsd', 0.024); end
 t = zeros(size(obs, 1), 1);
 for k = 1:2

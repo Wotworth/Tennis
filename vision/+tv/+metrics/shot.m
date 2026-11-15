@@ -4,6 +4,8 @@ function m = shot(seg, segAfter, hitEv, bounceEv, netEv, air, cfg, players, play
 %   []); hitEv/bounceEv/netEv: events (or []); players: tracks from
 %   tv.players.track. Times are session seconds, positions metres (court
 %   frame), speeds m/s. The app converts to mph and feet (TV-ARCH-11).
+%   RETUNE(real footage): the confidence formula (fit error and detections)
+%   and the 2.5 m hitter limit.
 c = tv.court.constants();
 x = seg.x;
 tHit = seg.t0;  pHit = x(1:3);

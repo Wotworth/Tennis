@@ -14,6 +14,8 @@ function [cams, report] = resolveSymmetry(cands, tracksByCam, rec, sync, people)
 %   cands(k): camera k's pose from tv.calib.searchPose. people: struct array
 %   (t, dets1, dets2) of person detections (box bottoms in pixels) at a few
 %   moments, or [] to judge by the ball alone.
+%   RETUNE(real footage): the weight of player agreement against ball
+%   agreement (0.01).
 opts = {cands(1), tv.calib.rotate180(cands(1)); cands(2), tv.calib.rotate180(cands(2))};
 combos = [1 1; 1 2; 2 1; 2 2];
 report.ballGap = nan(4, 1);  report.playerGap = nan(4, 1);  report.delta = nan(4, 1);

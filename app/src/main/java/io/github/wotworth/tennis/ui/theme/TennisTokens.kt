@@ -167,6 +167,28 @@ object TennisTokens {
         var ringStroke by mutableFloatStateOf(1.5f)
     }
 
+    /**
+     * Tennis Vision screens (docs/VISION-REQUIREMENTS.md TV-APP-01 to 05). Colours stay within
+     * VIS-04: bounce spots are shaded along the title gradient (slow = deep green, fast = yellow
+     * green); everything else is white or grey.
+     */
+    object Vision {
+        var courtSidePadding by mutableFloatStateOf(6f)      // zpx around the drawn court
+        var courtMarginM by mutableFloatStateOf(2.5f)        // metres shown beyond the lines
+        var spotRadius by mutableFloatStateOf(3.2f)          // zpx
+        var spotTapRadius by mutableFloatStateOf(14f)        // zpx: how close a tap must be
+        var speedLowMph by mutableFloatStateOf(30f)          // bottom of the colour scale
+        var speedHighMph by mutableFloatStateOf(90f)         // top of the colour scale
+        var sideViewHeight by mutableFloatStateOf(120f)      // zpx
+        var view3dHeight by mutableFloatStateOf(230f)        // zpx
+        var view3dDistanceM by mutableFloatStateOf(34f)      // orbit radius
+        var view3dStartAzimuthDeg by mutableFloatStateOf(-60f)
+        var view3dStartElevationDeg by mutableFloatStateOf(28f)
+        var scrubberHeight by mutableFloatStateOf(26f)       // zpx
+        var hrBarHeight by mutableFloatStateOf(10f)          // zpx
+        var lineAlpha by mutableFloatStateOf(0.55f)          // court lines on black
+    }
+
     object Easings {
         private const val EXPO_POWER = 6.0
         val expoIn6 = Easing { t -> ((exp(EXPO_POWER * t) - 1) / (exp(EXPO_POWER) - 1)).toFloat() }

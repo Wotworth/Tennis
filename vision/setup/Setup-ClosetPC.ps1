@@ -11,9 +11,9 @@
   Not done here, on purpose:
   - Auto-login (step 3): it needs the account password. Use Sysinternals Autologon, which
     stores it encrypted (LSA secret), not this script.
-  - Installing NVIDIA driver, MATLAB, FFmpeg, Git, Tailscale, Claude Code (step 6): installers
-    and licences are interactive.
-  - Remote Desktop users and Tailscale sign-in (step 8).
+  - Installing the NVIDIA driver and MATLAB (step 6): their installers and licences are
+    interactive. With -InstallTools the script installs FFmpeg, Git and Tailscale through winget.
+  - Tailscale sign-in (step 8): it opens a browser.
   - The at-log-on watcher task is created only when tv.watch exists (TV-PH-1). Until then this
     script skips it and says so.
 
@@ -24,7 +24,8 @@ param(
   [string]$User = 'tennis',
   [string]$VisionFolder = 'C:\TennisVision\code\vision',
   [string]$ArchiveDrive = 'D:',
-  [int]$UpdateRestartHour = 14   # Windows Update may restart only around this hour (the pipeline runs overnight)
+  [int]$UpdateRestartHour = 14,  # Windows Update may restart only around this hour (the pipeline runs overnight)
+  [switch]$InstallTools           # also install FFmpeg, Git and Tailscale with winget
 )
 $ErrorActionPreference = 'Stop'
 function Step($text) { Write-Host "`n== $text" -ForegroundColor Cyan }
@@ -72,6 +73,40 @@ foreach ($f in @('C:\TennisVision\staging', 'C:\TennisVision\sessions', 'C:\Tenn
   Write-Host "  $f"
 }
 
+# Step 6 (part): command-line tools, if asked for.
+if ($InstallTools) {
+  Step 'Tools: FFmpeg, Git, Tailscale (winget)'
+  foreach ($id in @('Gyan.FFmpeg', 'Git.Git', 'Tailscale.Tailscale')) {
+    if ($PSCmdlet.ShouldProcess($id, 'winget install')) {
+      winget install --id $id -e --silent --accept-package-agreements --accept-source-agreements
+    }
+  }
+}
+
+# Step 8 (part): Remote Desktop on, through the firewall (reached over Tailscale only).
+Step 'Remote Desktop on'
+if ($PSCmdlet.ShouldProcess('Remote Desktop', 'enable')) {
+  Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name fDenyTSConnections -Type DWord -Value 0
+  Enable-NetFirewallRule -DisplayGroup 'Remote Desktop'
+}
+
+# Config files that never go to Git: copied from the template once, then filled in by hand.
+Step 'Config files'
+$cfgDir = Join-Path $VisionFolder 'config'
+$cfg = Join-Path $cfgDir 'tennisvision.json'
+if (-not (Test-Path $cfg) -and (Test-Path (Join-Path $cfgDir 'tennisvision.example.json'))) {
+  if ($PSCmdlet.ShouldProcess($cfg, 'create from the template')) { Copy-Item (Join-Path $cfgDir 'tennisvision.example.json') $cfg }
+  Write-Host "  created ${cfg}: fill in the camera serials, courts and home location"
+}
+$sec = Join-Path $cfgDir 'secrets.local.json'
+if (-not (Test-Path $sec)) {
+  if ($PSCmdlet.ShouldProcess($sec, 'create')) {
+    $topic = 'tennis-' + -join ((48..57) + (97..122) | Get-Random -Count 24 | ForEach-Object { [char]$_ })
+    @{ ntfyTopic = $topic; ntfyToken = ''; uploadToken = '' } | ConvertTo-Json | Set-Content -Path $sec -Encoding UTF8
+  }
+  Write-Host "  created ${sec} with a random ntfy topic: subscribe to it in the ntfy app on your phone"
+}
+
 # Step 3: the watcher starts at log-on, in Chris's normal user session (MATLAB licence, drives, GPU).
 Step 'Watcher task at log-on'
 $watch = Join-Path $VisionFolder '+tv\watch.m'
@@ -89,4 +124,4 @@ if (Test-Path $watch) {
   Write-Host "  skipped: $watch does not exist yet (it arrives in TV-PH-1)"
 }
 
-Step 'Done. Still by hand: Autologon for the tennis account, installers (step 6), Tailscale and Remote Desktop (step 8), ntfy on the phone (step 9).'
+Step 'Done. Still by hand: Autologon for the tennis account (step 3), NVIDIA driver and MATLAB (step 6), Tailscale sign-in (step 8), ntfy on the phone (step 9).'

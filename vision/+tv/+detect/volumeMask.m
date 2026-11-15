@@ -3,6 +3,8 @@ function mask = volumeMask(cam, margin, maxHeight)
 %   The court plus margin metres all round, from the ground to maxHeight
 %   (spec: 4 m margin, up to 8 m). Everything else (sky, other courts,
 %   people walking past) is ignored by the ball detector.
+%   RETUNE(real footage): the margin, and the mask's dilation (25 px) and
+%   closing (41 px) at 4K.
 if nargin < 2, margin = 4; end
 if nargin < 3, maxHeight = 8; end
 c = tv.court.constants();

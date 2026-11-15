@@ -14,6 +14,7 @@ function lens = build(entries, name, aspect)
 %   theta is the angle between a sight line and the optical axis.
 %   PROVISIONAL: replaced by the calibrated lens (TV-CAL-01) once a camera
 %   exists.
+%   RETUNE(real lens): the whole model; real files use the calibrated lens.
 
 isLens = arrayfun(@(e) strcmp(e.name, name), entries);
 isMode = isLens & arrayfun(@(e) strcmp(e.aspect, aspect), entries);

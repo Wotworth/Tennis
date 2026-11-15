@@ -12,6 +12,8 @@ function [sync, air, segsByRally, report] = refineSession(segsByRally, cams, rec
 %   flights' fitted values, which becomes the next round's prior.
 %   Indoors (opts.indoor) the wind stays 0 (TV-IND-01).
 %   report: rounds of [Delta epsilon readout1 readout2 rmsPx].
+%   RETUNE(real footage): the priors (readout 8 +/- 4 ms, drift 0 +/- 100 ppm,
+%   wind sd 2 m/s, 1 m/s between windows) and the number of rounds.
 if nargin < 7, opts = struct(); end
 d = struct('rounds', 3, 'windPrior', [0 0], 'windSd', 2, 'windStep', 1, 'windowS', 900, ...
            'indoor', false, 'readoutPrior', 0.008, 'readoutSd', 0.004, 'driftSd', 100e-6);

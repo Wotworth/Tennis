@@ -63,6 +63,7 @@ fun SettingsScreen() {
         SectionHeader("launcher tile")
         // TIL-05 (v0.7): on: the WP launcher's tile flips through your cues; off: just the racket.
         ToggleSwitch("live tile (flips through your cues)", app.prefs.liveTile) { app.prefs.chooseLiveTile(it); app.onDataChanged() }
+        ToggleSwitch("vision sample session (on the sessions page)", app.prefs.visionSample) { app.prefs.chooseVisionSample(it) }
         TennisText("A session found from your Fitbit shows on the tile either way, until you answer it.", TennisTokens.Type.listSecondary)
         DetectionSettingsSection()
         ApiKeySection()

@@ -1,5 +1,5 @@
 {
-  "about": "Template for config/tennisvision.json (TV-ARCH-20). Copy it on the closet PC and fill it in there. The real file holds Chris's home location and court coordinates and is never committed (.gitignore). Tokens are not stored here at all: they live in Windows Credential Manager.",
+  "about": "Template for config/tennisvision.json (TV-ARCH-20). Copy it on the closet PC and fill it in there. The real file holds Chris's home location and court coordinates and is never committed (.gitignore). Tokens are not stored here: the ntfy topic and the upload token go in config/secrets.local.json, also never committed.",
   "cameras": [
     {"serial": "FILL-ON-PC", "role": "cam1"},
     {"serial": "FILL-ON-PC", "role": "cam2"}
@@ -14,6 +14,7 @@
   "wipeCardAfterImport": true,
   "retentionDays": {"raw": 30, "rallySegments": 90},
   "upload": {"endpoint": "FILL-IN-TV-PH-4"},
-  "alerts": {"ntfyServer": "https://ntfy.sh", "topicCredential": "TennisVision/ntfy"},
+  "alerts": {"ntfyServer": "https://ntfy.sh"},
+  "statusLight": {"tool": "C:\\TennisVision\\tools\\blink1-tool.exe"},
   "thresholds": {"freeSpaceMinFraction": 0.15, "archiveCleanupFraction": 0.85}
 }
