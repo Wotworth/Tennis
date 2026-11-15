@@ -16,7 +16,7 @@ function [cam, report] = searchPose(bg, lens, opts)
 %   RETUNE(real footage): search ranges, steps and the line caps.
 if nargin < 3, opts = struct(); end
 d = struct('xStep', 3, 'yStep', 2, 'maxRange', 27, 'heights', [2.5 3.5], ...
-           'yawFan', -45:15:45, 'pitchFan', -12:6:12, 'cap', 12, 'keep', 6, 'nPixels', 250);
+           'yawFan', -45:15:45, 'pitchFan', -12:6:12, 'cap', 12, 'keep', 12, 'nPixels', 250);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 c = tv.court.constants();
@@ -55,7 +55,7 @@ for i = o(:)'
     if tried > 0 && any(vecnorm(starts(:, 1:3) - t(1:3), 2, 2) < 2.5 & abs(starts(:, 4) - t(4)) < 20), continue; end
     tried = tried + 1;  starts(tried, :) = t; %#ok<AGROW>
     cam0 = tv.camera.make(lens, t(1:3), t(4), t(5), t(6));
-    [camR, rep] = tv.calib.courtPose(bg, cam0, struct('searchDeg', 2));
+    [camR, rep] = tv.calib.courtPose(bg, cam0, struct('searchDeg', 3));
     cst = score(camR);
     if cst < bestCost, bestCost = cst; best = camR; report = rep; end
     if tried >= opts.keep, break; end
