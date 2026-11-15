@@ -31,6 +31,8 @@ The parts of the original that are reasoning rather than requirements are kept i
     - **Indoor courts:** the app sends only an indoor flag for that session (no name, no photo). The PC reruns from the physics stage with indoor settings (wind 0, indoor temperature and humidity), like an identity answer.
     - Names and photos stay on the phone, and never go to the PC or the repository.
 
+12. **Singles only (15 Nov).** Chris plays singles only. TV-PLY-08's doubles support (3–4 players, Partner / Opponent labels) is not built; line calls use the singles lines.
+
 ## 1. Scope, architecture, conventions
 
 Three components, built in phases (section 7):

@@ -25,7 +25,11 @@ Built and tested without cameras (details: docs/reports/TV-BUILD-1.md):
 9. Courts (Chris, 15 Nov): app courts (name, layout, lens mode, indoor, mount photo), "playing here now" labels the next vision session; indoor flag to the Worker; PC reruns from physics, re-uploads. Names and photos stay on the phone.
 Retune list: docs/VISION-RETUNE.md.
 
-Next for vision: buy the hardware; then TV-PH-0's lens calibration and trial sessions.
+10. Design preview (docs/preview): the app's vision screens on a synthetic 90-minute session (release v0.6.18 "vision-preview" carries them), a launcher tile mockup, and the PC's MATLAB plots. Suggested spec changes: docs/preview/SUGGESTED-SPEC-CHANGES.md.
+
+Known issue: the end-to-end pipeline test is not yet green in MATLAB CI. On recent runs camera 2's pose search lands on a wrong solution there (it finds the right one in Octave); the test now prints every candidate it tried. Earlier MATLAB runs of the same test passed 7 to 9 of its 11 checks.
+
+Next for vision: get the end-to-end test green; then Chris reviews the preview; then the hardware (TV-PH-0's lens calibration and trial sessions).
 
 ## Next
 

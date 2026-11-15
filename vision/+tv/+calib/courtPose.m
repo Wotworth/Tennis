@@ -35,7 +35,8 @@ for dy = -opts.searchDeg:1:opts.searchDeg
     end
 end
 % 2. and 3. least squares, loose then tight
-o = optimset('Display', 'off', 'TolFun', 1e-10, 'TolX', 1e-9, 'MaxIter', 200);
+% finite-difference steps of 1 mm / 0.001 deg: the distance map is flat at much finer steps
+o = optimset('Display', 'off', 'TolFun', 1e-10, 'TolX', 1e-9, 'MaxIter', 200, 'DiffMinChange', 1e-3);
 p = lsqnonlin(@(p) res(p, 12), best, [], [], o);
 p = lsqnonlin(@(p) res(p, 3), p, [], [], o);
 p = p(:)';  cam = apply(p);
