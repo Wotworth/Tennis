@@ -25,6 +25,7 @@ end
 R = load(resultFile);
 rep = tv.synth.compare(R.result, T.truth, T.cams, T.sc);
 disp(rep); disp(rep.calls'); disp(rep.missing)
+for k = 1:2, fprintf('calib cam %d: rms %.2f px, %d of %d line points\n', k, R.result.calib(k).rmsPx, R.result.calib(k).inliers, R.result.calib(k).points); end
 for r = 1:numel(R.result.segs)                 % what the pipeline saw, for diagnosis
     for g = R.result.segs{r}'
         fprintf('rally %d segment %.3f-%.3f rms %.2f n %d/%d\n', r, g.t0, max(g.t), g.rmsPx, g.n);

@@ -6,8 +6,9 @@ function [cam, report] = searchPose(bg, lens, opts)
 %   two-way line match: how far the projected court lines fall from the
 %   white line pixels, and how far the white line pixels fall from the
 %   projected lines (so a pose that squeezes the whole court onto one line
-%   scores badly). The best few are refined with tv.calib.courtPose and the
-%   best refined pose wins.
+%   scores badly). The best dozen are refined with tv.calib.courtPose; the
+%   refined pose that matches the most line points, with line error under
+%   1 px, wins.
 %   Only half the positions are searched (y <= 0): the court's half-turn
 %   symmetry makes the other half a mirror (tv.calib.rotate180); the twin is
 %   resolved later with the second camera (tv.calib.resolveSymmetry).
@@ -56,7 +57,9 @@ for i = o(:)'
     tried = tried + 1;  starts(tried, :) = t; %#ok<AGROW>
     cam0 = tv.camera.make(lens, t(1:3), t(4), t(5), t(6));
     [camR, rep] = tv.calib.courtPose(bg, cam0, struct('searchDeg', 3));
-    cst = score(camR);
+    % judge refined poses by the lines they truly match: matched points,
+    % less a heavy penalty for line error above 1 px (TV-CAL-13)
+    cst = -rep.inliers + 2000 * max(0, rep.rmsPx - 1) + 100 * score(camR);
     if cst < bestCost, bestCost = cst; best = camR; report = rep; end
     if tried >= opts.keep, break; end
 end
