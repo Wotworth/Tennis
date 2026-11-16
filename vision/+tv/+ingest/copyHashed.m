@@ -5,7 +5,7 @@ function [srcHash, bytes] = copyHashed(src, dst, opts)
 %   only when the whole file is written (TV-ING-07). If the source vanishes
 %   mid-copy (card pulled), the error propagates and the marker stays.
 %   opts.chunkBytes (default 8 MB); opts.faultAfterBytes simulates a pulled
-%   card in tests.
+%   card, opts.diskFullAfterBytes a full disk, in tests. A short write (full disk) is an error.
 if nargin < 3, opts = struct(); end
 if ~isfield(opts, 'chunkBytes'), opts.chunkBytes = 8 * 2^20; end
 if ~isfield(opts, 'faultAfterBytes'), opts.faultAfterBytes = Inf; end
@@ -26,7 +26,11 @@ try
             error('tv:ingest:pulled', 'The card was removed during the copy (simulated).');
         end
         md.update(typecast(b(:), 'int8'));
-        fwrite(fo, b, 'uint8');
+        if isfield(opts, 'diskFullAfterBytes') && bytes + numel(b) > opts.diskFullAfterBytes
+            error('tv:ingest:diskFull', 'The disk is full (simulated).');
+        end
+        n = fwrite(fo, b, 'uint8');
+        if n < numel(b), error('tv:ingest:diskFull', 'The disk is full: %s could not be written.', dst); end
         bytes = bytes + numel(b);
     end
 catch err

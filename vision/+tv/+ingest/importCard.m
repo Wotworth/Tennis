@@ -81,6 +81,9 @@ for f = F(:)'
         rep.status = 'interrupted';
         return
     end
+    if isfield(cfg, 'faultCorruptStaged') && strcmp(f.name, cfg.faultCorruptStaged)   % tests: a bad copy
+        fid = fopen(dst, 'r+');  b = fread(fid, 1, 'uint8');  fseek(fid, 0, 'bof');  fwrite(fid, bitxor(b, 255), 'uint8');  fclose(fid);
+    end
     copied = copied + f.bytes;
     rep.mbps = copied / 1e6 / max(cfg.now() - tCopy, eps);
     if ~warned && copied >= cfg.slowCheckBytes && rep.mbps < cfg.slowReaderMBps
@@ -115,24 +118,9 @@ if cfg.wipeCardAfterImport
 end
 cfg.light('safe');
 cfg.notify('Cards safe to remove', sprintf('Camera %s: %d files copied and checked.', serial, numel(F)));
-% --- move to the archive, verifying the archive copy -------------------------------------------
-for i = 1:numel(M.files)
-    e = M.files(i);
-    if ~any(strcmp(e.status, {'verified', 'wiped'})), continue; end
-    src = fullfile(stage, e.name);
-    if ~exist(src, 'file'), continue; end
-    day = archiveDay(src, stage, e.name);
-    dst = fullfile(cfg.archive, day, serial, e.name);
-    h = tv.ingest.copyHashed(src, dst, struct());
-    if strcmp(h, e.hash) && strcmp(tv.ingest.sha256File(dst), e.hash)
-        delete(src);
-        M.files(i).status = 'archived';  M.files(i).archive = dst;
-        rep.archived{end+1} = dst;
-    else
-        cfg.notify('Archive error', sprintf('Archive copy of %s did not match; kept in staging.', e.name));
-    end
-    tv.util.writeJson(mfile, M);
-end
+% --- move to the archive, verifying the archive copy (tv.ingest.archiveStaged; resumed by
+% tv.ingest.resumeArchive after a power cut) ---------------------------------------------------
+rep.archived = tv.ingest.archiveStaged(stage, serial, cfg);
 end
 
 % ============================================================================================
@@ -171,18 +159,4 @@ end
 function M = setEntry(M, key, e)
 i = find(strcmp(M.keys, key), 1);
 if isempty(i), M.keys{end+1} = key; M.files(end+1) = e; else, M.files(i) = e; end
-end
-
-function day = archiveDay(file, stage, name)
-% the UTC date of the recording; LRV and THM files follow their MP4
-day = '';
-[~, b] = fileparts(name);
-mp4 = fullfile(stage, [regexprep(b, '^G[LH]', 'GX') '.MP4']);
-if ~exist(mp4, 'file'), mp4 = file; end
-try
-    info = tv.media.probe(mp4);
-    day = info.startUtc(1:10);
-catch
-end
-if isempty(day), day = 'undated'; end
 end

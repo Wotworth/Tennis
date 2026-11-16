@@ -18,6 +18,9 @@ for r = present
     tv.ingest.importCard(r{1}, icfg);
 end
 state.seen = intersect(state.seen, present);
+% files a power cut left in staging (their card already wiped) go on to the archive
+icfg = cfg;  icfg.light = cfg.lightFn;
+tv.ingest.resumeArchive(icfg);
 % the app's answers (indoor flags, "which one is you?"), every few minutes
 if ~isempty(cfg.client) && (~isfield(state, 'lastAnswers') || etime(clock, state.lastAnswers) > cfg.answersSeconds)
     state.lastAnswers = clock;
