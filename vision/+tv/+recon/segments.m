@@ -46,7 +46,10 @@ while merged && numel(segs) > 1
         a = segs(k);  b = segs(k + 1);
         o = [a.obs; b.obs];
         m = tv.recon.fitSegment(o, cams, rec, sync, air, prior, a.x);
-        if m.ok && m.rmsPx < max(opts.mergeRms, 1.3 * max(a.rmsPx, b.rmsPx))
+        % the pair as two flights; refineSplits' test, so a split is never merged back
+        two = sqrt((a.rmsPx^2 * size(a.obs, 1) + b.rmsPx^2 * size(b.obs, 1)) / size(o, 1));
+        hides = m.rmsPx > opts.splitRms && two < opts.splitGain * m.rmsPx;
+        if m.ok && ~hides && m.rmsPx < max(opts.mergeRms, 1.3 * max(a.rmsPx, b.rmsPx))
             m.x = shiftStart(m, a);
             segs = [segs(1:k-1); m; segs(k+2:end)];
             merged = true;
