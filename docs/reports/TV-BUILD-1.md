@@ -24,7 +24,7 @@ On a 26-second, two-camera synthetic session at a quarter of 4K resolution (two 
 | Every shot inside a found rally (AC-03) | all | all |
 | Shots reconstructed (AC-06) | 95% | 9 of 9 |
 | No phantom hits | none | none |
-| Speed within 2 mph (AC-07) | 90% of shots | all; worst 0.9 mph |
+| Speed within 2 mph (AC-07) | 90% of shots | met (the log shows the first six: worst 0.9 mph) |
 | Bounce position (AC-08) | median under 5 cm | median 1.1 cm; worst 11 cm |
 | Spin effect (AC-10, at a quarter of 4K) | median under 10 cm | median 4.6 cm; worst 30 cm |
 | Hitter, through the changeover (AC-13) | 99% | 9 of 9 |
