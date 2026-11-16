@@ -27,9 +27,11 @@ Retune list: docs/VISION-RETUNE.md.
 
 10. Design preview (docs/preview): the app's vision screens on a synthetic 90-minute session (release v0.6.18 "vision-preview" carries them), a launcher tile mockup, and the PC's MATLAB plots. Suggested spec changes: docs/preview/SUGGESTED-SPEC-CHANGES.md.
 
-Known issue: the end-to-end pipeline test is not yet green in MATLAB CI. On recent runs camera 2's pose search lands on a wrong solution there (it finds the right one in Octave); the test now prints every candidate it tried. Earlier MATLAB runs of the same test passed 7 to 9 of its 11 checks.
+11. Detector improvement loop, spin kinds and opponents (Chris, 15 Nov; section A items 13-15): Ball check (PC picks and crops, app screen), "this looks wrong", "missed a shot here", test set and auto-labels kept apart, retraining (GPU or CPU) with promotion only when recall and precision don't drop, weekly message; opponents prompt, list and pages (in memory until the cloud exists); spin shown by kind; tile "N frames to check" at the lowest priority.
 
-Next for vision: get the end-to-end test green; then Chris reviews the preview; then the hardware (TV-PH-0's lens calibration and trial sessions).
+Known issue: the end-to-end pipeline test stood at 55 of 57 checks in MATLAB CI (camera pose fixed); the two misses (a hit 52 ms late, a net cord called as a bounce) are addressed by splitting flights that hide an event (refineSplits), checked in Octave, CI pending.
+
+Next for vision: confirm the end-to-end and learn tests in MATLAB CI; Chris reviews the preview; then the hardware (TV-PH-0's lens calibration and trial sessions). The launcher needs the new "checks" tile state (LAUNCHER-REQUESTS.md), not built.
 
 ## Next
 
