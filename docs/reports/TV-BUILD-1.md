@@ -63,20 +63,26 @@ Both go on the real-footage retune list.
 
 [docs/preview](../preview/README.md): the app's real screens on a synthetic 90-minute session, a launcher tile mockup, and the PC's MATLAB plots.
 
-## Fit study, first run (16 Nov) — SYNTHETIC
+## Fit study (review item 8, 16 Nov) — SYNTHETIC
 
-400-shot study (366 shots in 79 rallies, 90 minutes), truth model unlike the fitter. Camera 2's clock drift (40 ppm) was not estimated, so only rallies 1 to 7 (about 15 minutes) were reconstructed: 51 shots. On those:
+366 shots in 79 rallies (90-minute singles session, 4K cameras). Truth flown unlike the fitter: spin decay, lift following the spin with 15% scatter, per-shot drag, gusts. CI job `fit-study`, run 43823889443. Full output: [fitstudy.md](TV-BUILD-1/fitstudy.md), per shot: [fitstudy_shots.csv](TV-BUILD-1/fitstudy_shots.csv).
 
-| Measure | Median | 90th percentile | Target |
-|---|---|---|---|
-| Hit time error | 1.3 ms | 16 ms | |
-| Speed at contact | 1.2 mph | 3.3 mph | 2 mph for 90% (AC-07) |
-| Bounce position | 4.4 cm | 11.5 cm | median 5 cm (AC-08) |
-| Spin effect | 23 cm | 85 cm | 10 cm (AC-10) |
-| Net clearance | 1.3 cm | 4.3 cm | |
-| rpm | 33% | 90% | 10% (AC-11) |
-| In / out / net calls | 45 of 45 right | | all |
+| Measure | Median | 90th percentile | Target | |
+|---|---|---|---|---|
+| Shots found | 361 of 366 (98.6%) | | 95% (AC-06) | pass |
+| Hit time | 1.1 ms | 2.4 ms | | |
+| Speed at contact | 1.56 mph | 3.09 mph | 2 mph for 90% (AC-07) | **fail**: 66% within 2 mph |
+| Bounce position | 1.6 cm | 2.6 cm | median 5 cm (AC-08) | pass |
+| Spin effect | 15.3 cm | 36.3 cm | 10 cm (AC-10) | **fail** |
+| Net clearance | 0.7 cm | 1.2 cm | 3-5 cm (estimate) | pass |
+| rpm, against the true lift | 13% | 28% | 10% (AC-11) | **fail** |
+| rpm, against the true spin | 18% | 47% | shown ±25% | |
+| In / out / net calls | 335 of 338 right, 3 "too close", none wrong | | all | pass |
 
-Item 10 (the 11 cm bounce): after a short flight (< 0.25 s to the next hit) 2 shots, median 12 cm; all others 4.2 cm median. Too few short flights to settle it; the rerun has more.
+Timing: camera 2's drift found 39.9 ppm (truth 40), 1.4 ms off at mid-session, readout times within 0.7 ms.
 
-The drift is now estimated window by window (DECISIONS 16 Nov, TV-SYNC-02). Spin effect errors flip sign with the hitter, which points at the wind error (found [1.9 -1.0] m/s against a mean truth of [1.5 -0.8]) being taken up as spin; to check on the rerun. Full output: the CI job `fit-study`.
+**First run (before the drift fix):** camera 2's 40 ppm clock drift was not estimated, so only the first 15 minutes were reconstructed (51 shots). Fixed with tv.sync.clockLine (DECISIONS, TV-SYNC-02).
+
+**Item 10, the 11 cm bounce:** after a short flight (under 0.25 s to the next hit), 13 shots, median 0.9 cm, 90th percentile 3.6 cm. All other shots: 1.6 / 2.6 cm. The short-flight error is gone.
+
+**What fails, and why:** speed and spin effect fail with every error source at zero too (docs/reports/TV-ERROR-BUDGET.md). That points at 120 fps sampling and the fitter's constant-spin model, not at calibration or timing. 240 fps took speed to 98% within 2 mph and the spin-effect median to 7 cm in the error budget. Spin effect is worst on serves (median 23 cm) and best on backhands (7 cm). The wind found is 0.4 m/s off the mean truth, and part of it goes into the fitted spin. These go into the TV-PH-2 capture-mode decision; nothing to change before real footage.
