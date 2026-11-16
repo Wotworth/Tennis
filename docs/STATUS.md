@@ -45,6 +45,12 @@ Overnight 16 Nov (Chris's items 1-8):
 - Ingest fault injection (tests pass), toolbox guard test, docs/READING-GUIDE.md.
 - Fit study (400 shots) found that camera 2's clock drift was never estimated: only the first 15 minutes of a 90-minute session were reconstructed. Fixed (tv.sync.clockLine, offset and drift per 10-minute window). Rerun: 361 of 366 found, bounce 1.6 cm, calls all right; speed (66% within 2 mph), spin effect (15 cm) and rpm (13%) fail at 120 fps, as the error budget predicts (docs/reports/TV-BUILD-1.md). A last flight fix (junk parts rejoin a neighbour) came after that run; the fit study is rerunning on it.
 
+Adjacent courts (Chris 16 Nov, TV-ADJ-01 to 08, AC-14 to AC-16): court of interest, stereo pairing, volume gate, track and player filters, reject log (CSV and HTML, uploaded with the session; counts on the app's session page). Gate unit test passes locally; the full adjacent-courts footage test (adjacentTest) was first run in CI on 16 Nov — result to check.
+
+Spoof session (Chris 16 Nov): v0.6.22 bundles a spoof vision session with no even numbers on the vision screens (app/spoof/make_spoof_session.py; SpoofOddNumbersTest reads every vision screen). Exceptions: rpm (rounded to 10), the court map scale labels, the heart-rate grid and zone names, and zone minutes (from the phone's birth year).
+
+Hero 7 ball-machine trial (Chris 16 Nov): proposed, not started. One GoPro Hero 7 Black on a ball machine, run in MATLAB Online, as a preliminary test of detection, tracking, bounce positions and a one-camera speed estimate. Waiting for Chris's answers on capture mode and the plan.
+
 Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens calibration and trial sessions). The launcher needs the new "checks" tile state (LAUNCHER-REQUESTS.md), not built.
 
 ## Next
@@ -63,6 +69,8 @@ Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens ca
 - After Chris accepts PH-0: PH-1 (logging).
 
 ## Open questions
+
+- Hero 7 trial: capture mode (1080p120 H.264 vs 2.7K120 HEVC, after a 10-second MATLAB Online test clip), whether a radar gun is available, MATLAB Online access on his licence.
 
 - **MATLAB tests once the repository is private (Chris, 16 Nov; nothing changed yet).** Options:
   1. Keep the repository public until the closet PC runs, then a self-hosted GitHub runner on the PC, using his MATLAB Home licence (personal use). Recommended. Needs from Chris: the PC; one runner registration token from GitHub settings (Claude Code on the PC does the rest); tests then run only while the PC is on, scheduled away from overnight processing.
