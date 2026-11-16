@@ -446,7 +446,7 @@ m v̇ = m g − ½ ρ A C_D |u| u + ½ ρ A C_L |u|² (ω̂ × û),  u = v − w
   - They are extracted when a frame is labelled (test set) or harvested (auto-labels), before the raw footage can be deleted, as JPEG quality 95 at the camera's resolution.
   - Auto-labels are kept as whole runs of consecutive frames, so neighbouring labels share frames, and at most 20,000 new labelled frames a month are kept (spread over sessions, courts and light), matching the retraining threshold.
   - Disk estimate (to be measured on trial footage): about 2.5 MB per 4K frame. Test set: 300 frames × 3 ≈ 2.3 GB, growing slowly (about 4 GB with later batches). Auto-labels: about 21,300 frames per 20,000 labels ≈ 53 GB a month, about 0.65 TB a year. Beside the 6.5 TB footage steady state on the 12 TB archive, that fits for about 6 years; the weekly message reports it, and a second drive extends it.
-- TV-OPS-04 A 2-hour session is fully processed in ≤ 6 h on the specified PC. Process overnight, one session at a time, and queue the rest.
+- TV-OPS-04 **[16 Nov, changed]** A 2-hour session is fully processed in ≤ 12 h on the specified PC; 6 h is a goal, not a requirement. Process overnight, one session at a time, and queue the rest. At the end of TV-PH-2, the measured processing time per capture mode is part of the capture-mode decision.
 - TV-OPS-05 `tools/reprocess.m` reruns any stage for any range of sessions with the current code.
 - TV-OPS-06 A weekly "all OK" message with disk use, sessions processed and any warnings.
 - TV-TST-01 Synthetic generator (the core test): simulate shots with known speed, spin, C_D, wind and timing.
@@ -480,7 +480,7 @@ m v̇ = m g − ½ ρ A C_D |u| u + ½ ρ A C_L |u|² (ω̂ × û),  u = v − w
 3. **TV-PH-2** 3D tracking:
    - court calibration, sync, classical detector, 2D tracking, player tracking and identity;
    - 3D fit with drag only, speed and bounce maps.
-   - At the end, run the detector and sync on the TV-PH-0 trial footage and choose the capture mode.
+   - At the end, run the detector and sync on the TV-PH-0 trial footage and choose the capture mode by detection rate, readout time and **[16 Nov]** the measured processing time per mode (TV-OPS-04).
 4. **TV-PH-3** Physics: Magnus and wind, air density, spin metrics, synthetic tests, field validation.
 5. **TV-PH-4** Cloud and app: Worker, R2/D1, Sessions UI, 2D/3D views, trends, Health Connect, equipment linking, live tile.
 6. **TV-PH-5** Upgrades: learned detector, shot-type classification; automatic scoring optional.
@@ -499,7 +499,7 @@ m v̇ = m g − ½ ρ A C_D |u| u + ½ ρ A C_L |u|² (ω̂ × û),  u = v − w
 | AC-09 | Drop-test gravity | 9.81 m/s² ± 1% |
 | AC-10 | Synthetic spin effect recovered | within 10 cm |
 | AC-11 | Synthetic rpm recovered (true C_L(S) known) | within 10% |
-| AC-12 | 2-hour session, cards in to app | ≤ 7 h |
+| AC-12 | 2-hour session, cards in to app | ≤ 13 h **[16 Nov]** (was 7 h) |
 | AC-13 | Shots credited to the right player, including after changeovers | ≥ 99% |
 
 ### Open questions for TV-PH-0

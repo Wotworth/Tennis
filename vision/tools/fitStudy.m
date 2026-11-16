@@ -45,6 +45,15 @@ fprintf('session refined in %.0f s\n', toc(t0));
 ev = cell(nR, 1);
 for r = 1:nR, if ~isempty(segs{r}), ev{r} = tv.events.classify(segs{r}, air); end, end
 
+% the first rallies' events next to the truth, for checking by eye in the CI log
+for r = 1:min(3, nR)
+    tr = S.shots([S.shots.rally] == r);
+    fprintf('rally %d truth: %s\n', r, strjoin(arrayfun(@(s) sprintf('hit %.3f%s', s.tHit, ...
+        tv.testing.ternary(isnan(s.tBounce), '', sprintf(' bounce %.3f', s.tBounce))), tr, 'UniformOutput', false), ', '));
+    if ~isempty(ev{r}), fprintf('rally %d found: %s\n', r, strjoin(arrayfun(@(e) sprintf('%s %.3f', e.type, e.t), ev{r}, 'UniformOutput', false), ', ')); end
+    if ~isempty(segs{r}), fprintf('rally %d flights: %s\n', r, strjoin(arrayfun(@(g) sprintf('%.3f-%.3f (%.2f px)', min(g.t), max(g.t), g.rmsPx), segs{r}, 'UniformOutput', false), ', ')); end
+end
+
 % --- compare, shot by shot -------------------------------------------------------------
 mcfg = struct('cams', cams, 'lines', 'singles');  info = struct('chris', 0);
 rows = [];
