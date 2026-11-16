@@ -39,12 +39,18 @@ for w = 1:numel(E) - 1
     if s.ok, segs = [segs; s]; end %#ok<AGROW>
 end
 % split flights that hide an event, then merge neighbours one flight explains
+% (what still fits worse than opts.junkPx after splitting is not one ball's flight but a stray
+% track: it is dropped BEFORE merging, so the flight on either side of it can rejoin)
 [segs, cuts] = refineSplits(segs, cams, rec, sync, air, prior, opts);
+segs = dropJunk(segs, opts);
 segs = mergeAll(segs, cuts, cams, rec, sync, air, prior, opts);
 % a merge can join a short piece across a real event; look again, then merge what is left
 [segs, cuts2] = refineSplits(segs, cams, rec, sync, air, prior, opts);
+segs = dropJunk(segs, opts);
 segs = mergeAll(segs, [cuts, cuts2], cams, rec, sync, air, prior, opts);
-% what still fits worse than opts.junkPx is not one ball's flight (a stray track): drop it
+end
+
+function segs = dropJunk(segs, opts)
 if ~isempty(segs), segs = segs([segs.rmsPx] <= opts.junkPx); end
 end
 function [segs, cuts] = refineSplits(segs, cams, rec, sync, air, prior, opts)
