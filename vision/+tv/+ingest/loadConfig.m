@@ -25,6 +25,13 @@ cfg.copyOpts = struct();
 cfg.pipeline = tv.pipeline.defaults();
 cfg.pipeline.notify = cfg.notify;
 if isfield(s, 'indoorDefaults'), cfg.pipeline.indoorDefaults = s.indoorDefaults; end
+% TV-ADJ: the court of interest and the gate, field by field (Chris can change any one)
+for blk = {'court', 'gate'}
+    if isfield(s, blk{1})
+        f = fieldnames(s.(blk{1}));
+        for i = 1:numel(f), cfg.pipeline.(blk{1}).(f{i}) = s.(blk{1}).(f{i}); end
+    end
+end
 % the closet PC (Chris, 16 Nov): heat limits, temperature log, slow-port check
 pc = struct('gpuPowerCapW', 200, 'tempLimitC', struct('cpu', 90, 'gpu', 80), 'tempLogS', 60, 'slowReaderMBps', 45);
 if isfield(s, 'pc'), f = fieldnames(s.pc); for i = 1:numel(f), pc.(f{i}) = s.pc.(f{i}); end, end

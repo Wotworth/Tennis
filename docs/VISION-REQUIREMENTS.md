@@ -56,6 +56,7 @@ The parts of the original that are reasoning rather than requirements are kept i
     - **Doubles:** not in v1 (one opponent). A doubles option may come later.
     - **Opponent pages:** each opponent has their sessions, head-to-head history and their shot stats. Their stats stay behind the per-session "opponent's stats" toggle.
     - **Where names live:** only in the cloud database; never in Git, test fixtures or logs.
+16. **Adjacent courts (16 Nov).** Sessions are on public courts; neighbouring courts' players and balls are often in both views. Only Chris's court is analysed: TV-ADJ-01 to 08, AC-14 to AC-16. Chris's answers: volume 5 m behind the baselines, 2 m beyond the doubles sidelines, 12 m high; test thresholds 0.5% / 2% / 0 swaps; the reject log is a PC file and report, uploaded to the cloud with the session and linked from the session in the app (not GitHub: the repository is public and the app talks only to the Worker).
 
 ## 1. Scope, architecture, conventions
 
@@ -271,7 +272,7 @@ t₁ = t₂ + Δ + ε (t₂ − t_ref);  t_pixel = t_frame + (v/H) τᵣ
   - an HSV colour gate for optic yellow;
   - a blob-size gate, using the expected ball size in pixels at each image position (from the calibration and the 6.7 cm diameter).
   - Normalise each frame's brightness before differencing, so light flicker doesn't look like motion.
-- TV-DET-02 Mask everything outside the projected court volume: the court plus a 4 m margin, up to 8 m high. Treat stationary yellow objects (balls lying on court, the ball basket) as background.
+- TV-DET-02 Mask everything outside the projected court of interest (TV-ADJ-01). **[16 Nov]** Was: the court plus a 4 m margin, up to 8 m high. Treat stationary yellow objects (balls lying on court, the ball basket) as background.
 - TV-DET-03 Accept elongated blobs consistent with motion blur along the expected direction.
 - TV-DET-04 Version 2, learned: a TrackNet-style heat-map detector, trained with Deep Learning Toolbox on the GPU. Its input is three consecutive frames; its output is a ball-probability map.
 - TV-DET-05 Training labels:
@@ -285,6 +286,26 @@ t₁ = t₂ + Δ + ε (t₂ − t_ref);  t_pixel = t_frame + (v/H) τᵣ
 - TV-TRK-01 Track candidates with a Kalman filter on a constant-acceleration model, with gating. Bridge up to 10 missed frames (behind a player or the net post).
 - TV-TRK-02 Split tracks into flight segments at events: hit, bounce, net contact, leaving the view.
 - TV-TRK-03 Handle several balls in view. Each gets its own track; non-play balls are labelled and ignored.
+
+### Adjacent courts (Chris, 16 Nov)
+- TV-ADJ-01 **Court of interest.** A 3D box in the court frame: Chris's court plus run-off, configurable, defaults 5 m behind each baseline, 2 m beyond each doubles sideline, from the ground up to 12 m. The 2D detection mask (TV-DET-02) is its projection.
+- TV-ADJ-02 **Stereo pairing.** Once timing is known (TV-SYNC-02), every ball candidate of camera 2 is paired with the camera-1 tracks running at its moment (camera 1 interpolated to that time, never frames paired by index). A pair is accepted only when the two sight lines meet within the epipolar tolerance (configurable, default 4 px, measured as the summed reprojection error of the triangulated point). When several pairings fit, the one with the lowest error wins, one partner per candidate.
+- TV-ADJ-03 **Volume gate.** Each accepted pair is triangulated; a candidate whose 3D point is outside the court of interest is rejected.
+- TV-ADJ-04 **Track filter.** Linked into tracks, a ball track is kept only if:
+  - at least half of its stereo-paired points are inside the court of interest (configurable), so a neighbour's ball rolling onto the court is dropped as a whole;
+  - enough of it is paired at all (default 30%), since a ball one camera never sees cannot be measured;
+  - its 3D points never jump faster than a ball can fly (default 75 m/s between neighbouring points);
+  - the flight fit through it is physically possible (TV-REC-01: gravity, drag and spin; junk above 5 px is dropped).
+  - Isolated detections that join no track are dropped.
+- TV-ADJ-05 **Players.** Each person's court position is where their feet meet the ground (TV-PLY-01). Only the two tracks that stay inside the court-of-interest footprint the longest are players; everyone else is ignored. Hits are credited only to those two (TV-PLY-09).
+- TV-ADJ-06 **Reject log.** Every rejected candidate, track, flight and person is logged with its reason: outside the court of interest, no stereo partner, epipolar fail, implausible jump, mostly outside, implausible flight, isolated, person off court. Per session:
+  - `rejects/rejects.csv` (time, camera, pixel, 3D point if any, track, reason) and `rejects/rejects.html` (counts by reason and a top-down plot of what was rejected), on the PC with the session;
+  - uploaded to R2 with the session (TV-API-06: private, served by the Worker); the session's data carries the counts, and the app shows them on the session with a link that opens the report.
+- TV-ADJ-07 **Synthetic test.** The generator adds a court on each side (doubles sidelines 3.66 m apart), each with two players and a ball in play at the same time, plus the hard cases: a neighbour's ball crossing in front of or behind Chris's ball in one camera's view, a stray ball rolling onto Chris's court, and neighbours standing near the shared sideline.
+- TV-ADJ-08 **Metrics**, reported by the test with pass/fail thresholds in the config:
+  - false-positive rate: accepted detections that are a neighbour's ball, as a share of all accepted;
+  - false-negative rate: Chris's ball detected but rejected, as a share of Chris's ball detected;
+  - identity swaps: hits credited to anyone other than the true hitter, plus player tracks that switch between people.
 
 ### 3D reconstruction
 - TV-REC-01 For each flight segment, fit the physics model of section 5 directly to both cameras' 2D detections at their corrected pixel times.
@@ -529,6 +550,9 @@ m v̇ = m g − ½ ρ A C_D |u| u + ½ ρ A C_L |u|² (ω̂ × û),  u = v − w
 | AC-11 | Synthetic rpm recovered (true C_L(S) known) | within 10% |
 | AC-12 | 2-hour session, cards in to app | ≤ 13 h **[16 Nov]** (was 7 h) |
 | AC-13 | Shots credited to the right player, including after changeovers | ≥ 99% |
+| AC-14 | Adjacent courts: neighbours' ball detections accepted (synthetic, TV-ADJ-08) | ≤ 0.5% of accepted **[16 Nov]** |
+| AC-15 | Adjacent courts: Chris's ball detections rejected (synthetic) | ≤ 2% **[16 Nov]** |
+| AC-16 | Adjacent courts: identity swaps (synthetic) | 0 **[16 Nov]** |
 
 ### Open questions for TV-PH-0
 - Capture mode: 4K120, 4K240 or 8K60. Decided at the end of TV-PH-2 from the trial footage.

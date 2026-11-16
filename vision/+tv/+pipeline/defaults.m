@@ -18,6 +18,14 @@ cfg.lines = 'singles';
 cfg.CDprior = struct('CD', 0.507, 'CDsd', 0.024);
 cfg.refineRounds = 3;
 cfg.outputs = struct('plots', true, 'reel', true);
+% Chris, 16 Nov: only his court (TV-ADJ-01 to 08). RETUNE(real footage): all of these.
+cfg.court = struct('behindBaseline', 5, 'beyondSideline', 2, 'maxHeight', 12);   % m; sidelines = doubles
+cfg.gate = struct('epipolarPx', 4, ...      % TV-ADJ-02: summed reprojection error of a pair (4K: scaled)
+                  'minInsideFrac', 0.5, ... % TV-ADJ-04: share of a track's paired points inside
+                  'minPairedFrac', 0.3, ... % share of a track seen by both cameras
+                  'maxSpeed', 75, ...       % m/s between neighbouring 3D points
+                  'playerInsideFrac', 0.6); % TV-ADJ-05: share of a person's time inside
+cfg.adjacentTest = struct('maxFalsePos', 0.005, 'maxFalseNeg', 0.02, 'maxSwaps', 0);   % AC-14 to AC-16
 cfg.minCrossDeg = 20;               % usable stereo crossing angle; RETUNE(real footage)
 cfg.alerts = struct('ntfyServer', 'https://ntfy.sh');
 cfg.notify = @(title, text) tv.ops.notify(cfg, title, text);

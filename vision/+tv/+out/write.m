@@ -7,6 +7,7 @@ function write(outDir, R, cfg)
 %   rallies.json       per rally
 %   plots/*.png        bounce map, per-rally 3D, speed histogram (MATLAB only)
 %   reel_1080p.mp4, clips/rally_NN.mp4   rallies only, from camera 1
+%   rejects/rejects.csv, .html  everything rejected and why (TV-ADJ-06)
 %   Not yet: the tracer clips (ball path drawn on the video, TV-OUT-04).
 s.code = tv.util.codeVersion();
 s.created = tv.util.nowUtc();
@@ -22,6 +23,9 @@ s.crossing = struct('minDeg', R.crossing.minDeg, 'thresholdDeg', R.crossing.thre
 s.identity = struct('chrisTrack', R.players.info.chris, 'confidence', R.players.info.confidence, ...
     'question', R.players.question);
 s.counts = struct('rallies', numel(R.rallies), 'shots', numel(R.shots));
+% TV-ADJ-06: what was not analysed, and why; the full log uploads as rejects/
+s.rejects = struct('report', 'rejects/rejects.html', 'csv', 'rejects/rejects.csv', 'counts', ...
+    tv.out.rejects(outDir, R.gateLog, R.dropped, R.players.rejected));
 s.summary = R.summary;
 tv.util.writeJson(fullfile(outDir, 'session.json'), s);
 tv.util.writeJson(fullfile(outDir, 'shots.json'), R.shots);

@@ -13,17 +13,31 @@ clock = cam.recordStart + n / cam.fps;                 % camera clock, start of 
 Tmid  = tv.synth.truthTime(cam, clock + cam.readout / 2 + cam.shutter / 2);
 img = bg;
 
-% --- players, farther one first ------------------------------------------------
-order = [1 2];
+% --- players, farther one first (the neighbours' too: TV-ADJ-07) -----------------
 xy = [tv.synth.playerAt(truth, 1, Tmid); tv.synth.playerAt(truth, 2, Tmid)];
+looks = sc.players(1:2);
+if isfield(truth, 'others')
+    for o = truth.others.players(:)'
+        xy(end+1, :) = tv.synth.playerAt(struct('players', {{o.way}}), 1, Tmid); %#ok<AGROW>
+        looks(end+1) = sc.otherLooks(o.look); %#ok<AGROW>
+    end
+end
 dists = sqrt(sum((xy - cam.pos(1:2)).^2, 2));
 [~, order] = sort(dists, 'descend');
 for p = order(:)'
-    img = drawPlayer(img, cam, [xy(p, :), 0], sc.players(p), Tmid);
+    img = drawPlayer(img, cam, [xy(p, :), 0], looks(p), Tmid);
 end
 
 % --- balls ----------------------------------------------------------------------
-img = drawBall(img, cam, sc, @(T) repmat(sc.staticBall, numel(T), 1), clock);
+if all(isfinite(sc.staticBall))
+    img = drawBall(img, cam, sc, @(T) repmat(sc.staticBall, numel(T), 1), clock);
+end
+if isfield(truth, 'others')
+    for o = truth.others.balls(:)'
+        tb = struct('T', truth.T, 'ballP', o.ballP);
+        img = drawBall(img, cam, sc, @(T) tv.synth.ballAt(tb, T), clock);
+    end
+end
 img = drawBall(img, cam, sc, @(T) tv.synth.ballAt(truth, T), clock);
 
 % --- flicker and noise ------------------------------------------------------------

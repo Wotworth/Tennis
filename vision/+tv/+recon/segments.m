@@ -1,11 +1,12 @@
-function segs = segments(P, cams, rec, sync, air, prior, opts)
+function [segs, dropped] = segments(P, cams, rec, sync, air, prior, opts)
 %SEGMENTS  Split one rally's ball detections into flight segments and fit each (TV-REC-01, TV-TRK-02).
 %   P: track pieces from both cameras (tv.recon.pieces). Every piece start,
 %   end and cut, in either camera, is a possible event (hit, bounce, net,
 %   or just a gap in one camera's track). The time between neighbouring
 %   possible events is fitted with the flight model; then neighbours are
 %   merged back whenever one flight explains both (a gap was not an event).
-%   Returns segments sorted in time (struct array from tv.recon.fitSegment).
+%   Returns segments sorted in time (struct array from tv.recon.fitSegment), and the
+%   parts dropped as no physical flight ("implausible flight", TV-ADJ-04, logged).
 %   RETUNE(real footage): opts.clusterMs, opts.edgeMs, opts.minPerCam, the
 %   merge test, its 3 px cap and the 5 px junk limit.
 if nargin < 7, opts = struct(); end
@@ -13,7 +14,7 @@ d = struct('clusterMs', 25, 'edgeMs', 4, 'minPerCam', 4, 'mergeRms', 1.5, 'split
            'mergeCapPx', 3, 'junkPx', 5);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
-segs = [];
+segs = [];  dropped = [];
 if isempty(P), return; end
 obs = vertcat(P.obs);
 t = zeros(size(obs, 1), 1);
@@ -42,19 +43,20 @@ end
 % (what still fits worse than opts.junkPx after splitting is not one ball's flight but a stray
 % track: it is dropped BEFORE merging, so the flight on either side of it can rejoin)
 [segs, cuts] = refineSplits(segs, cams, rec, sync, air, prior, opts);
-segs = dropJunk(segs, cams, rec, sync, air, prior, opts);
+[segs, dj] = dropJunk(segs, cams, rec, sync, air, prior, opts);  dropped = [dropped; dj]; %#ok<AGROW>
 segs = mergeAll(segs, cuts, cams, rec, sync, air, prior, opts);
 % a merge can join a short piece across a real event; look again, then merge what is left
 [segs, cuts2] = refineSplits(segs, cams, rec, sync, air, prior, opts);
-segs = dropJunk(segs, cams, rec, sync, air, prior, opts);
+[segs, dj] = dropJunk(segs, cams, rec, sync, air, prior, opts);  dropped = [dropped; dj]; %#ok<AGROW>
 segs = mergeAll(segs, [cuts, cuts2], cams, rec, sync, air, prior, opts);
 end
 
-function segs = dropJunk(segs, cams, rec, sync, air, prior, opts)
+function [segs, dropped] = dropJunk(segs, cams, rec, sync, air, prior, opts)
 % A part fitting worse than opts.junkPx is dropped, unless it joins a neighbour into one
 % flight within opts.mergeCapPx: a short piece with a few strays in it carries good
 % detections too (16 Nov: the first 90 ms after a hit were lost, and with them the speed
 % at contact). A stray track (tens of pixels) never joins.
+dropped = segs([]);
 k = 1;
 while k <= numel(segs)
     if segs(k).rmsPx <= opts.junkPx, k = k + 1; continue; end
@@ -66,7 +68,7 @@ while k <= numel(segs)
             segs(min(j, k)) = m;  segs(max(j, k)) = [];  joined = true;  break
         end
     end
-    if ~joined, segs(k) = []; end
+    if ~joined, dropped(end+1, 1) = segs(k); segs(k) = []; end %#ok<AGROW>
     if joined, k = max(1, min(j, k)); end
 end
 end

@@ -9,12 +9,16 @@ if nargin < 2, sc = tv.synth.defaultScenario(); end
 tv.util.seed(sc.seed);
 cams  = tv.synth.cameras(sc);
 truth = tv.synth.planSession(sc);
+if isfield(sc, 'neighbourCourts')                  % TV-ADJ-07: the courts next door
+    truth.others = tv.synth.planNeighbours(sc, truth, cams);
+end
 out.files = cell(1, 2);
 for k = 1:2
     out.files{k} = tv.synth.writeRecording(fullfile(folder, sprintf('card%d', k), 'DCIM', '100GOPRO'), cams(k), sc, truth, k);
 end
 out.cams = cams;  out.truth = truth;  out.scenario = sc;
 t = rmfield(truth, {'T', 'ballP'});
+if isfield(t, 'others'), t = rmfield(t, 'others'); end
 t.cameras = arrayfun(@(c) struct('serial', c.serial, 'pos', c.pos, 'R', c.R, 'readout', c.readout, ...
     'clockOffset', c.clockOffset, 'clockDrift', c.clockDrift, 'recordStart', c.recordStart), cams);
 t.scenario = rmfield(sc, 'rallies');

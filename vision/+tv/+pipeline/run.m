@@ -47,6 +47,10 @@ Y = tv.pipeline.stage(outDir, 'sync', k(R.windows, cfg.minCrossDeg), @() syncAll
 sync = Y.sync;  cams = Y.cams;  C.cams = cams;
 if ~isempty(Y.crossing.low), cfg.notify('Camera angle', Y.crossing.text); end
 
+% --- only Chris's court: stereo pairing, court of interest, track filter (TV-ADJ-02 to 04) ---------
+guard();
+G = tv.pipeline.stage(outDir, 'gate', k(sync, Y.symmetry.chosen, cfg.court, cfg.gate), @() gateAll(D, cams, rec, sync, cfg));
+
 % --- reconstruction ---------------------------------------------------------------------------------
 air0 = tv.physics.defaultParams();
 air0.rho = tv.air.density(cfg.weather.tempC, cfg.weather.relHumidity, cfg.weather.pressurePa);
@@ -57,11 +61,11 @@ air0.wind = [0.5 * cfg.weather.wind10, 0];            % TV-PHY-04: half the 10 m
 if cfg.indoor, air0.wind = [0 0 0]; end
 guard();
 X = tv.pipeline.stage(outDir, 'recon', k(sync, Y.symmetry.chosen, cfg.weather, cfg.indoor, cfg.CDprior, cfg.refineRounds), ...
-    @() reconstruct(D, cams, rec, sync, air0, cfg));
+    @() reconstruct(G, cams, rec, sync, air0, cfg));
 
 % --- players ----------------------------------------------------------------------------------
 guard();
-P = tv.pipeline.stage(outDir, 'players', k(cfg.playerHz, Y.symmetry.chosen), @() trackPlayers(rec, C, X.sync, cfg));
+P = tv.pipeline.stage(outDir, 'players', k(cfg.playerHz, Y.symmetry.chosen, cfg.court, cfg.gate), @() trackPlayers(rec, C, X.sync, cfg));
 
 % --- metrics ------------------------------------------------------------------------------------
 if isfield(cfg, 'chrisLabel') && ~isempty(cfg.chrisLabel), P = relabel(P, cfg.chrisLabel); end
@@ -73,6 +77,7 @@ M = tv.pipeline.stage(outDir, 'metrics', k(cfg.lines, P.info.chris), @() measure
 result = struct('summaryForUpload', up.summary, 'dataForUpload', up.data, 'rec', rec, 'cams', cams, 'calib', C.report, 'symmetry', Y.symmetry, 'crossing', Y.crossing, ...
     'rallyWindows', R.windows, ...
     'sync', X.sync, 'air', X.air, 'segs', {X.segs}, 'events', {X.events}, 'players', P, ...
+    'gateLog', {G.log}, 'dropped', {X.dropped}, 'candidates', {D.candidates}, 'ballTracks', {G.tracks}, ...
     'shots', M.shots, 'rallies', M.rallies, 'summary', M.summary, 'refine', X.report);
 tv.out.write(outDir, result, cfg);
 end
@@ -113,9 +118,11 @@ function D = detectAll(rec, C, windows, sync, cfg)
 D.tracks = cell(size(windows, 1), 2);
 c = tv.court.constants();
 for k = 1:2
-    mask = tv.detect.volumeMask(C.cams(k));
-    % the largest a ball can look: the nearest point of the play volume
-    pts = tv.court.playVolume(4, 8, 1);
+    box = tv.court.interest(cfg.court);                 % TV-ADJ-01, TV-DET-02
+    mask = tv.detect.volumeMask(C.cams(k), box);
+    % the largest a ball can look: the nearest point of the court of interest
+    [gx, gy, gz] = ndgrid(box.x(1):1:box.x(2), box.y(1):1:box.y(2), 0:1:box.z(2));
+    pts = [gx(:), gy(:), gz(:)];
     dmin = min(sqrt(sum((pts - C.cams(k).pos).^2, 2)));
     dpx = 2 * c.ballRadius / dmin * tv.lens.pxPerRad(C.cams(k).lens) * cfg.ballApparentScale;
     opts = struct('maxArea', max(30, pi / 4 * (2 * dpx)^2 * 3));
@@ -160,11 +167,24 @@ Y.sync.delta = Y.symmetry.delta;
 Y.crossing = tv.calib.crossingReport(Y.cams, struct('minDeg', cfg.minCrossDeg));
 end
 
+function G = gateAll(D, cams, rec, sync, cfg)
+box = tv.court.interest(cfg.court);
+G.tracks = cell(size(D.tracks));  G.log = cell(size(D.tracks, 1), 1);
+for r = 1:size(D.tracks, 1)
+    cand = {zeros(0, 3), zeros(0, 3)};
+    if isfield(D, 'candidates'), cand = D.candidates(r, :); end
+    [kt, lg] = tv.recon.gateTracks(D.tracks(r, :), cand, cams, rec, sync, box, cfg.gate);
+    G.tracks(r, :) = kt;
+    for m = 1:numel(lg), lg(m).rally = r; end
+    G.log{r} = lg;
+end
+end
+
 function X = reconstruct(D, cams, rec, sync, air, cfg)
-segs = cell(size(D.tracks, 1), 1);
+segs = cell(size(D.tracks, 1), 1);  X.dropped = cell(size(segs));
 for r = 1:size(D.tracks, 1)
     P = tv.recon.pieces(D.tracks(r, :), rec, sync);
-    segs{r} = tv.recon.segments(P, cams, rec, sync, air, cfg.CDprior);
+    [segs{r}, X.dropped{r}] = tv.recon.segments(P, cams, rec, sync, air, cfg.CDprior);
 end
 opts = struct('rounds', cfg.refineRounds, 'windPrior', air.wind(1:2), 'indoor', cfg.indoor, ...
               'readoutPrior', cfg.readoutPrior);
@@ -189,6 +209,8 @@ for t = T
     samples(end+1) = struct('t', t, 'dets', dets); %#ok<AGROW>
 end
 [P.tracks, P.info] = tv.players.track(samples);
+% TV-ADJ-05: only the two players on Chris's court; neighbours are logged and ignored
+[P.tracks, P.info, P.rejected] = tv.players.keepCourt(P.tracks, P.info, tv.court.interest(cfg.court), cfg.gate);
 P.question = any(P.info.confidence < 0.9);      % TV-PLY-07: ask once in the app
 end
 

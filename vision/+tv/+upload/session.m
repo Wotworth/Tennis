@@ -50,7 +50,7 @@ files = {};
 for f = {'session.json', 'shots.json', 'rallies.json', 'trajectories.json.gz', 'reel_1080p.mp4'}
     if exist(fullfile(outDir, f{1}), 'file'), files{end+1} = f{1}; end %#ok<AGROW>
 end
-for sub = {'clips', 'plots'}
+for sub = {'clips', 'plots', 'rejects'}   % rejects: TV-ADJ-06
     d = dir(fullfile(outDir, sub{1}, '*.*'));
     for k = 1:numel(d)
         if ~d(k).isdir, files{end+1} = [sub{1} '/' d(k).name]; end %#ok<AGROW>
