@@ -64,3 +64,7 @@ Built on launcher main, additively (see the launcher CHANGELOG).
 ## Added 8 Nov (tennis v0.9): the stroke above each cue
 
 Built on launcher main, additively. `/cues` rows now also carry `colour` (an ARGB number, the stroke's tile colour). The launcher draws the stroke (`heading`, lowercase) above the cue in that colour, semibold 11 epx, and reserves its line when fitting the cue.
+
+## Added 16 Nov (Tennis Vision): "N frames to check"
+
+The tennis provider's `/tile` row may now carry `state` = `checks`, with `big` = the count (e.g. `12`) and `small` = `frames to check`. Lowest priority: the tennis app sends it only when the live tile is on and there are no cues (where the tile would otherwise be the plain racket icon). Requested behaviour: draw it like the proposal state (big number, small line), tap opens the app with the usual tap intent and no extra. Until the launcher knows this state it shows its normal tile, which is fine. Not yet built in the launcher.

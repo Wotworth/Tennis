@@ -55,6 +55,7 @@ data class VisionShot(
     val call: String,
     val spinEffect: Double?,
     val spinTop: Double?,
+    val spinSide: Double? = null,
     val rpm: Double?,
     val rpmSd: Double?,
     val spinLabel: String,
@@ -104,7 +105,7 @@ object VisionJson {
         netClearance = o.num("netClearance"), apex = o.num("apex"), flightTime = o.num("flightTime"),
         bounce = doubles(o.optJSONArray("bounce")).takeIf { it.size == 2 && it.all { v -> !v.isNaN() } },
         bounceSd = o.num("bounceSd"), depth = o.num("depth"), call = o.optString("call"),
-        spinEffect = o.num("spinEffect"), spinTop = o.num("spinTop"), rpm = o.num("rpm"), rpmSd = o.num("rpmSd"),
+        spinEffect = o.num("spinEffect"), spinTop = o.num("spinTop"), spinSide = o.num("spinSide"), rpm = o.num("rpm"), rpmSd = o.num("rpmSd"),
         spinLabel = o.optString("spinLabel"), kickAngleDeg = o.num("kickAngleDeg"), confidence = o.num("confidence"),
     )
 

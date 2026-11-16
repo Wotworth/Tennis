@@ -31,6 +31,7 @@ import io.github.wotworth.tennis.ui.LocalNav
 import io.github.wotworth.tennis.ui.Screen
 import io.github.wotworth.tennis.ui.components.ChoiceRow
 import io.github.wotworth.tennis.ui.components.LocalOverlays
+import io.github.wotworth.tennis.ui.components.MetroButton
 import io.github.wotworth.tennis.ui.components.NumberTile
 import io.github.wotworth.tennis.ui.components.Page
 import io.github.wotworth.tennis.ui.components.SectionHeader
@@ -101,6 +102,8 @@ fun VisionTiles() {
     val nav = LocalNav.current
     val zpx = LocalZpx.current
     val l = TennisTokens.Layout
+    val checks = app.vision.checks(app.prefs.visionSample).size
+    if (checks > 0) TextRow("ball check", "$checks frames to look at: a few taps teach the detector") { nav.open(Screen.BallCheck) }
     val d = io.github.wotworth.tennis.ui.appData()
     app.vision.sessions(app.prefs.visionSample).forEach { v ->
         val fastest = v.shots.mapNotNull { it.speedContact }.maxOrNull()
@@ -161,6 +164,14 @@ private fun VisionSummary(v: VisionSession) {
             }
             Spacer(Modifier.height(zpx(l.tileGap)))
         }
+        val opp = app.vision.opponents
+        @Suppress("UNUSED_VARIABLE") val ov = opp.version
+        if (!pending && !opp.answered(v.id)) {
+            Tile("who did you play?", zpx(l.tileMedium * 2 + l.tileGap), zpx(l.tileMedium * 0.6f), onClick = { nav.open(Screen.OpponentPrompt(v.id)) }) {
+                TileLines(listOf("1 tap"))
+            }
+            Spacer(Modifier.height(zpx(l.tileGap)))
+        }
         val mine = v.shots.filter { me != null && it.hitter == me }
         val serves = (if (me != null) mine else v.shots).filter { it.isServe }
         Row {
@@ -176,8 +187,14 @@ private fun VisionSummary(v: VisionSession) {
         }
         Spacer(Modifier.height(zpx(16f)))
         SectionHeader("players")
-        players.forEach { p -> TextRow(v.who(p, answer), playerLine(v.shots.filter { it.hitter == p })) }
-        if (!pending && me == null) TextRow("you", "not identified")
+        val showOpp = pending || v.id in app.prefs.opponentStatsOn
+        val oppName = opp.of(v.id)?.name
+        players.forEach { p ->
+            val label = v.who(p, answer).let { if (it != "you" && oppName != null) oppName else it }
+            if (label == "you" || showOpp) TextRow(label, playerLine(v.shots.filter { it.hitter == p }))
+            else TextRow(label, "their stats are off for this session")
+        }
+        if (!pending) io.github.wotworth.tennis.ui.components.ToggleSwitch("opponent's stats", v.id in app.prefs.opponentStatsOn) { app.prefs.showOpponentStats(v.id, it) }
         val lab = d.visionLabel(v.id)
         SectionHeader("court")
         val court = d.court(lab?.courtId)
@@ -191,7 +208,7 @@ private fun VisionSummary(v: VisionSession) {
         val fh = (if (me != null) mine else v.shots.filter { it.hitter == players.firstOrNull() }).filter { it.type == "forehand" || it.type == "groundstroke" }
         val fx = median(fh.mapNotNull { it.spinEffect })
         TextRow(if (fx == null) "–" else "${Units.ft(abs(fx))} ${if (fx < 0) "shorter" else "longer"}", "how much spin moved the forehands' bounce (median)")
-        TextRow(Units.rpm(median(fh.mapNotNull { it.rpm }), median(fh.mapNotNull { it.rpmSd })), "forehand spin rate")
+        spinRows(if (me != null) mine else v.shots.filter { it.hitter == players.firstOrNull() }).forEach { (a, b) -> TextRow(a, b) }
         TextRow(Units.inches(median(fh.mapNotNull { it.netClearance })), "forehand net clearance (median)")
         TextRow("trends", "forehand spin and depth, session by session") { nav.open(Screen.VisionTrends) }
         SectionHeader("air")
@@ -199,6 +216,17 @@ private fun VisionSummary(v: VisionSession) {
             v.sessionCD?.let { "ball drag %.3f (falls as balls wear)".format(Locale.US, it) })
     }
 }
+
+/**
+ * Spin by kind (Chris, 15 Nov: rpm alone does not tell topspin from slice): for each shot type,
+ * one row per spin kind, with its rpm and uncertainty.
+ */
+fun spinRows(sh: List<VisionShot>): List<Pair<String, String>> =
+    sh.filter { it.rpm != null }.groupBy { it.type to it.spinLabel }.entries
+        .sortedByDescending { it.value.size }
+        .map { (k, v) ->
+            "${k.first} ${k.second}" to "${Units.rpm(median(v.mapNotNull { it.rpm }), median(v.mapNotNull { it.rpmSd }))} · ${v.size} shots"
+        }
 
 fun playerLine(sh: List<VisionShot>): String {
     val fhs = sh.filter { it.type == "forehand" }.mapNotNull { it.speedContact }
@@ -308,6 +336,7 @@ fun shotLine(s: VisionShot, who: String = s.hitter) = listOfNotNull(
 @Composable
 private fun VisionRallies(v: VisionSession) {
     val app = LocalApp.current
+    val nav = LocalNav.current
     val zpx = LocalZpx.current
     PivotColumn {
         v.rallies.forEach { r ->
@@ -317,7 +346,10 @@ private fun VisionRallies(v: VisionSession) {
                 Spacer(Modifier.height(zpx(4f)))
             }
             TextRow("rally ${r.index} · ${r.shots} shots", listOf("ended ${r.ending}", "fastest ${Units.mph(r.fastest)}",
-                "%.0f s".format(Locale.US, r.stop - r.start)).joinToString(" · "))
+                "%.0f s".format(Locale.US, r.stop - r.start)).joinToString(" · "),
+                onLongClick = { nav.open(Screen.MissedShot(v.id, r.index)) })
+            io.github.wotworth.tennis.ui.components.SmallAction("missed a shot?") { nav.open(Screen.MissedShot(v.id, r.index)) }
+            Spacer(Modifier.height(zpx(6f)))
         }
     }
 }
@@ -588,9 +620,16 @@ fun VisionShotScreen(id: String, rally: Int, index: Int) {
         TextRow(Units.ft(s.apex), "highest point")
         s.bounce?.let { b -> TextRow("${s.call} · ${Units.ft(s.depth)} inside the baseline", "bounce ± ${Units.inches(s.bounceSd)}") }
         TextRow(s.spinEffect?.let { "${Units.ft(abs(it))} ${if (it < 0) "shorter" else "longer"}" } ?: "–", "spin's effect on the bounce, against no spin")
-        TextRow(s.spinLabel.ifBlank { "–" }, Units.rpm(s.rpm, s.rpmSd))
+        TextRow(s.spinLabel.ifBlank { "–" } + (s.rpm?.let { " · ${Units.rpm(it, s.rpmSd)}" } ?: ""), spinSplit(s))
         s.kickAngleDeg?.let { TextRow("%.0f°".format(Locale.US, it), "kick off the court") }
         TextRow(s.confidence?.let { "${(it * 100).roundToInt()}%" } ?: "–", "measurement confidence")
+        Spacer(Modifier.height(zpx(10f)))
+        val o = LocalOverlays.current
+        MetroButton("this looks wrong") {
+            o.menu(*io.github.wotworth.tennis.vision.LOOKS_WRONG_REASONS.map { reason ->
+                reason to { app.vision.flag(id, io.github.wotworth.tennis.vision.Feedback.looksWrong(rally, index, reason)) }
+            }.toTypedArray())
+        }
     }
 }
 
@@ -622,6 +661,16 @@ private fun SideView(tr: Trajectory, s: VisionShot) {
     }
     TennisText("solid: the real path · dashed: the same shot without spin" +
         (s.spinEffect?.let { " · spin brought it down ${Units.ft(abs(it))}" } ?: ""), TennisTokens.Type.listSecondary)
+}
+
+/** The spin's two parts: topspin (+) or slice (-) across the flight, and sidespin. */
+fun spinSplit(s: VisionShot): String {
+    val top = s.spinTop ?: return "no spin measured"
+    val side = s.spinSide ?: 0.0
+    val total = kotlin.math.abs(top) + kotlin.math.abs(side)
+    if (total < 1e-6) return "no spin measured"
+    val tPct = (100 * kotlin.math.abs(top) / total).roundToInt()
+    return "${if (top >= 0) "topspin" else "slice"} $tPct% · sidespin ${100 - tPct}%"
 }
 
 private fun median(v: List<Double>): Double? {

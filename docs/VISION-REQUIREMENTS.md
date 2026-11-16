@@ -33,6 +33,30 @@ The parts of the original that are reasoning rather than requirements are kept i
 
 12. **Singles only (15 Nov).** Chris plays singles only. TV-PLY-08's doubles support (3–4 players, Partner / Opponent labels) is not built; line calls use the singles lines.
 
+13. **Detector improvement loop (15 Nov).** Chris's input is quick taps in the app. All app feedback takes the identity answers' path: the app posts, the PC pulls, and the Worker computes nothing.
+    - **Ball check (hand-labelled test set).**
+      - The PC picks frames spread across days and light, favouring frames the detector was unsure about, and uploads ~256 × 256 crops around the predicted ball.
+      - The app shows one at a time: ✓ (marker on the ball), a tap on the true position, or "no ball". Batches of about 20, sized for phone and tablet.
+      - About 300 frames make the first set; small batches follow as conditions change (new courts, indoor, night).
+    - **"This looks wrong"** on each shot card, with a reason: wrong speed, wrong in/out, not my shot, not a real shot. Logged for review and tuning.
+    - **"Missed a shot here"** in rally videos records the time. The PC re-examines that window and adds any confirmed shot as a training example.
+    - **Automatic retraining.**
+      - When: overnight when idle, after 20,000 new auto-labelled frames or monthly.
+      - Auto-labels: only detections both cameras agree on that fit a physically possible flight, plus physics-predicted positions in gaps. Frames where a player or the net hides the ball are excluded.
+      - Promotion: only if the new model beats the current one on the hand-labelled set, with recall and precision both no worse; otherwise the old one stays and the reason is logged.
+      - Auto-labels never enter the test set.
+    - **Reporting:** the weekly ntfy message carries each retraining result (old vs new recall and precision) and the count of open "looks wrong" flags.
+    - **Tile and notifications:** the launcher tile may show "N frames to check" at the lowest priority. The app sends no notifications.
+14. **Spin types (15 Nov).** rpm alone does not tell topspin from slice. Spin is always shown with its kind (topspin, slice, flat) and the split between topspin/backspin and sidespin, and spin statistics are kept per kind.
+15. **Opponents (15 Nov).**
+    - **The prompt:** after a session is processed, the app asks "Who did you play?" with one tap. Saved names come most recent first, then "add new" and "skip / unknown".
+    - **What a choice does:** the name is attached to the session and to every shot by the non-Chris player.
+    - **The list:** add, rename, merge duplicates, delete. Renaming or merging updates all past sessions.
+    - **Suggestion:** the opponent from the last session at the same court is the default, but never assigned automatically.
+    - **Doubles:** v1 assumes one opponent; a doubles option may come later.
+    - **Opponent pages:** each opponent has their sessions, head-to-head history and their shot stats. Their stats stay behind the per-session "opponent's stats" toggle.
+    - **Where names live:** only in the cloud database; never in Git, test fixtures or logs.
+
 ## 1. Scope, architecture, conventions
 
 Three components, built in phases (section 7):

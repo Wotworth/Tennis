@@ -42,7 +42,7 @@ class TennisApp : Application() {
     suspend fun tileFaces(): List<io.github.wotworth.tennis.tile.TileRow> {
         val now = io.github.wotworth.tennis.domain.Now.millis()
         // TIL-05 (v0.7): one face: a waiting session, else cues (the launcher fits them) or off.
-        return listOf(io.github.wotworth.tennis.tile.TileCues.state(tileData(), prefs.liveTile, now))
+        return listOf(io.github.wotworth.tennis.tile.TileCues.state(tileData(), prefs.liveTile, now, checks = vision.checks(prefs.visionSample).size))
     }
 
     /** TIL-05: the cues the tile flips through, and its back. */

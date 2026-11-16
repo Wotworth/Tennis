@@ -16,6 +16,7 @@ The first real footage is the TV-PH-0 lens calibration and trial sessions; most 
 | Timing | `+tv/+sync/fromRays.m` | Search range (±60 ms) | Real timecode/GPS start error (TV-SYNC-01) |
 | Timing | `+tv/+pipeline/defaults.m` (readoutPrior), `+tv/+recon/refineSession.m` | Readout prior (8 ms), drift and wind priors, rounds | TV-PH-0 trials in each mode; spec chooses the mode at the end of TV-PH-2 |
 | Ball | `+tv/+detect/ballCandidates.m` | Every threshold; optic-yellow hue range in real light; size range at 4K | Labelled frames from trials (then the learned detector, TV-PH-5) |
+| Ball | `+tv/+learn/netLayers.m` | The learned detector's input size, width and depth | The PC's GPU and the first 20,000 auto-labels |
 | Ball | `+tv/+detect/volumeMask.m` | Margin, dilation and closing at 4K | First sessions |
 | Tracks | `+tv/+track/ball2d.m`, `+tv/+track/splitEvents.m` | Gates, noise, minimum length, first jump; split window and thresholds | Trials, against hand-checked rallies |
 | Flights | `+tv/+recon/segments.m`, `+tv/+recon/fitSegment.m` | Event clustering, edges, merge test; Huber limit | Trials; drop test (AC-09) and radar (AC-07) |

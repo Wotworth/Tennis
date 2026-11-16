@@ -46,6 +46,11 @@ sealed interface Screen {
     data class VisionShot(val id: String, val rally: Int, val index: Int) : Screen
     data class VisionIdentity(val id: String) : Screen
     data object VisionTrends : Screen
+    data object BallCheck : Screen
+    data class OpponentPrompt(val sessionId: String) : Screen
+    data object Opponents : Screen
+    data class Opponent(val id: Int) : Screen
+    data class MissedShot(val sessionId: String, val rally: Int) : Screen
     data class Court(val id: Long) : Screen
     data class CourtEdit(val id: Long? = null) : Screen
 }
@@ -86,6 +91,11 @@ fun AppRoot(app: TennisApp, nav: Navigator = remember { Navigator() }, overlays:
                     is Screen.Proposal -> io.github.wotworth.tennis.ui.screens.ProposalScreen(s.id)
                     is Screen.Vision -> io.github.wotworth.tennis.ui.screens.VisionSessionScreen(s.id, s.pivot)
                     is Screen.VisionShot -> io.github.wotworth.tennis.ui.screens.VisionShotScreen(s.id, s.rally, s.index)
+                    Screen.BallCheck -> io.github.wotworth.tennis.ui.screens.BallCheckScreen()
+                    is Screen.OpponentPrompt -> io.github.wotworth.tennis.ui.screens.OpponentPromptScreen(s.sessionId)
+                    Screen.Opponents -> io.github.wotworth.tennis.ui.screens.OpponentsScreen()
+                    is Screen.Opponent -> io.github.wotworth.tennis.ui.screens.OpponentScreen(s.id)
+                    is Screen.MissedShot -> io.github.wotworth.tennis.ui.screens.MissedShotScreen(s.sessionId, s.rally)
                     Screen.VisionTrends -> io.github.wotworth.tennis.ui.screens.VisionTrendsScreen()
                     is Screen.VisionIdentity -> io.github.wotworth.tennis.ui.screens.VisionIdentityScreen(s.id)
                     is Screen.Court -> io.github.wotworth.tennis.ui.screens.CourtScreen(s.id)

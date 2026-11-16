@@ -35,6 +35,7 @@ jobs:
             Computer_Vision_Toolbox
             Statistics_and_Machine_Learning_Toolbox
             Signal_Processing_Toolbox
+            Deep_Learning_Toolbox
 
       - name: Unit tests (TV-TST-02)
         uses: matlab-actions/run-tests@v2

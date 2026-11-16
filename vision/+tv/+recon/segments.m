@@ -9,7 +9,7 @@ function segs = segments(P, cams, rec, sync, air, prior, opts)
 %   RETUNE(real footage): opts.clusterMs, opts.edgeMs, opts.minPerCam and the
 %   merge test.
 if nargin < 7, opts = struct(); end
-d = struct('clusterMs', 25, 'edgeMs', 4, 'minPerCam', 4, 'mergeRms', 1.5);
+d = struct('clusterMs', 25, 'edgeMs', 4, 'minPerCam', 4, 'mergeRms', 1.5, 'splitRms', 0.6, 'splitGain', 0.6);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 segs = [];
@@ -37,7 +37,8 @@ for w = 1:numel(E) - 1
     s = tv.recon.fitSegment(o, cams, rec, sync, air, prior);
     if s.ok, segs = [segs; s]; end %#ok<AGROW>
 end
-% merge neighbours one flight explains
+% split flights that hide an event, then merge neighbours one flight explains
+segs = refineSplits(segs, cams, rec, sync, air, prior, opts);
 merged = true;
 while merged && numel(segs) > 1
     merged = false;
@@ -52,6 +53,33 @@ while merged && numel(segs) > 1
             break
         end
     end
+end
+end
+
+function segs = refineSplits(segs, cams, rec, sync, air, prior, opts)
+% A flight that fits clearly worse than a clean one usually hides an event
+% (a late cut, a net cord, the drop after the net): try splitting it at
+% each of 15 moments and keep the split when both halves together fit much
+% better (opts.splitGain of the error or less), then look again.
+k = 1;
+while k <= numel(segs)
+    g = segs(k);
+    if g.rmsPx <= opts.splitRms || size(g.obs, 1) < 4 * opts.minPerCam, k = k + 1; continue; end
+    ts = sort(g.t);
+    cuts = ts(round(linspace(0.12, 0.88, 15) * numel(ts)));
+    best = [];  bestRms = g.rmsPx * opts.splitGain;
+    for c = cuts(:)'
+        a = g.t < c - opts.edgeMs / 1000;  b = g.t > c + opts.edgeMs / 1000;
+        oa = g.obs(a, :);  ob = g.obs(b, :);
+        if nnz(oa(:, 1) == 1) < opts.minPerCam || nnz(oa(:, 1) == 2) < opts.minPerCam || ...
+           nnz(ob(:, 1) == 1) < opts.minPerCam || nnz(ob(:, 1) == 2) < opts.minPerCam, continue; end
+        sa = tv.recon.fitSegment(oa, cams, rec, sync, air, prior);
+        sb = tv.recon.fitSegment(ob, cams, rec, sync, air, prior);
+        if ~sa.ok || ~sb.ok, continue; end
+        r = sqrt((sa.rmsPx^2 * nnz(a) + sb.rmsPx^2 * nnz(b)) / (nnz(a) + nnz(b)));
+        if r < bestRms, bestRms = r; best = [sa; sb]; end
+    end
+    if isempty(best), k = k + 1; else, segs = [segs(1:k-1); best; segs(k+1:end)]; end
 end
 end
 

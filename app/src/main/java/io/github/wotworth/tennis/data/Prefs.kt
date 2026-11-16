@@ -66,6 +66,14 @@ class Prefs(context: Context) {
         sp.edit().putLong("courtPickId", id ?: -1L).putLong("courtPickMillis", courtPickMillis).apply()
     }
 
+    /** Sessions where Chris turned on the opponent's stats (off by default, Chris 15 Nov). */
+    var opponentStatsOn by mutableStateOf(sp.getStringSet("opponentStatsOn", emptySet())!!.toSet())
+        private set
+    fun showOpponentStats(session: String, on: Boolean) {
+        opponentStatsOn = if (on) opponentStatsOn + session else opponentStatsOn - session
+        sp.edit().putStringSet("opponentStatsOn", opponentStatsOn).apply()
+    }
+
     companion object {
         const val TILE_OFF = 0
         const val TILE_LAST = 1

@@ -9,6 +9,25 @@ import android.content.Context
  */
 class VisionStore(private val context: Context) {
     private val sample: VisionSession? by lazy { loadSample() }
+    val outbox by lazy { Outbox(context.filesDir) }
+    val opponents = Opponents()
+    private val answered = androidx.compose.runtime.mutableStateListOf<Int>()
+
+    /** "Ball check": crops still to look at (the sample's synthetic ones until the cloud exists). */
+    fun checks(showSample: Boolean): List<CheckItem> = if (!showSample) emptyList() else runCatching {
+        CheckJson.read(context.assets.open("vision/sample/checks.json").bufferedReader().use { it.readText() })
+    }.getOrDefault(emptyList()).filter { it.id !in answered }
+
+    fun checkImage(c: CheckItem): android.graphics.Bitmap? = runCatching {
+        context.assets.open("vision/sample/checks/${c.file}").use { android.graphics.BitmapFactory.decodeStream(it) }
+    }.getOrNull()
+
+    fun answer(c: CheckItem, a: CheckAnswer) {
+        outbox.add("/checks/${c.id}/answer", Feedback.checkBody(c.id, a))
+        answered += c.id
+    }
+
+    fun flag(session: String, body: org.json.JSONObject) = outbox.add("/sessions/$session/flags", body)
 
     fun sessions(showSample: Boolean): List<VisionSession> = if (showSample) listOfNotNull(sample) else emptyList()
 

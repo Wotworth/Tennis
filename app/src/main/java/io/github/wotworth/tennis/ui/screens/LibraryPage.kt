@@ -36,6 +36,7 @@ fun LibraryPage() {
             TennisText("Restrings you log, the strings in them, and your courts are listed here.", TennisTokens.Type.listSecondary)
             return@PivotColumn
         }
+        TextRow("opponents", "who you play: names stay in your cloud database") { nav.open(Screen.Opponents) }
         if (d.courts.isNotEmpty()) {
             SectionHeader("courts")
             d.courts.forEach { c ->
