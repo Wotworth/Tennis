@@ -62,7 +62,10 @@ jobs:
           # the end-to-end test's stage results, to rerun the reconstruction in a session
           mkdir -p out/pipeline-stages
           for f in $(find /tmp "$RUNNER_TEMP" -path '*tv_pipeline_test/out/stages/*.mat' 2>/dev/null) $(find /tmp "$RUNNER_TEMP" -path '*tv_pipeline_test/synth/truth.mat' 2>/dev/null); do cp "$f" out/pipeline-stages/; done
-          for f in $(find out/pipeline-stages -type f -name '*.mat' -size -40M); do
+          # the same for the adjacent-courts test (TV-ADJ-08), plus its reject log
+          mkdir -p out/adjacent-stages
+          for f in $(find /tmp "$RUNNER_TEMP" -path '*tv_adjacent_test/out/stages/*.mat' 2>/dev/null) $(find /tmp "$RUNNER_TEMP" -path '*tv_adjacent_test/synth/truth.mat' 2>/dev/null) $(find /tmp "$RUNNER_TEMP" -path '*tv_adjacent_test/out/rejects/*' 2>/dev/null) $(find /tmp "$RUNNER_TEMP" -path '*tv_adjacent_test/out/session.json' 2>/dev/null); do cp "$f" out/adjacent-stages/; done
+          for f in $(find out/pipeline-stages out/adjacent-stages -type f -name '*.mat' -size -40M); do
             echo "=== BEGIN-B64 $f"; base64 -w 0 "$f"; echo; echo "=== END-B64"
           done
           for f in $(find out -type f \( -name '*.png' -o -name '*.md' -o -name '*.csv' -o -name '*.json' -o -name '*.gz' -o -name '*.html' \) 2>/dev/null); do
