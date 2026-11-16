@@ -132,11 +132,14 @@ for k = 1:2
         for a = 1:numel(kept{k})
             for b = a + 1:numel(kept{k})
                 ta = keptT{k}{a};  tb = keptT{k}{b};
+                % a track emptied by an earlier overlap has nothing left to give up
+                if isempty(ta) || isempty(tb), continue; end
                 lo = max(min(ta), min(tb));  hi = min(max(ta), max(tb));
                 if lo >= hi, continue; end
                 ia = ta >= lo & ta <= hi;  ib = tb >= lo & tb <= hi;
                 ea = median(min(keptErr{k}{a}(ia), 1e3));  eb = median(min(keptErr{k}{b}(ib), 1e3));
                 if ea <= eb, lose = b; m = ib; else, lose = a; m = ia; end
+                if ~any(m), continue; end
                 trk = kept{k}(lose);  I = struct('status', {repmat({'overlaps a better track'}, numel(m), 1)}, ...
                     'X', nan(numel(m), 3), 'err', keptErr{k}{lose});
                 log = addRows(log, k, trk, keptT{k}{lose}, I, find(m), '');

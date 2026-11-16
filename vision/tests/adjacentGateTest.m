@@ -53,6 +53,16 @@ assert(~any(ismember(k1.frames, sw)), 'the swapped frames stayed in Chris''s tra
 r = log([log.cam] == 1 & ismember([log.frame], sw) & [log.track] == 1);
 assert(numel(r) == numel(sw) && all(strcmp({r.reason}, 'outside court of interest')))
 
+%% A second track wholly inside Chris's track gives up all its points, and the gate finishes
+% (16 Nov: an emptied track made the overlap step loop forever)
+[tr, cand, rec, sync] = tv.testing.ballTracks(cams, {mine}, fps, 0.3);
+dup = tr{1}(1);  sel = 30:60;
+dup.frames = dup.frames(sel);  dup.uv = dup.uv(sel, :) + [0 2];  dup.area = dup.area(sel);
+tr{1}(2) = dup;
+[kept, log] = tv.recon.gateTracks(tr, cand, cams, rec, sync, box, struct());
+assert(numel(kept{1}) == 1 && numel(kept{1}.frames) >= 0.98 * numel(tr{1}(1).frames))
+assert(sum(strcmp({log.reason}, 'overlaps a better track')) == numel(sel))
+
 %% Every rejected detection is logged with a reason, and isolated candidates too
 [tr, cand, rec, sync] = tv.testing.ballTracks(cams, {mine}, fps, 0.3);
 cand{1}(end+1, :) = [10 100 100 20 1 1];                   % a lone blob in no track
