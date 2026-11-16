@@ -41,7 +41,12 @@ k = 0.5 * q.rho * q.area / q.mass;
 grid = (0:1e-3:tEnd)';
 o = odeset('RelTol', 1e-9, 'AbsTol', 1e-10);
 if isfinite(stopZ), o = odeset(o, 'Events', @ground); end
-[t, Y, te, ye] = ode45(@f, grid, [p0(:); v0(:)], o);
+te = [];
+if isfinite(stopZ)
+    [t, Y, te, ye] = ode45(@f, grid, [p0(:); v0(:)], o);
+else
+    [t, Y] = ode45(@f, grid, [p0(:); v0(:)], o);      % MATLAB returns te, ye only with Events
+end
 if ~isempty(te) && t(end) < te(end) - 1e-12
     t = [t; te(end)];  Y = [Y; ye(end, :)];
 end

@@ -33,6 +33,10 @@ All MATLAB tests pass in CI (67 of 67, including the end-to-end test on syntheti
 
 Outside-check review (16 Nov), items 1-10: health data confirmed never built in the cloud and removed from the spec; one host (the Worker streams R2, already built); court frame from geometry with a swapped-camera test; detector data kept forever (TV-OPS-07, about 0.65 TB a year); layout 2 placement (docs/reports/TV-PH-0a.md); doubles cut from v1; synthetic truth now flies unlike the fitter, with a 400-shot fit study as its own CI job; readout time measured from a flickering lamp (TV-SYNC-06); the 11 cm bounce traced to detections that were not the flying ball, fixed by a 6 px outlier cut and lift priors. Fit study numbers: see docs/reports/TV-BUILD-1.md once CI finishes.
 
+Design v2 (Chris, 16 Nov; VIS-09 amends VIS-04 to VIS-08): variations of the court map, shot card and trends, with player colours (opponent cobalt blue), in docs/preview/v2. Waiting for Chris's pick; then apply to the vision screens, then cues, racquets, sessions and library, and update the screenshot tests.
+
+TV-OPS-04 / AC-12 (16 Nov): processing limit 12 h per 2-hour session (13 h cards to app); 6 h is a goal; processing time per mode feeds the TV-PH-2 capture-mode choice.
+
 Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens calibration and trial sessions). The launcher needs the new "checks" tile state (LAUNCHER-REQUESTS.md), not built.
 
 ## Next
