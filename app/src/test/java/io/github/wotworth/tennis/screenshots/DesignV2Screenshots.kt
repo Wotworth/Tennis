@@ -46,15 +46,17 @@ class DesignV2Screenshots {
     }
     private fun TennisApp.session() = vision.session(VisionStore.SAMPLE_ID)!!
     private fun TennisApp.answer() = prefs.visionSampleIdentity
+    // a groundstroke with a bounce by each player (the spoof session numbers shots 1, 3, 5, ...)
+    private fun io.github.wotworth.tennis.vision.VisionSession.by(p: String) = shots.first { it.hitter == p && !it.isServe && it.bounce != null }
 
     @Test fun courtA() = shot("court-A-strips-everyone-speed") { CourtVariantA(it.session(), it.answer(), "all", "speed", "all") }
     @Test fun courtB() = shot("court-B-filterbar-everyone-forehands-speed") { CourtVariantB(it.session(), it.answer(), "forehand", "speed", "all") }
     @Test fun courtBOpen() = shot("court-B2-filterbar-panel-open") { CourtVariantB(it.session(), it.answer(), "forehand", "speed", "all", open = true) }
     @Test fun courtBSpin() = shot("court-B3-filterbar-everyone-spin") { CourtVariantB(it.session(), it.answer(), "all", "spin", "all") }
     @Test fun courtC() = shot("court-C-dot-size-everyone-speed") { CourtVariantC(it.session(), it.answer(), "all", "speed", "all") }
-    @Test fun shotA() = shot("shot-A-two-column-grid") { a -> a.session().let { v -> ShotVariantA(v, v.shot(3, 2)!!, a.answer()) } }
-    @Test fun shotAOpp() = shot("shot-A2-two-column-grid-opponent-shot") { a -> a.session().let { v -> ShotVariantA(v, v.shot(3, 3)!!, a.answer()) } }
-    @Test fun shotB() = shot("shot-B-headline-and-groups") { a -> a.session().let { v -> ShotVariantB(v, v.shot(3, 2)!!, a.answer()) } }
+    @Test fun shotA() = shot("shot-A-two-column-grid") { a -> a.session().let { v -> ShotVariantA(v, v.by("Player A"), a.answer()) } }
+    @Test fun shotAOpp() = shot("shot-A2-two-column-grid-opponent-shot") { a -> a.session().let { v -> ShotVariantA(v, v.by("Player B"), a.answer()) } }
+    @Test fun shotB() = shot("shot-B-headline-and-groups") { a -> a.session().let { v -> ShotVariantB(v, v.by("Player A"), a.answer()) } }
     @Test fun trendsA() = shot("trends-A-selectors") { a -> TrendsVariantA(racquetName(a)) }
     @Test fun trendsAOpen() = shot("trends-A2-selectors-panel-open") { a -> TrendsVariantA(racquetName(a), open = true) }
     @Test fun trendsB() = shot("trends-B-filterbar-and-strip") { a -> TrendsVariantB(racquetName(a)) }

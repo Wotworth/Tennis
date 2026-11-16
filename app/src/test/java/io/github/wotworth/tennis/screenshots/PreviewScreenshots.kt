@@ -59,7 +59,8 @@ class PreviewScreenshots {
     @Test fun p03CourtSpeed() { VisionDefaults.courtType = "forehand"; VisionDefaults.courtColour = "speed"; screen("03a-court-map-forehands-speed", Screen.Vision(id, 1), identified()) }
     @Test fun p03CourtSpin() { VisionDefaults.courtType = "forehand"; VisionDefaults.courtColour = "spin"; screen("03b-court-map-forehands-spin", Screen.Vision(id, 1), identified()) }
     @Test fun p03CourtServes() { VisionDefaults.courtType = "serve"; VisionDefaults.courtColour = "speed"; screen("03c-court-map-serves-speed", Screen.Vision(id, 1), identified()) }
-    @Test fun p04ShotCard() = screen("04-shot-card", Screen.VisionShot(id, 3, 2), identified())
+    @Test fun p04ShotCard() { val a = identified(); val s = a.vision.session(id)!!.shots.first { it.hitter == "Player A" && !it.isServe && it.bounce != null }
+        screen("04-shot-card", Screen.VisionShot(id, s.rally, s.index), a) }
     @Test fun p05Rallies() = screen("05-rallies-tracer", Screen.Vision(id, 3), identified())
     @Test fun p06Replay() = screen("06-3d-replay", Screen.Vision(id, 4), identified())
     @Test fun p07Health() = screen("07-health", Screen.Vision(id, 5), identified())
