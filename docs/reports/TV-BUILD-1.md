@@ -7,23 +7,57 @@ Chris's order of 15 Nov, built without cameras or the PC. Everything is tested o
 | 1 | Placement check and fence lookup table ([TV-PH-0a](TV-PH-0a.md)) | done; provisional lens figures | MATLAB CI |
 | 2 | Physics core: flight model, RK4 vs ode45, air density, court | done | MATLAB CI |
 | 3 | Synthetic footage generator (TV-TST-01), and a data-level generator for long sessions | done | MATLAB CI |
-| 4 | Pipeline end to end on synthetic footage | runs end to end; results below | MATLAB CI (`pipelineTest`) |
+| 4 | Pipeline end to end on synthetic footage | all checks pass; results below | MATLAB CI (`pipelineTest`, 67 of 67 checks across all test files) |
 | 5 | Card import, GoPro telemetry, pairing, courts by GPS, watcher | done | MATLAB CI (fake cards, GoPro's HERO8 sample) |
-| 6 | Cloudflare Worker, D1 schema, R2 (not deployed) | done | Worker CI (13 tests) |
-| 7 | App vision screens, courts, trends, "which one is you?" | done, with a synthetic sample; release v0.6.18 | app CI (133 tests) |
+| 6 | Cloudflare Worker, D1 schema, R2 (not deployed) | done | Worker CI (18 tests) |
+| 7 | App vision screens, courts, trends, "which one is you?", Ball check, opponents | done, with a synthetic sample; release v0.6.19 | app CI (139 tests) |
 | 8 | PC setup script | written, not run, not syntax-checked | none |
 
 ## Step 4: the pipeline against the synthetic truth
 
 On a 26-second, two-camera synthetic session at a quarter of 4K resolution (two rallies, a changeover, an out ball, a net ball):
 
-RESULTS
+| Check | Target | Result |
+|---|---|---|
+| Camera position (pose from the court lines, no layout assumed) | - | 1.0 cm and 0.6 cm; angle 0.04° and 0.03° |
+| Camera timing (AC-05) | under 0.5 ms | 0.20 ms |
+| Every shot inside a found rally (AC-03) | all | all |
+| Shots reconstructed (AC-06) | 95% | 9 of 9 |
+| No phantom hits | none | none |
+| Speed within 2 mph (AC-07) | 90% of shots | all; worst 0.9 mph |
+| Bounce position (AC-08) | median under 5 cm | median 1.1 cm; worst 11 cm |
+| Spin effect (AC-10, at a quarter of 4K) | median under 10 cm | median 4.6 cm; worst 30 cm |
+| Hitter, through the changeover (AC-13) | 99% | 9 of 9 |
+| In / out / net calls | all | 9 of 9 (7 in, 1 out, 1 net) |
+
+What it took to get there (all logged in DECISIONS.md):
+- the pose search's finite-difference step (MATLAB found a wrong pose);
+- the readout time as a per-mode prior;
+- a ball meeting the net plane below the tape is a net, never a bounce;
+- a flight that fits badly is tried as two flights, before and again after merging, and a split is never merged back. This found a hit hidden 50 ms before a cut.
+
+Still to watch:
+- **Worst bounce error, 11 cm.** It is on the bounce just before the net ball, whose flight is short.
+- **Camera 2's readout time** settles 2.5 ms off its true value. Timing and positions are unaffected, because the time is judged at the middle row.
+
+Both go on the real-footage retune list.
 
 ## Chris's 15 Nov additions
 
 - **Calibration with no layout assumed.** The pose is searched all round the court from the lines alone. The court's half-turn twin is settled by both cameras agreeing on the ball and the players. The crossing angle goes into session.json, and weak zones go into the ntfy alert.
 - **Courts in the app.** Name, layout, lens mode, indoor and mount photo, all on the phone. "Playing here now" labels the next session. An indoor court sends only an indoor flag, and the PC reruns from the physics stage.
 - **PC uploader and answer loop.** Indoor flags and identity answers rerun only the stages they affect, then re-upload.
+
+## Detector loop, opponents and spin kinds (Chris, 15 Nov)
+
+- **Ball check.** The PC picks frames and crops them, and the app shows them one at a time.
+- **"This looks wrong"** on each shot card, and **"missed a shot here"** in rally videos.
+- **Test set and auto-labels** are kept apart.
+- **Retraining** runs on the GPU or the CPU. A new model is promoted only when recall and precision both hold, and every attempt is logged.
+- **Weekly message** with the retraining results and open flags. MATLAB CI covers this (learnTest, including a small training run on the CPU).
+- **Opponents:** prompt, list and pages, kept in memory until the cloud exists.
+- **Spin** is shown by kind (topspin, slice, flat).
+- **Tile:** "N frames to check" at the lowest priority. The launcher still has to learn this state.
 
 ## Design preview
 

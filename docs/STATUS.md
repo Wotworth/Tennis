@@ -29,9 +29,9 @@ Retune list: docs/VISION-RETUNE.md.
 
 11. Detector improvement loop, spin kinds and opponents (Chris, 15 Nov; section A items 13-15): Ball check (PC picks and crops, app screen), "this looks wrong", "missed a shot here", test set and auto-labels kept apart, retraining (GPU or CPU) with promotion only when recall and precision don't drop, weekly message; opponents prompt, list and pages (in memory until the cloud exists); spin shown by kind; tile "N frames to check" at the lowest priority.
 
-Known issue: the end-to-end pipeline test stood at 55 of 57 checks in MATLAB CI (camera pose fixed); the two misses (a hit 52 ms late, a net cord called as a bounce) are addressed by splitting flights that hide an event (refineSplits), checked in Octave, CI pending.
+All MATLAB tests pass in CI (67 of 67, including the end-to-end test on synthetic footage and the learning loop); results in docs/reports/TV-BUILD-1.md. Watch on real footage: an 11 cm bounce error on a short flight, camera 2's readout settling 2.5 ms off.
 
-Next for vision: confirm the end-to-end and learn tests in MATLAB CI; Chris reviews the preview; then the hardware (TV-PH-0's lens calibration and trial sessions). The launcher needs the new "checks" tile state (LAUNCHER-REQUESTS.md), not built.
+Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens calibration and trial sessions). The launcher needs the new "checks" tile state (LAUNCHER-REQUESTS.md), not built.
 
 ## Next
 
