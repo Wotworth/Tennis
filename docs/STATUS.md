@@ -29,7 +29,7 @@ Retune list: docs/VISION-RETUNE.md.
 
 11. Detector improvement loop, spin kinds and opponents (Chris, 15 Nov; section A items 13-15): Ball check (PC picks and crops, app screen), "this looks wrong", "missed a shot here", test set and auto-labels kept apart, retraining (GPU or CPU) with promotion only when recall and precision don't drop, weekly message; opponents prompt, list and pages (in memory until the cloud exists); spin shown by kind; tile "N frames to check" at the lowest priority.
 
-MATLAB tests: 83 of 85 passed in the last full CI run; the 2 pipeline-test failures (a phantom hit, one call) have a fix in this push. Earlier: all passed (67 of 67, including the end-to-end test on synthetic footage and the learning loop); results in docs/reports/TV-BUILD-1.md. Watch on real footage: an 11 cm bounce error on a short flight, camera 2's readout settling 2.5 ms off.
+MATLAB tests: all 85 pass in CI (run 43867464023, 16 Nov): pipeline test 9 of 9 shots, 9 of 9 calls, no phantom hits. Earlier: all passed (67 of 67, including the end-to-end test on synthetic footage and the learning loop); results in docs/reports/TV-BUILD-1.md. Watch on real footage: camera 2's readout (measure it with the flicker method, TV-SYNC-06).
 
 Outside-check review (16 Nov), items 1-10: health data confirmed never built in the cloud and removed from the spec; one host (the Worker streams R2, already built); court frame from geometry with a swapped-camera test; detector data kept forever (TV-OPS-07, about 0.65 TB a year); layout 2 placement (docs/reports/TV-PH-0a.md); doubles cut from v1; synthetic truth now flies unlike the fitter, with a 400-shot fit study as its own CI job; readout time measured from a flickering lamp (TV-SYNC-06); the 11 cm bounce traced to detections that were not the flying ball, fixed by a 6 px outlier cut and lift priors. Fit study numbers: see docs/reports/TV-BUILD-1.md once CI finishes.
 
@@ -43,7 +43,7 @@ Overnight 16 Nov (Chris's items 1-8):
 - docs/DAY-ONE.md, docs/CLOUDFLARE-SETUP.md (token steps; nothing deployed).
 - Error budget: docs/reports/TV-ERROR-BUDGET.md. Calibration dominates positions; frame rate dominates speed and spin (240 fps passes AC-07).
 - Ingest fault injection (tests pass), toolbox guard test, docs/READING-GUIDE.md.
-- Fit study (400 shots) found that camera 2's clock drift was never estimated: only the first 15 minutes of a 90-minute session were reconstructed. Fixed (tv.sync.clockLine, offset and drift per 10-minute window); fit study rerunning in CI.
+- Fit study (400 shots) found that camera 2's clock drift was never estimated: only the first 15 minutes of a 90-minute session were reconstructed. Fixed (tv.sync.clockLine, offset and drift per 10-minute window). Rerun: 361 of 366 found, bounce 1.6 cm, calls all right; speed (66% within 2 mph), spin effect (15 cm) and rpm (13%) fail at 120 fps, as the error budget predicts (docs/reports/TV-BUILD-1.md). A last flight fix (junk parts rejoin a neighbour) came after that run; the fit study is rerunning on it.
 
 Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens calibration and trial sessions). The launcher needs the new "checks" tile state (LAUNCHER-REQUESTS.md), not built.
 
