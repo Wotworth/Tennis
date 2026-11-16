@@ -204,6 +204,11 @@ private fun VisionSummary(v: VisionSession) {
             TextRow(if (c.low.isEmpty()) "camera angles good everywhere" else "weak camera angle: ${c.low.joinToString("; ")}",
                 "the two cameras' sight lines cross at ${c.minDeg.roundToInt()}° or more (usable from ${c.thresholdDeg.roundToInt()}°)")
         }
+        v.rejects?.takeIf { it.total > 0 }?.let { r ->
+            // TV-ADJ-06: what was left out (other courts' balls and people, strays), largest first;
+            // the full report (rejects/rejects.html) opens from here once the app reads from the cloud (TV-PH-4)
+            TextRow("${r.total} detections left out", r.counts.take(3).joinToString(" · ") { "${it.first} ${it.second}" })
+        }
         SectionHeader("spin" + if (me != null) "" else " · ${players.firstOrNull() ?: ""}")
         val fh = (if (me != null) mine else v.shots.filter { it.hitter == players.firstOrNull() }).filter { it.type == "forehand" || it.type == "groundstroke" }
         val fx = median(fh.mapNotNull { it.spinEffect })

@@ -35,6 +35,19 @@ class VisionTest {
         assertTrue(v.identityQuestion)
         assertEquals(41.2, v.crossing!!.minDeg, 1e-9)
         assertEquals(0.51, v.sessionCD!!, 1e-9)
+        assertNull(v.rejects)                                     // older sessions have none
+    }
+
+    @Test fun readsTheRejectCounts() {
+        // TV-ADJ-06: counts by reason; MATLAB writes a lone struct as an object
+        val many = session.dropLast(1) + ""","rejects":{"report":"rejects/rejects.html","csv":"rejects/rejects.csv",
+            "counts":[{"reason":"isolated","n":12},{"reason":"mostly outside","n":340}]}}"""
+        val r = VisionJson.session("s", many, shots, rallies, null, sample = false).rejects!!
+        assertEquals(listOf("mostly outside" to 340, "isolated" to 12), r.counts)
+        assertEquals(352, r.total)
+        assertEquals("rejects/rejects.html", r.report)
+        val one = session.dropLast(1) + ""","rejects":{"report":"rejects/rejects.html","counts":{"reason":"person off court","n":2}}}"""
+        assertEquals(listOf("person off court" to 2), VisionJson.session("s", one, shots, rallies, null, sample = false).rejects!!.counts)
     }
 
     @Test fun showsMphFeetAndRpm() {

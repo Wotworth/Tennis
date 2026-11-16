@@ -24,6 +24,8 @@ data class VisionSession(
     val heartRate: List<HrSample> = emptyList(),
     val tempC: Double? = null,
     val synthetic: Boolean = false,
+    /** What the PC did not analyse, and why (TV-ADJ-06): balls and people from other courts and the like. */
+    val rejects: Rejects? = null,
 ) {
     /** Before "which one is you?" is answered, players are Player A and Player B; after, one is "you". */
     fun who(hitter: String, chrisLabel: String?): String = when {
@@ -72,6 +74,11 @@ data class Crossing(val minDeg: Double, val thresholdDeg: Double, val low: List<
 
 data class HrSample(val t: Double, val bpm: Int)
 
+/** Counts by reason, largest first, and the session file with the full report (served by the Worker). */
+data class Rejects(val counts: List<Pair<String, Int>>, val report: String) {
+    val total: Int get() = counts.sumOf { it.second }
+}
+
 object VisionJson {
     fun session(id: String, session: String, shots: String, rallies: String, trajectories: String?, sample: Boolean, hr: String? = null): VisionSession {
         val s = JSONObject(session)
@@ -94,6 +101,15 @@ object VisionJson {
             heartRate = hr?.let { h -> array(h).map { HrSample(it.getDouble("t"), it.getInt("bpm")) } } ?: emptyList(),
             tempC = air?.num("tempC"),
             synthetic = s.optBoolean("synthetic"),
+            rejects = s.optJSONObject("rejects")?.let { r ->
+                val c = r.opt("counts")
+                val list = when (c) {
+                    is JSONObject -> listOf(c)
+                    is JSONArray -> (0 until c.length()).mapNotNull { c.optJSONObject(it) }
+                    else -> emptyList()
+                }
+                Rejects(list.map { it.optString("reason") to it.optInt("n") }.sortedByDescending { it.second }, r.optString("report"))
+            },
         )
     }
 
