@@ -53,7 +53,7 @@ function [segs, cuts] = refineSplits(segs, cams, rec, sync, air, prior, opts)
 k = 1;  cuts = [];
 while k <= numel(segs)
     g = segs(k);
-    if g.rmsPx <= opts.splitRms || size(g.obs, 1) < 4 * opts.minPerCam, k = k + 1; continue; end
+    if (isfinite(g.rmsPx) && g.rmsPx <= opts.splitRms) || size(g.obs, 1) < 4 * opts.minPerCam, k = k + 1; continue; end
     ts = sort(g.t);
     cams1 = g.obs(:, 1);  [~, o] = sort(g.t);  c1 = cumsum(cams1(o) == 1);  c2 = cumsum(cams1(o) == 2);
     okCut = c1 >= opts.minPerCam & c2 >= opts.minPerCam & ...
@@ -61,6 +61,7 @@ while k <= numel(segs)
     if ~any(okCut), k = k + 1; continue; end
     lo = ts(find(okCut, 1));  hi = ts(find(okCut, 1, 'last'));
     best = [];  bestRms = g.rmsPx * opts.splitGain;  bestCut = NaN;
+    if ~isfinite(bestRms), bestRms = Inf; end
     % coarse: 15 moments over the range where both halves have enough detections
     for c = linspace(lo, hi, 15)
         [best, bestRms, bestCut] = tryCut(g, c, best, bestRms, bestCut, cams, rec, sync, air, prior, opts);

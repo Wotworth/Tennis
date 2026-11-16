@@ -14,12 +14,13 @@ function seg = fitSegment(obs, cams, rec, sync, air, prior, x0)
 %   obs rows: [cam frame u v]. x0: starting values (tv.recon.initSegment).
 %   Returns seg: x, t0, rmsPx, n (detections per camera), obs, t, weights.
 %   RETUNE(real footage): the Huber limit (2 px), the number of passes, and the
-%   lift priors (0.25; 0.05 below 0.3 s), the 6 px outlier cut.
+%   lift priors (0.25; 0.05 below 0.3 s), the 6 px outlier cut (at most 10% of a flight).
 if nargin < 6 || isempty(prior), prior = struct('CD', 0.507, 'CDsd', 0.024); end
 if ~isfield(prior, 'CLsd'), prior.CLsd = 0.25; end
 if ~isfield(prior, 'shortS'), prior.shortS = 0.3; end
 if ~isfield(prior, 'shortCLsd'), prior.shortCLsd = 0.05; end
 if ~isfield(prior, 'rejectPx'), prior.rejectPx = 6; end
+if ~isfield(prior, 'rejectMaxFrac'), prior.rejectMaxFrac = 0.1; end
 t = zeros(size(obs, 1), 1);
 for k = 1:2
     i = obs(:, 1) == k;
@@ -52,8 +53,11 @@ try
     % Huber still lets a far-off detection (another ball, a player's shoe)
     % pull with a constant force; a few of them moved a bounce 8 cm (16 Nov).
     % Drop detections more than prior.rejectPx (6 px) off the path and refit.
+    % Only a few strays: if many detections are far off, the flight is the wrong
+    % model (it spans a hit or a bounce) and must show a large error, so the
+    % merge and split tests see it.
     far = r > prior.rejectPx;
-    if any(far) && nnz(~far) >= 6
+    if any(far) && nnz(far) <= prior.rejectMaxFrac * numel(far) && nnz(~far) >= 6
         w(far) = 0;
         x = lsqnonlin(@(x) residuals(x, w), x, lb, ub, o);
         x = x(:)';
@@ -63,7 +67,7 @@ catch
 end
 r = pixelErrors(x);
 seg.x = x;  seg.w = w;  seg.ok = true;
-seg.rmsPx = sqrt(mean(r(w > 0.5).^2));
+seg.rmsPx = sqrt(mean(r(w > 0).^2));             % every detection kept (Huber-weighted ones too)
 seg.res = r;
 
     function res = residuals(x, w)
