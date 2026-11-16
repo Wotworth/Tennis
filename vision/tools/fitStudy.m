@@ -54,43 +54,7 @@ for r = 1:min(3, nR)
     if ~isempty(segs{r}), fprintf('rally %d flights: %s\n', r, strjoin(arrayfun(@(g) sprintf('%.3f-%.3f (%.2f px)', min(g.t), max(g.t), g.rmsPx), segs{r}, 'UniformOutput', false), ', ')); end
 end
 
-% --- compare, shot by shot -------------------------------------------------------------
-mcfg = struct('cams', cams, 'lines', 'singles');  info = struct('chris', 0);
-rows = [];
-for s = S.shots'
-    row = struct('rally', s.rally, 'index', s.index, 'kind', s.kind, 'serve', s.isServe, 'truthCall', s.result, ...
-        'shortAfterBounce', s.shortFlight, 'toNextHit', s.toNextHit, 'found', false, 'hitDtMs', NaN, ...
-        'speedErr', NaN, 'bounceErr', NaN, 'spinErr', NaN, 'netErr', NaN, 'rpmErrPct', NaN, 'call', '', ...
-        'bounceSegN', NaN, 'bounceSegS', NaN, 'rms', NaN);
-    E = ev{s.rally};  G = segs{s.rally};
-    if isempty(E) || isempty(G), rows = [rows; row]; continue; end %#ok<AGROW>
-    hits = E(strcmp({E.type}, 'hit'));
-    [dt, i] = min(abs([hits.t] - s.tHit));
-    if isempty(dt) || dt > 0.03, rows = [rows; row]; continue; end %#ok<AGROW>
-    row.found = true;  row.hitDtMs = 1000 * (hits(i).t - s.tHit);
-    hitEv = hits(i);
-    seg = G(hitEv.segAfter);
-    bEv = [];  nEv = [];  segAfter = [];
-    b = E(strcmp({E.type}, 'bounce'));
-    if ~isnan(s.tBounce) && ~isempty(b)
-        [db, j] = min(abs([b.t] - s.tBounce));
-        if db < 0.05, bEv = b(j); if bEv.segAfter > 0, segAfter = G(bEv.segAfter); end, end
-    end
-    nn = E(strcmp({E.type}, 'net'));
-    if strcmp(s.result, 'net') && ~isempty(nn), nEv = nn(1); end
-    m = tv.metrics.shot(seg, segAfter, hitEv, bEv, nEv, air, mcfg, [], info, s.isServe, sign(s.pHit(2)));
-    row.speedErr = m.speedContact - s.speedHit;
-    row.rms = seg.rmsPx;
-    if ~isempty(bEv)
-        row.bounceErr = norm(m.bounce - s.pBounce(1:2));
-        row.spinErr = m.spinEffect - s.spinEffect;
-        if ~isempty(segAfter), row.bounceSegN = size(segAfter.obs, 1); row.bounceSegS = max(segAfter.t) - min(segAfter.t); end
-    end
-    if isfinite(s.netClearance) && isfinite(m.netClearance), row.netErr = m.netClearance - s.netClearance; end
-    if isfinite(m.rpm) && s.rpm0 > 0, row.rpmErrPct = 100 * (m.rpm - s.rpm0) / s.rpm0; end
-    row.call = m.call;
-    rows = [rows; row]; %#ok<AGROW>
-end
+rows = tv.synth.scoreShots(S, segs, ev, air, cams);
 R.rows = rows;  R.sync = sync;  R.air = air;  R.report = rep;
 % timing at mid-session, middle row (as tv.synth.compare)
 n = round(rec(2).nFrames / 2);  vMid = rec(2).height / 2;

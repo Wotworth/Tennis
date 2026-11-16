@@ -1,0 +1,45 @@
+function rows = scoreShots(S, segs, ev, air, cams)
+%SCORESHOTS  Each synthetic shot against what the reconstruction found (fit study, error budget).
+%   S: tv.synth.studySession; segs, ev: flights and events per rally; air, cams: what the
+%   reconstruction used. A shot is found when a hit event lies within 30 ms of its truth.
+%   Its metrics come from tv.metrics.shot, exactly as the pipeline computes them. Rows:
+%   found, hitDtMs, speedErr (m/s), bounceErr (m), spinErr (m), netErr (m), rpmErrPct, call,
+%   truthCall, shortAfterBounce, toNextHit, rms.
+nR = numel(segs);
+mcfg = struct('cams', cams, 'lines', 'singles');  info = struct('chris', 0);
+rows = [];
+for s = S.shots'
+    row = struct('rally', s.rally, 'index', s.index, 'kind', s.kind, 'serve', s.isServe, 'truthCall', s.result, ...
+        'shortAfterBounce', s.shortFlight, 'toNextHit', s.toNextHit, 'found', false, 'hitDtMs', NaN, ...
+        'speedErr', NaN, 'bounceErr', NaN, 'spinErr', NaN, 'netErr', NaN, 'rpmErrPct', NaN, 'call', '', ...
+        'bounceSegN', NaN, 'bounceSegS', NaN, 'rms', NaN);
+    E = ev{s.rally};  G = segs{s.rally};
+    if isempty(E) || isempty(G), rows = [rows; row]; continue; end %#ok<AGROW>
+    hits = E(strcmp({E.type}, 'hit'));
+    [dt, i] = min(abs([hits.t] - s.tHit));
+    if isempty(dt) || dt > 0.03, rows = [rows; row]; continue; end %#ok<AGROW>
+    row.found = true;  row.hitDtMs = 1000 * (hits(i).t - s.tHit);
+    hitEv = hits(i);
+    seg = G(hitEv.segAfter);
+    bEv = [];  nEv = [];  segAfter = [];
+    b = E(strcmp({E.type}, 'bounce'));
+    if ~isnan(s.tBounce) && ~isempty(b)
+        [db, j] = min(abs([b.t] - s.tBounce));
+        if db < 0.05, bEv = b(j); if bEv.segAfter > 0, segAfter = G(bEv.segAfter); end, end
+    end
+    nn = E(strcmp({E.type}, 'net'));
+    if strcmp(s.result, 'net') && ~isempty(nn), nEv = nn(1); end
+    m = tv.metrics.shot(seg, segAfter, hitEv, bEv, nEv, air, mcfg, [], info, s.isServe, sign(s.pHit(2)));
+    row.speedErr = m.speedContact - s.speedHit;
+    row.rms = seg.rmsPx;
+    if ~isempty(bEv)
+        row.bounceErr = norm(m.bounce - s.pBounce(1:2));
+        row.spinErr = m.spinEffect - s.spinEffect;
+        if ~isempty(segAfter), row.bounceSegN = size(segAfter.obs, 1); row.bounceSegS = max(segAfter.t) - min(segAfter.t); end
+    end
+    if isfinite(s.netClearance) && isfinite(m.netClearance), row.netErr = m.netClearance - s.netClearance; end
+    if isfinite(m.rpm) && s.rpm0 > 0, row.rpmErrPct = 100 * (m.rpm - s.rpm0) / s.rpm0; end
+    row.call = m.call;
+    rows = [rows; row]; %#ok<AGROW>
+end
+end

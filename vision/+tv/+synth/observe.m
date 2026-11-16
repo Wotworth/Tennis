@@ -18,7 +18,7 @@ d = struct('sigmaPx', 0.5, 'dropout', 0.05, 'hideMs', 25, 'posErrM', 0.01, 'rotE
            'readoutPrior', 0.008, 'shutter', 1 / 1920);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
-tHits = [S.shots.tHit];
+tHits = [];  if ~isempty(S.shots), tHits = [S.shots.tHit]; end
 O.tracks = cell(size(S.windows, 1), 2);
 for k = 1:2
     cam = cams(k);  H = cam.height;
