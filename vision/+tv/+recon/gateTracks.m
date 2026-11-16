@@ -20,6 +20,8 @@ function [kept, log] = gateTracks(tracks, cands, cams, rec, sync, box, opts)
 %        a neighbour's ball, even if it rolls onto Chris's court);
 %      and in a kept track, a paired point that moves faster than opts.maxSpeed
 %      from the previous one is dropped ("implausible jump").
+%   3b. Where two kept tracks of one camera overlap in time, the one that matches the
+%      other camera worse there gives up those points ("overlaps a better track").
 %   4. Candidates that are in no track are logged "isolated".
 %   The flight fit (tv.recon.segments) then drops what no physical flight
 %   explains ("implausible flight", logged by the pipeline).
@@ -81,6 +83,7 @@ for k = 1:2
     end
 end
 % 3: track decisions
+keptErr = {{}, {}};  keptT = {{}, {}};
 for k = 1:2
     for j = 1:numel(tracks{k})
         trk = tracks{k}(j);  I = info{k}{j};  t = T{k}{j};
@@ -112,8 +115,40 @@ for k = 1:2
         ef = find(strcmp(I.status, 'epipolar fail'));
         log = addRows(log, k, trk, t, I, ef, 'epipolar fail (kept, one camera)');
         trk.frames = trk.frames(~drop);  trk.uv = trk.uv(~drop, :);  trk.area = trk.area(~drop);
-        if numel(trk.frames) >= 3, kept{k}(end+1) = trk; end %#ok<AGROW>
+        if numel(trk.frames) >= 3
+            kept{k}(end+1) = trk; %#ok<AGROW>
+            keptErr{k}{end+1} = I.err(~drop); %#ok<AGROW>
+            keptT{k}{end+1} = t(~drop); %#ok<AGROW>
+        end
     end
+end
+% 3b: two kept tracks of one camera that overlap in time (a tracker that started a second track
+% on a blob by the player just before a hit): over the overlap, the track that matches the other
+% camera worse gives up its points ("overlaps a better track"), so the ball's track has clean ends
+for k = 1:2
+    changed = true;
+    while changed
+        changed = false;
+        for a = 1:numel(kept{k})
+            for b = a + 1:numel(kept{k})
+                ta = keptT{k}{a};  tb = keptT{k}{b};
+                lo = max(min(ta), min(tb));  hi = min(max(ta), max(tb));
+                if lo >= hi, continue; end
+                ia = ta >= lo & ta <= hi;  ib = tb >= lo & tb <= hi;
+                ea = median(min(keptErr{k}{a}(ia), 1e3));  eb = median(min(keptErr{k}{b}(ib), 1e3));
+                if ea <= eb, lose = b; m = ib; else, lose = a; m = ia; end
+                trk = kept{k}(lose);  I = struct('status', {repmat({'overlaps a better track'}, numel(m), 1)}, ...
+                    'X', nan(numel(m), 3), 'err', keptErr{k}{lose});
+                log = addRows(log, k, trk, keptT{k}{lose}, I, find(m), '');
+                trk.frames = trk.frames(~m);  trk.uv = trk.uv(~m, :);  trk.area = trk.area(~m);
+                kept{k}(lose) = trk;  keptErr{k}{lose} = keptErr{k}{lose}(~m);  keptT{k}{lose} = keptT{k}{lose}(~m);
+                changed = true;  break
+            end
+            if changed, break; end
+        end
+    end
+    short = arrayfun(@(x) numel(x.frames) < 3, kept{k});
+    kept{k} = kept{k}(~short);
 end
 % 4: candidates in no track
 for k = 1:2

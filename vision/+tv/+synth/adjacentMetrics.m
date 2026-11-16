@@ -61,7 +61,8 @@ for kk = unique(lab)'
 end
 r = why(mine & inTrack & ~accepted);
 [u, ~, j] = unique(r);
-m.mineRejectedWhy = struct('reason', u, 'n', num2cell(accumarray(j(:), 1)'));
+m.mineRejectedWhy = struct('reason', {}, 'n', {});
+if ~isempty(u), m.mineRejectedWhy = struct('reason', u(:)', 'n', num2cell(accumarray(j(:), 1)')); end
 % --- identity swaps
 rep = tv.synth.compare(result, truth, cams, sc);
 m.hitSwaps = nnz(~rep.hitterOk);
