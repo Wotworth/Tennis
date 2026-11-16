@@ -40,7 +40,7 @@ TV-OPS-04 / AC-12 (16 Nov): processing limit 12 h per 2-hour session (13 h cards
 Overnight 16 Nov (Chris's items 1-8):
 - Closet PC ready (TV-HW-01 to 08): GPU 200 W cap at log-on, USB port plan with a slow-reader alert, archive D: (internal or USB), heat log each minute with slow-down above 90/80 °C and weekly peaks, RGB off, staging check, Windows 11 Pro before Remote Desktop. Setup script untested (no Windows here).
 - tools/benchmarkPC.m (4K120 capped and uncapped, 4K240; each stage timed, projected to 2 h against 12 h). Its CI smoke run crashed on the reel step (fixed, rerunning).
-- docs/DAY-ONE.md, docs/CLOUDFLARE-SETUP.md (token steps; nothing deployed).
+- docs/USER-MANUAL.md (section 2.1), docs/USER-MANUAL.md (section 2.3) (token steps; nothing deployed).
 - Error budget: docs/reports/TV-ERROR-BUDGET.md. Calibration dominates positions; frame rate dominates speed and spin (240 fps passes AC-07).
 - Ingest fault injection (tests pass), toolbox guard test, docs/READING-GUIDE.md.
 - Fit study (400 shots) found that camera 2's clock drift was never estimated: only the first 15 minutes of a 90-minute session were reconstructed. Fixed (tv.sync.clockLine, offset and drift per 10-minute window). Rerun: 361 of 366 found, bounce 1.6 cm, calls all right; speed (66% within 2 mph), spin effect (15 cm) and rpm (13%) fail at 120 fps, as the error budget predicts (docs/reports/TV-BUILD-1.md). A last flight fix (junk parts rejoin a neighbour) came after that run; the fit study is rerunning on it.
@@ -48,6 +48,14 @@ Overnight 16 Nov (Chris's items 1-8):
 Adjacent courts (Chris 16 Nov, TV-ADJ-01 to 08, AC-14 to AC-16): court of interest, stereo pairing, volume gate, track and player filters, reject log (CSV and HTML, uploaded with the session; counts on the app's session page). Gate unit test passes locally; the full adjacent-courts footage test (adjacentTest) was first run in CI on 16 Nov — result to check.
 
 Spoof session (Chris 16 Nov): v0.6.22 bundles a spoof vision session with no even numbers on the vision screens (app/spoof/make_spoof_session.py; SpoofOddNumbersTest reads every vision screen). Exceptions: rpm (rounded to 10), the court map scale labels, the heart-rate grid and zone names, and zone minutes (from the phone's birth year).
+
+Chris's six-part prompt (16 Nov), delivered for approval, nothing implemented:
+- A: docs/reports/AUDIO-AUDIT.md (rally windows come from audio alone: proposed video-based rallies; tests T-A1 to T-A4).
+- B: docs/design/LABELLING.md (Training tab + web app on the PC over Tailscale; decisions B-D1 to B-D3 needed).
+- C: docs/design/CALIBRATION.md (net tape must go from calibration; post confidence check; cross-check).
+- D: docs/reports/SYNC-QA.md (answers; recommends the ball drop, not the clap).
+- E: docs/USER-MANUAL.md (the single manual; DAY-ONE and CLOUDFLARE-SETUP folded in).
+- F: docs/design/RACQUETS.md (answers + switch design; the prompt was cut off: rest of Part F needed).
 
 Hero 7 ball-machine trial (Chris 16 Nov): proposed, not started. One GoPro Hero 7 Black on a ball machine, run in MATLAB Online, as a preliminary test of detection, tracking, bounce positions and a one-camera speed estimate. Waiting for Chris's answers on capture mode and the plan.
 

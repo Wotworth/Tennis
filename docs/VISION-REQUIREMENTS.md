@@ -110,6 +110,7 @@ Out of scope for v1: racquet and swing tracking, body-pose biomechanics, automat
 - TV-ARCH-21 Each stage writes its outputs plus a `manifest.json`: input file hashes, code Git SHA, parameters, start and end time, status. A stage is skipped when its manifest matches, so rerunning with new code reprocesses only what changed.
 - TV-ARCH-22 Plain-text logs per session and per day under `logs/`, with timestamps and stage names.
 - TV-ARCH-23 Never lose footage. No step may delete or overwrite a source video unless a verified copy exists (TV-ING-05).
+- TV-ARCH-24 **[16 Nov]** `docs/USER-MANUAL.md` is the single user manual: everything Chris does by hand. Every change to a requirement that changes something he does updates the manual in the same commit.
 
 ### Repository layout
 ```
@@ -129,7 +130,7 @@ tennis/
   - Core Ultra 7 255HX (20 cores), RTX 5070 Ti 16 GB, 32 GB RAM (2 × 16 GB, both slots full).
   - 1 TB PCIe Gen4 SSD (C:), three M.2 slots, an 850 W power supply.
   - At most one 3.5-inch bay, which may be missing on Chris's unit.
-  - Windows 11 Home, upgraded to Pro on day one, before Remote Desktop is set up (`docs/DAY-ONE.md`).
+  - Windows 11 Home, upgraded to Pro on day one, before Remote Desktop is set up (`docs/USER-MANUAL.md (section 2.1)`).
   - It replaces the shopping list's RTX 5060 Ti desktop. Recorded in the PC's `config/tennisvision.json` (`pc` block; the example is in Git).
 - TV-HW-02 **GPU power cap:** `pc.gpuPowerCapW`, default 200 W, applied with `nvidia-smi -pl` by a scheduled task at every log-on (the setup script makes it). The day-one benchmark measures what the cap costs in time.
 - TV-HW-03 **USB ports** (the Legion's fast ports: top 1 × USB-A 5 Gbps and 1 × USB-C 5 Gbps; back 2 × USB-A 5 Gbps and 1 × USB-C 20 Gbps; plus four USB 2.0 on the back):
@@ -150,7 +151,7 @@ tennis/
 - TV-HW-08 **Day-one benchmark** (`tools/benchmarkPC.m`):
   - Before cameras or a court exist, it runs the full pipeline on synthetic two-camera footage: 4K120 with and without the power cap, then a shorter 4K240.
   - It times every stage and projects the hours for a 2-hour session in each mode against the 12-hour limit (TV-OPS-04), with the peak temperatures.
-  - Chris runs it within the PC's return window (`docs/DAY-ONE.md`).
+  - Chris runs it within the PC's return window (`docs/USER-MANUAL.md (section 2.1)`).
 
 ## 2. Ingest and session assembly
 
