@@ -67,6 +67,31 @@ How to read the table:
    - the sight lines cross at about 100° at the net.
    - The Wide lens's 128° covers the baseline spots with about 5° to spare on each side.
 
+## Layout 2: back-fence corners, same side (added 16 Nov)
+
+Both cameras in the back-fence corners at the two ends, on the same side of the court. Back fences sit 4–7 m behind the baseline (6.4 m is the usual recommendation) and the corner is 2–5 m outside the doubles sideline. Every combination was checked at 2.5, 3.0 and 3.5 m high, in all four lens modes. The full table, one row per spot and mode, is in [TV-PH-0a/placement_layout2.md](TV-PH-0a/placement_layout2.md); these are typical corners:
+
+| Corner (behind baseline, outside sideline) | Lens, frame | Whole court in view | Weakest crossing on court | At the net over the cameras' singles sideline | Weakest crossing in the air | Farthest corner | Ball there | Far-corner bounce error |
+|---|---|---|---|---|---|---|---|---|
+| 5.5 m, 3.0 m | Wide 16:9 | yes | 25° | 30°, 2.9 cm | 20° | 32.5 m | 3.4 px | 1.9 cm |
+| 6.4 m, 3.66 m | Wide 16:9 | yes | 29° | 33°, 2.8 cm | 23° | 33.7 m | 3.3 px | 2.0 cm |
+| 6.4 m, 3.66 m | Wide 4:3 | yes | 31° | 34°, 2.8 cm | 23° | 33.7 m | 3.3 px | 2.0 cm |
+| 6.4 m, 3.66 m | Linear 16:9 | yes | 31° | 34°, 2.1 cm | 23° | 33.7 m | 3.5 px | 1.8 cm |
+| 4.0 m, 2.0 m (tight) | Wide 16:9 | 99.7% | 25° | 28°, 2.7 cm | 16° | 30.8 m | 3.8 px | 1.8 cm |
+| 7.0 m, 5.0 m (roomy) | Wide 16:9 | yes | 33° | 38°, 2.5 cm | 30° | 34.8 m | 3.2 px | 2.1 cm |
+
+The "In the air" and "error" columns use the same method as layout 1: 1 px of error in one frame from each camera.
+
+What it shows:
+1. **Your crossing-angle estimate holds.** The weakest spot on the court is at the net, on the cameras' side, over the doubles sideline. It ranges from 21° to 42° depending on the corner, and is about 25–30° at typical corners. In the air above that spot it drops to 12–36° (about 20–23° typically), under the provisional 20° threshold at the tighter corners. So the ntfy message will name that zone for some courts.
+2. **For singles that zone is mostly the alley.** Over the singles sideline at the net, the angle is 23–47°, and the position error there is 1.5–3.8 cm for 1 px. That is no worse than the far corners.
+3. **The ball is smaller than you estimated.** At the far corner it is 3.1–3.8 px wide with Wide, 3.2–4.1 px with Linear, at 31–35 m. You estimated 3.5–4.5 px. Every corner fails the 4 px rule at 4K, worse than layout 1 (about 4 px). This makes 8K60 more important for layout 2 courts in the TV-PH-0 trials.
+4. **Accuracy is good.** The far-corner bounce error is 1.5–2.1 cm, against 1.8–2.8 cm for layout 1 on a fence, because the far corners are seen from two very different directions.
+5. **Linear fits from the corners.** From behind the baseline, Linear's 100° covers the whole court, and its ball is about 0.2 px bigger. The spec says Wide; worth one Linear trial on a layout 2 court.
+6. **Height barely matters**, as in layout 1.
+
+These figures are provisional, like the rest of this report: they use the published lens figures. They are listed in VISION-RETUNE.md.
+
 ## Not modelled
 
 - the sun (pick the side that keeps it behind the cameras);

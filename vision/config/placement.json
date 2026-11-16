@@ -22,5 +22,11 @@
     "standBand": [3, 5],
     "standIfErrorOverCm": 3
   },
-  "layoutFence": 4
+  "layoutFence": 4,
+  "layout2": {
+    "about": "Layout 2 (Chris, 15 Nov): back-fence corners at both ends, same side. Back: metres behind the baseline; side: metres outside the doubles sideline.",
+    "lenses": ["Wide", "Linear"],
+    "backDistances": [4, 5, 5.5, 6.4, 7],
+    "sideDistances": [2, 3, 3.66, 5]
+  }
 }

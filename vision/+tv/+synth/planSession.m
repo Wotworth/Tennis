@@ -1,7 +1,9 @@
 function truth = planSession(sc)
 %PLANSESSION  Truth for a synthetic session: every ball flight, event and player path.
-%   Simulates each rally of scenario sc (tv.synth.defaultScenario) with the
-%   full flight model, at 1 ms. Times are truth seconds (= camera 1's clock).
+%   Simulates each rally of scenario sc (tv.synth.defaultScenario) at 1 ms.
+%   Shots are aimed with the fitter's flight model but flown with the truth
+%   model (tv.physics.truthFlight), so the test does not check the fit
+%   against itself (Chris, 16 Nov). Times are truth seconds (= camera 1's clock).
 %   truth.ballT, truth.ballP   the ball's centre (NaN while out of play)
 %   truth.shots                one row per shot, with the answers the
 %                              pipeline must recover
@@ -45,8 +47,15 @@ for r = 1:numel(sc.rallies)
         if strcmp(kind, 'slice'), ax = -ax; end
         if strcmp(kind, 'flat') || CL == 0, q.CL = 0; end
         q.spinAxis = ax / max(norm(ax), eps);
-        v0 = tv.synth.aimAt(pHit, target, speed, q);
-        [tt, P, V] = tv.physics.simulate(pHit, v0, q, 4, dt, c.ballRadius);
+        v0 = tv.synth.aimAt(pHit, target, speed, q);       % aimed with the fitter's model
+        % flown with the truth model: per-shot drag and lift scatter (fixed, so the
+        % scenario repeats), spin decay, lift following the spin parameter, gusts
+        qt = prm;  qt.CL0 = q.CL;  qt.spinAxis = q.spinAxis;  qt.t0 = tHit;
+        qt.CD = sc.CD + sc.CDsd * sin(1.7 * k + 3.1 * r);
+        qt.clScale = 1 + sc.clScatter * cos(2.3 * k + 1.3 * r);
+        qt.spinTau = sc.spinTau;  qt.gust = sc.gust;
+        [tt, P, V] = tv.physics.truthFlight(pHit, v0, qt, 4, c.ballRadius);
+        q.CD = qt.CD;  q.CL = q.CL * qt.clScale;
         % the net
         xc = find(sign(P(1:end-1,1)) ~= sign(P(2:end,1)), 1);
         netHit = false;  clearance = NaN;
@@ -64,22 +73,22 @@ for r = 1:numel(sc.rallies)
         if netHit
             addSeg(tHit, tt(1:xc), P(1:xc, :), 'shot', k);
             % the ball drops dead at the net
-            q0 = prm;  q0.CL = 0;
-            [t2, P2] = tv.physics.simulate([pc(1) - sign(v0(1))*0.05, pc(2), pc(3)], [-0.1*v0(1), 0, 0], q0, 2, dt, c.ballRadius);
+            q0 = qt;  q0.CL0 = 0;  q0.t0 = tHit + tt(xc);
+            [t2, P2] = tv.physics.truthFlight([pc(1) - sign(v0(1))*0.05, pc(2), pc(3)], [-0.1*v0(1), 0, 0], q0, 2, c.ballRadius);
             addSeg(tHit + tt(xc), t2, P2, 'dead', k);
             shot.result = 'net';
             shots = [shots; shot]; %#ok<AGROW>
             tEnd = tHit + tt(xc) + t2(end);
             break
         end
-        hb = tv.physics.groundHit(P);
+        hb = P(end, :);                                   % truthFlight ends at the touch
         addSeg(tHit, tt, P, 'shot', k);
-        shot.tBounce = tHit + tt(end-1) + (P(end-1,3) - c.ballRadius) / (P(end-1,3) - P(end,3)) * dt;
-        shot.pBounce = hb;  shot.speedBounce = norm(V(end-1, :));
-        % spin effect (TV-SPN-01): the same launch with no lift
-        q0 = q;  q0.CL = 0;
-        [~, P0] = tv.physics.simulate(pHit, v0, q0, 4, dt, c.ballRadius);
-        h0 = tv.physics.groundHit(P0);
+        shot.tBounce = tHit + tt(end);                     % truthFlight ends exactly at the touch
+        shot.pBounce = hb;  shot.speedBounce = norm(V(end, :));
+        % spin effect (TV-SPN-01): the same launch with no lift, in the same truth air
+        q0 = qt;  q0.CL0 = 0;
+        [~, P0] = tv.physics.truthFlight(pHit, v0, q0, 4, c.ballRadius);
+        h0 = P0(end, :);
         dH = dirH(1:2);
         shot.spinEffect = (hb(1:2) - h0(1:2)) * dH';     % negative: landed shorter
         if k == 1
@@ -92,8 +101,8 @@ for r = 1:numel(sc.rallies)
         shot.result = ifelse(inside, 'in', 'out');
         % after the bounce
         vb = tv.physics.bounce(V(end, :), prm);
-        qb = q;  qb.CL = 0.5 * q.CL;
-        [t2, P2] = tv.physics.simulate([hb(1:2), c.ballRadius + 1e-4], vb, qb, 3, dt, c.ballRadius);
+        qb = qt;  qb.CL0 = 0.5 * qt.CL0;  qb.t0 = shot.tBounce;
+        [t2, P2] = tv.physics.truthFlight([hb(1:2), c.ballRadius + 1e-4], vb, qb, 3, c.ballRadius);
         nextHitter = 3 - hitter;
         last = k == size(R.shots, 1) || ~inside;
         if ~last

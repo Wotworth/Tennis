@@ -36,8 +36,13 @@ sc.crf           = 14;                        % H.264 quality: low but not zero 
 
 % --- air ---------------------------------------------------------------------
 sc.weather = struct('tempC', 21, 'relHumidity', 0.55, 'pressurePa', 100900);
-sc.wind    = [1.2 -0.6 0];                    % m/s, steady
-sc.CD      = 0.507;
+sc.wind    = [1.2 -0.6 0];                    % m/s, the mean wind
+sc.CD      = 0.507;                           % the mean; each shot scatters (Cross & Lindsey, sd 0.024)
+% Truth is flown unlike the fitter's model (tv.physics.truthFlight, Chris 16 Nov):
+sc.gust    = struct('periods', [4 11 27], 'amp', [0.6 0.6 0.6], ...
+                    'phase', [0.3 1.1; 2.0 4.2; 5.1 0.7]);   % gusts of about 1 m/s
+sc.spinTau = 5;                               % s, spin decay
+sc.CDsd    = 0.024;  sc.clScatter = 0.15;     % per-shot drag and lift scatter
 
 % --- players -------------------------------------------------------------------
 sc.players(1) = struct('name', 'Chris', 'height', 1.89, 'shirt', [40 70 160], ...

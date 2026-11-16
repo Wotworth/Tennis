@@ -9,12 +9,16 @@ end
 cams = tv.synth.cameras(sc);
 c = tv.court.constants();
 
-%% Every shot that was meant to land, lands within 1 cm of its target
+%% Every shot that was meant to land, lands near its target, but not exactly
+% (aimed with the fitter's model, flown with the truth model: the two must differ)
+miss = [];
 for s = truth.shots'
     if strcmp(s.result, 'net'), continue; end
     target = sc.rallies(s.rally).shots{s.index, 1};
-    assert(norm(s.pBounce(1:2) - target) < 0.01, 'rally %d shot %d', s.rally, s.index)
+    miss(end+1) = norm(s.pBounce(1:2) - target); %#ok<AGROW>
 end
+assert(all(miss < 1.5))          % 0.07-1.02 m on 16 Nov
+assert(max(miss) > 0.03)
 
 %% Rally 1 ends with a ball out long, rally 2 with a ball in the net
 r1 = truth.shots([truth.shots.rally] == 1);  r2 = truth.shots([truth.shots.rally] == 2);

@@ -13,7 +13,7 @@ The parts of the original that are reasoning rather than requirements are kept i
 1. **Phase names.** Phases are TV-PH-0 to TV-PH-5, so they don't clash with the app's PH-0 to PH-5.
 2. **Testing.** The MATLAB code is tested on GitHub. MathWorks' GitHub actions run MATLAB free for public repositories. Sessions on the closet PC come later, for real footage.
 3. **Privacy.** The repository stays public. Home location, court coordinates, camera serials and tokens live only in the PC's `config/tennisvision.json`, which is never committed. Tokens are kept in Windows Credential Manager.
-4. **Health data stays on the phone.** TV-HC-04 is changed: heart-rate summaries are not uploaded. The app computes heart-rate trends itself, so the cloud never receives health data. `POST /sessions/{id}/health` and the `health_summaries` table are dropped.
+4. **Health data stays on the phone.** Nothing from Health Connect is uploaded, not even summaries. The app computes every heart-rate figure and trend itself (TV-HC-02, TV-HC-04).
 5. **One more host for the app.** From TV-PH-4, the app may reach exactly one more host besides api.anthropic.com: the Worker. Videos are stored in R2. This settles the open question "video in the cloud or streamed from the PC". It is an exception to the app spec's section 0 (3), "no cloud sync", for vision sessions only.
 6. **Placement check before buying.** TV-CAL-04 runs first on GoPro's published MISSION 1 lens figures (Linear, Wide and SuperView), and its results are marked provisional until a lens is calibrated. The 112–156° figures on the box are diagonal angles. The horizontal angles are 100° (Linear) and 128° (Wide).
 7. **Fence distances vary.** The placement check outputs a lookup table for side-fence distances from 2 to 10 m. Each row gives the recommended mount spot, the frame (16:9 or 4:3 Open Gate), the expected far-corner bounce error, and when to use a light stand instead.
@@ -53,7 +53,7 @@ The parts of the original that are reasoning rather than requirements are kept i
     - **What a choice does:** the name is attached to the session and to every shot by the non-Chris player.
     - **The list:** add, rename, merge duplicates, delete. Renaming or merging updates all past sessions.
     - **Suggestion:** the opponent from the last session at the same court is the default, but never assigned automatically.
-    - **Doubles:** v1 assumes one opponent; a doubles option may come later.
+    - **Doubles:** not in v1 (one opponent). A doubles option may come later.
     - **Opponent pages:** each opponent has their sessions, head-to-head history and their shot stats. Their stats stay behind the per-session "opponent's stats" toggle.
     - **Where names live:** only in the cloud database; never in Git, test fixtures or logs.
 
@@ -78,10 +78,11 @@ Out of scope for v1: racquet and swing tracking, body-pose biomechanics, automat
 - TV-ARCH-05 The Worker shall be TypeScript. The app keeps its existing stack and Metro-style design.
 
 ### Coordinate frame and units
-- TV-ARCH-10 Court frame: origin at the centre of the net at ground level. Right-handed:
-  - x runs along the court's length, positive toward the baseline on camera 2's side;
-  - y runs across, positive away from the cameras' fence;
-  - z points up.
+- TV-ARCH-10 **[16 Nov]** Court frame, set by where the cameras are, never by their serial numbers or roles: origin at the centre of the net at ground level, and right-handed:
+  - y runs across the court, positive away from the side both cameras are on (both layouts put them on one side);
+  - z points up;
+  - x = y × z: along the court's length, toward the end on your right as you stand on the cameras' side facing the court.
+  - Which camera is at which end is reported in `session.json` (`cam2AtLowerX`); swapping them changes nothing else. A test runs the cameras swapped.
 - TV-ARCH-11 SI units internally (m, s, kg, rad). The app displays mph, ft, rpm and °F by default, switchable.
 - TV-ARCH-12 All times are UTC, stored as datetime with time zone, accurate to at least 0.1 ms internally.
 
@@ -186,6 +187,7 @@ A ball at 30 m/s moves 3 cm per millisecond, so a 1 ms timing error between the 
   - If no side fence is within 5 m of the doubles sideline (common where courts sit side by side), also evaluate light stands at those spots and corner positions on the back fence.
   - **[15 Nov]** Use GoPro's published MISSION 1 lens figures, marked provisional until a lens is calibrated.
   - **[15 Nov]** Output a lookup table for side-fence distances from 2 to 10 m: recommended mount spot, frame (16:9 or 4:3 Open Gate), expected far-corner bounce error, and when to use a light stand instead.
+  - **[16 Nov]** Also evaluate layout 2 (back-fence corners at both ends, same side) for back-fence distances of 4–7 m behind the baseline and side distances of 2–5 m, in every lens mode: smallest crossing angle and where, far-corner range, ball size in pixels, and the expected bounce error.
 
 ### Camera pose (extrinsic) calibration: every session, automatic
 - TV-CAL-10 Build a background frame: the median of about 200 frames spread over a quiet minute. Detect the white court lines (threshold, thin, Hough), then fit the known court model by matching line intersections.
@@ -212,6 +214,10 @@ t₁ = t₂ + Δ + ε (t₂ − t_ref);  t_pixel = t_frame + (v/H) τᵣ
   - Iterate once 3D positions exist.
 - TV-SYNC-03 Fine (the final answer): estimate Δ, ε and τᵣ for each camera by minimising the total reprojection error of all fitted ball trajectories. A wrong offset shows up directly as a large stereo residual on fast shots.
 - TV-SYNC-04 Target: residual timing error ≤ 0.5 ms. Report Δ, ε, τᵣ and their uncertainties in `session.json`.
+- TV-SYNC-06 **[16 Nov]** Measure each camera's readout time τᵣ once per mode, outside play, and give the session fit a tight prior from it:
+  - Record about 10 s of a plain wall lit by a mains-powered lamp that flickers (most LED and fluorescent lamps flicker at twice the mains frequency, 120 Hz in the US), at the session shutter speed.
+  - Rolling shutter turns the flicker into horizontal bands. The band spacing in rows gives τᵣ = H / (rows per band) / 120 Hz, to well under 1%. `tools/readoutFromFlicker.m` measures it from the clip, and the PC stores it per camera serial and mode.
+  - Ball flights alone do not pin τᵣ down: within one flight the ball's image row changes almost linearly with time, so a readout error looks like a small stretch of time that the flight's own speed absorbs. The synthetic test settled 2.5 ms off on one camera.
 - TV-SYNC-05 Never triangulate by pairing frames. Fit the 3D trajectory model directly to each camera's 2D detections at that camera's own corrected pixel times (TV-REC-01).
 
 ## 4. Rallies, ball detection, tracking, 3D
@@ -244,6 +250,7 @@ t₁ = t₂ + Δ + ε (t₂ − t_ref);  t_pixel = t_frame + (v/H) τᵣ
   - Most come free: v1 detections that survive the stereo and physics checks become labels.
   - Corrections are made in Video Labeler.
   - Keep a held-out test set from different days and light conditions.
+  - **[16 Nov]** Both sets are kept as full three-frame sets, forever (TV-OPS-07).
 - TV-DET-06 Targets after tracking: ≥ 95% of in-play frames detected; ≥ 98% of accepted detections correct.
 
 ### 2D tracking per camera
@@ -265,7 +272,7 @@ t₁ = t₂ + Δ + ε (t₂ − t_ref);  t_pixel = t_frame + (v/H) τᵣ
   - The net sags linearly from 1.07 m at the posts to 0.914 m at the centre.
   - A centre passing within 3.35 cm of the tape means the ball touched it.
 - TV-EVT-04 In or out:
-  - Compare the bounce point with the relevant lines (singles or doubles, and the service box on serves), using the bounce uncertainty.
+  - Compare the bounce point with the singles lines (the service box on serves), using the bounce uncertainty. **[16 Nov]** Singles only: no doubles lines in v1.
   - Report in, out, or "too close" when within 2σ.
 - TV-EVT-05 Serve: a slow vertical toss above a player behind the baseline, then a hit near the toss apex.
 
@@ -290,7 +297,7 @@ t₁ = t₂ + Δ + ε (t₂ − t_ref);  t_pixel = t_frame + (v/H) τᵣ
   - **Applying the answer.** The PC checks `GET /identity/pending` every 5 minutes, reruns only the metrics stage, and re-uploads.
   - **Until answered.** The app shows stats per player and keeps the session out of trends.
   - **Several uncertain stretches.** Ask on one screen, with one row of thumbnails per stretch.
-- TV-PLY-08 Support 2–4 players. In doubles, label the others Partner or Opponent according to which side Chris is on in each rally.
+- TV-PLY-08 **[16 Nov] Cut from v1:** singles only, two players (Chris and one opponent).
 - TV-PLY-09 The hitter is the tracked player nearest the ball at the moment of the hit, within 2.5 m. On a serve, it is the player under the toss.
 - TV-PLY-10 Reject yellow blobs attached to a tracked person that never follow a ballistic path. A serve toss is accepted once it leaves the head and rises and falls under gravity.
 
@@ -393,10 +400,10 @@ m v̇ = m g − ½ ρ A C_D |u| u + ½ ρ A C_L |u|² (ω̂ × û),  u = v − w
   - `POST /sessions`, `POST /sessions/{id}/upload-url`, `PUT /sessions/{id}/data`;
   - `GET /sessions`, `GET /sessions/{id}`, `GET /sessions/{id}/shots`;
   - `GET /trends?metric=&shotType=&from=&to=`.
-  - **[15 Nov]** No health endpoint.
-- TV-API-02 D1 tables: sessions, rallies, shots, courts, cameras, processing_runs. Index shots by session, hitter and shot type. **[15 Nov]** No health table.
+- TV-API-02 D1 tables: sessions, rallies, shots, courts, cameras, processing_runs. Index shots by session, hitter and shot type.
 - TV-API-03 Separate write (PC) and read (app) tokens; no public access to R2.
 - TV-API-04 Identity answers: `POST /sessions/{id}/identity` and `GET /identity/pending`. The Worker stores answers only and computes no statistics.
+- TV-API-06 **[16 Nov]** One host for the app: the app talks only to the Worker. Videos, trajectories and images stay in R2 with no public access, no custom domain and no presigned R2 links; the Worker reads them through its R2 binding and streams them, with HTTP range requests so the player can seek. Links the Worker hands out are on its own host, signed and short-lived. Upload links for the PC work the same way.
 - TV-API-05 **[15 Nov]** Indoor flags: `POST /sessions/{id}/conditions` with exactly `{"indoor": true|false}` (anything else is refused), `GET /conditions/pending` and `POST /conditions/{id}/applied` for the PC.
 - TV-APP-01 A Sessions tile and list in the existing Metro style. Each row shows date, court, duration, shots and one headline stat.
 - TV-APP-02 Session detail pivots: Summary · Court · Shots · Rallies · 3D · Health.
@@ -416,7 +423,7 @@ m v̇ = m g − ½ ρ A C_D |u| u + ½ ρ A C_L |u|² (ω̂ × û),  u = v − w
   - heart rate during rallies vs between rallies;
   - recovery time between points.
 - TV-HC-03 Fitbit heart-rate data may be sparse. Show gaps; do not interpolate across gaps longer than 60 s.
-- TV-HC-04 **[15 Nov, changed]** Heart-rate summaries stay on the phone. The app keeps them with the session and draws heart-rate trends itself; nothing from Health Connect is uploaded.
+- TV-HC-04 **[16 Nov]** All heart-rate figures are computed on the phone, from Health Connect, and stored with the session on the phone: the TV-HC-02 figures, the Health pivot (TV-APP-02) and heart-rate trends. Nothing from Health Connect leaves the phone.
 - TV-HC-05 Link the session to the matching auto-detected tennis session and to the racquet in use. If several racquets are possible, ask once in the app.
 
 ## 7. Operations, testing, phases, acceptance
@@ -434,12 +441,19 @@ m v̇ = m g − ½ ρ A C_D |u| u + ½ ρ A C_L |u|² (ω̂ × û),  u = v − w
   - When the archive passes 85%, delete the oldest full-resolution rally segments of already-processed sessions before refusing any import.
   - Never delete unprocessed raw footage.
   - The weekly message reports projected disk use.
+- TV-OPS-07 **[16 Nov]** Detector data is kept forever, exempt from TV-OPS-03:
+  - Every frame in the hand-labelled test set (Ball check answers) and every auto-labelled training frame is saved as a full frame together with the frames just before and after it: sets of three consecutive full-resolution frames, the learned detector's input (TV-DET-04). Not just the 256 px crops.
+  - They are extracted when a frame is labelled (test set) or harvested (auto-labels), before the raw footage can be deleted, as JPEG quality 95 at the camera's resolution.
+  - Auto-labels are kept as whole runs of consecutive frames, so neighbouring labels share frames, and at most 20,000 new labelled frames a month are kept (spread over sessions, courts and light), matching the retraining threshold.
+  - Disk estimate (to be measured on trial footage): about 2.5 MB per 4K frame. Test set: 300 frames × 3 ≈ 2.3 GB, growing slowly (about 4 GB with later batches). Auto-labels: about 21,300 frames per 20,000 labels ≈ 53 GB a month, about 0.65 TB a year. Beside the 6.5 TB footage steady state on the 12 TB archive, that fits for about 6 years; the weekly message reports it, and a second drive extends it.
 - TV-OPS-04 A 2-hour session is fully processed in ≤ 6 h on the specified PC. Process overnight, one session at a time, and queue the rest.
 - TV-OPS-05 `tools/reprocess.m` reruns any stage for any range of sessions with the current code.
 - TV-OPS-06 A weekly "all OK" message with disk use, sessions processed and any warnings.
 - TV-TST-01 Synthetic generator (the core test): simulate shots with known speed, spin, C_D, wind and timing.
   - Render them into both calibrated cameras on real background frames, with a blurred disc, rolling shutter, a sync offset and drift, and noise.
   - The pipeline must recover each parameter within the targets.
+  - **[16 Nov]** The truth must not be made the way the fitter models it. Synthetic flights use their own model (`tv.physics.truthFlight`): ode45 rather than RK4, spin that decays, C_L that follows the spin parameter (so it changes as the ball slows) with per-shot scatter, per-shot C_D with Cross & Lindsey's spread, and wind gusts.
+  - **[16 Nov]** Besides the rendered test, a fit study (`tools/fitStudy.m`) runs the reconstruction on a synthetic 90-minute singles session of about 400 shots, at the detection level (no video), and reports medians and 90th percentiles against the targets.
 - TV-TST-02 Unit tests (`matlab.unittest`) for:
   - the air-density formula;
   - the RK4 integrator against ode45;
@@ -493,6 +507,7 @@ m v̇ = m g − ½ ρ A C_D |u| u + ½ ρ A C_L |u|² (ω̂ × û),  u = v − w
 - Which courts, and whether their fences allow the 2.5–3.5 m same-side mounting. **[15 Nov]** Replaced by the lookup table.
 - Opponents' stats. **[15 Nov]** Only Chris's are shown.
 - Video in R2 or streamed from the PC. **[15 Nov]** R2.
+- **[16 Nov]** MATLAB tests once the repository is private: options in STATUS.md, Chris to choose before making it private.
 
 ## B. Background from the original (short form)
 

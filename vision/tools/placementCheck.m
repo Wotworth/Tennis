@@ -5,6 +5,7 @@ function rows = placementCheck(configFile, outDir)
 %     placement_table.md   one row per side-fence distance (Chris's lookup)
 %     placement_table.csv  the same, for MATLAB
 %     placement_all.csv    every placement evaluated
+%     placement_layout2.md layout 2: back-fence corners, same side, every spot and lens mode
 %     placement_error.png  error and ball size against fence distance (MATLAB only)
 %     placement_layout.png the recommended layout for cfg.layoutFence (MATLAB only)
 %   PROVISIONAL: lens angles are GoPro's published figures, not a calibration.
@@ -48,6 +49,19 @@ fprintf(fid, 'standoff_m,mount_x_m,height_m,aspect,yaw_deg,pitch_deg,coverage,fa
 for r = all'
     fprintf(fid, '%g,%g,%g,%s,%.1f,%.1f,%.3f,%.2f,%.2f,%.1f,%d\n', r.standoff, r.mountX, r.height, ...
         r.aspect, r.yaw, r.pitch, r.coverage, r.errorCm, r.ballPx, r.minCrossDeg, r.passes);
+end
+fclose(fid);
+
+% --- layout 2: back-fence corners, same side (Chris, 15 Nov) ---------------
+L2 = tv.placement.corners(cfg);
+fid = fopen(fullfile(outDir, 'placement_layout2.md'), 'w', 'n', 'UTF-8');
+fprintf(fid, '| Lens | Frame | Behind baseline | Outside doubles sideline | Height | Whole court in view | Smallest crossing on court (where) | At the net over the cameras'' singles sideline: crossing, error | Smallest crossing in the air (where) | Farthest corner | Ball there | Far-corner bounce error |\n');
+fprintf(fid, '|---|---|---|---|---|---|---|---|---|---|---|---|\n');
+for r = L2'
+    fprintf(fid, '| %s | %s | %.1f m | %.2f m | %.1f m | %s | %.0f° (x %.1f, y %.1f) | %.0f°, %.1f cm | %.0f° (x %.0f, y %.0f, z %.0f) | %.1f m | %.1f px | %.1f cm |\n', ...
+        r.lens, r.aspect, r.back, r.side, r.height, inView(r.coverage), ...
+        r.courtCrossDeg, r.worstX, r.worstY, r.netCrossDeg, r.netErrorCm, r.minCrossDeg, r.volWorst(1), r.volWorst(2), r.volWorst(3), ...
+        r.farRangeM, r.ballPx, r.errorCm);
 end
 fclose(fid);
 
@@ -112,6 +126,10 @@ elseif pitch > 0, tilt = sprintf('tilted %.0f° up', pitch);
 else, tilt = 'level';
 end
 s = sprintf('turned %.0f° toward the net, %s', turn, tilt);
+end
+
+function s = inView(cov)
+if cov >= 1, s = 'yes'; else, s = sprintf('%.1f%% of the volume', 100 * cov); end
 end
 
 function s = dashIfEmpty(s)

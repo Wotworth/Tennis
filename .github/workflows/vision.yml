@@ -77,3 +77,34 @@ jobs:
           path: |
             out/
             test-results/
+
+  # Chris, 16 Nov: the flight fit against truth it was not built from, over a
+  # 90-minute session of about 400 shots (tools/fitStudy.m). Runs beside the tests.
+  fit-study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v2
+        with:
+          release: latest
+          products: >
+            Image_Processing_Toolbox
+            Optimization_Toolbox
+            Computer_Vision_Toolbox
+            Statistics_and_Machine_Learning_Toolbox
+            Parallel_Computing_Toolbox
+
+      - name: Fit study (TV-TST-01, 400 shots)
+        uses: matlab-actions/run-command@v2
+        with:
+          command: addpath('vision', 'vision/tools'); fitStudy('out/fitstudy');
+
+      - name: Print results into the log
+        if: always()
+        run: |
+          for f in $(find out -type f \( -name '*.md' -o -name '*.csv' \) 2>/dev/null); do
+            echo "=== BEGIN-B64 $f"; base64 -w 0 "$f"; echo; echo "=== END-B64"
+          done

@@ -41,3 +41,14 @@ assert(abs(r.cam2.yaw - (180 - r.cam1.yaw)) < 1e-9)
 near = tv.placement.evaluate(cfg, W, 4, c.halfLength, 3, pts);
 far  = tv.placement.evaluate(cfg, W, 9, c.halfLength, 3, pts);
 assert(far.ballPx < near.ballPx)
+
+%% Layout 2 (back-fence corners, same side): weakest crossing is at the net on the cameras' side
+cfg2 = cfg;  cfg2.layout2.lenses = {'Wide'};  cfg2.aspects = {'16:9'};
+cfg2.layout2.backDistances = 6.4;  cfg2.layout2.sideDistances = 3.66;
+r2 = tv.placement.corners(cfg2);
+assert(numel(r2) == 1 && r2.coverage == 1)
+assert(abs(r2.worstX) < 1 && r2.worstY < -5)          % over the cameras' doubles sideline, at the net
+assert(r2.courtCrossDeg > 20 && r2.courtCrossDeg < 35)
+assert(r2.ballPx > 3 && r2.ballPx < 4)                % smaller than layout 1's ~4 px
+assert(r2.farRangeM > 32 && r2.farRangeM < 35)
+

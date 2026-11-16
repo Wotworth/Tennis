@@ -31,6 +31,8 @@ Retune list: docs/VISION-RETUNE.md.
 
 All MATLAB tests pass in CI (67 of 67, including the end-to-end test on synthetic footage and the learning loop); results in docs/reports/TV-BUILD-1.md. Watch on real footage: an 11 cm bounce error on a short flight, camera 2's readout settling 2.5 ms off.
 
+Outside-check review (16 Nov), items 1-10: health data confirmed never built in the cloud and removed from the spec; one host (the Worker streams R2, already built); court frame from geometry with a swapped-camera test; detector data kept forever (TV-OPS-07, about 0.65 TB a year); layout 2 placement (docs/reports/TV-PH-0a.md); doubles cut from v1; synthetic truth now flies unlike the fitter, with a 400-shot fit study as its own CI job; readout time measured from a flickering lamp (TV-SYNC-06); the 11 cm bounce traced to detections that were not the flying ball, fixed by a 6 px outlier cut and lift priors. Fit study numbers: see docs/reports/TV-BUILD-1.md once CI finishes.
+
 Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens calibration and trial sessions). The launcher needs the new "checks" tile state (LAUNCHER-REQUESTS.md), not built.
 
 ## Next
@@ -49,6 +51,12 @@ Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens ca
 - After Chris accepts PH-0: PH-1 (logging).
 
 ## Open questions
+
+- **MATLAB tests once the repository is private (Chris, 16 Nov; nothing changed yet).** Options:
+  1. Keep the repository public until the closet PC runs, then a self-hosted GitHub runner on the PC, using his MATLAB Home licence (personal use). Recommended. Needs from Chris: the PC; one runner registration token from GitHub settings (Claude Code on the PC does the rest); tests then run only while the PC is on, scheduled away from overnight processing.
+  2. Apply for MathWorks' batch licensing token for GitHub-hosted runners. Needs his MathWorks account and an application; it is a pilot and may not cover a Home licence.
+  3. Stay public for good. Needs nothing; the code holds no secrets or locations.
+  4. Meanwhile, if he goes private before the PC: GNU Octave on GitHub's runners (free minutes, no licence) runs most tests; the parts that need MATLAB-only toolboxes (learned detector training, some vision functions) would wait for option 1.
 
 - Tennis Vision: Chris's answers of 15 Nov are in VISION-REQUIREMENTS.md section A. Open: capture mode (decided at the end of TV-PH-2), the usable crossing angle (20 deg, provisional).
 
