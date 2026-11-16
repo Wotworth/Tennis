@@ -18,12 +18,12 @@ import androidx.compose.ui.unit.Constraints
 
 /** Plain text in a type role, colored and cased by the role. */
 @Composable
-fun TennisText(text: String, role: TennisTokens.Role, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE) {
+fun TennisText(text: String, role: TennisTokens.Role, modifier: Modifier = Modifier, maxLines: Int = Int.MAX_VALUE, ellipsis: Boolean = false) {
     BasicText(
         text = applyCase(text, role.case),
         style = textStyleFor(role),
         maxLines = maxLines,
-        overflow = TextOverflow.Clip,
+        overflow = if (ellipsis) TextOverflow.Ellipsis else TextOverflow.Clip,
         modifier = modifier,
     )
 }

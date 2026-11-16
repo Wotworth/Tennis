@@ -55,6 +55,18 @@ Reuse, by copying source files from the Zune player (`ZuneTokens.kt`, the font f
 - VIS-07 Motion: the Zune player's pivot swipe, page turnstile/slide-in and tilt, at its tuned values.
 - VIS-08 No accent colours other than VIS-03, VIS-04 and, on the cues page only, the stroke colours (CUE-03, v0.5). The phone's status bar stays visible.
 
+- VIS-09 **Design v2 (Chris, 16 Nov; amends VIS-04 to VIS-08).** Keep the look; make choices easier to see and change.
+  1. Compact selectors: square segment strips, one line each (sideways scroll), selected = tile green with white text, unselected = dark grey; smaller type than page headers.
+  2. A filter summary bar at the top of each data page (current choices, Fluent filter icon); tapping it opens a full-width, square flyout with all options, sliding in like a WP flyout.
+  3. Shared filter state across a vision session's court, shots and rallies pivots.
+  4. Flat rectangular Windows Phone toggle switches for on/off choices.
+  5. A legend for every colour scale: a thin gradient bar with min/max in mph or ft.
+  6. Two-column stat grids (number large, label small) on the shot card and summary.
+  7. Anything changeable shows a chevron or underline and opens the same flyout.
+  8. App bar icons with short text labels.
+  9. Player colours wherever a shot is drawn: Chris green, the opponent one new colour (an exception to VIS-08), with speed or spin shown without hiding who hit it.
+  The navigation structure and features do not change. Variations in docs/preview/v2; applied after Chris picks.
+
 ## 4 Navigation and screens
 
 - NAV-01 One hub with five pivots, swiped horizontally: **cues · racquets · sessions · stats · library** (v0.4: "strings" became "racquets"). The app opens on **cues** (v0.3). Title (v0.3, Chris's option a): the Windows Phone pivot: a small all-caps `TENNIS` at the top, the pages' large lowercase headers below it, the current one filled with the VIS-03 gradient and the next one peeking in grey from the right. Pages below the hub use the same small title over their own large lowercase header. No clipped giant title anywhere.

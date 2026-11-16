@@ -78,7 +78,7 @@ object VisionDefaults {
 }
 
 /** Court constants, as in the vision pipeline's tv.court.constants (ITF). */
-private object Court {
+internal object Court {
     const val HALF_LENGTH = 11.885
     const val HALF_DOUBLES = 5.485
     const val HALF_SINGLES = 4.115
@@ -305,7 +305,7 @@ fun spinColour(effectM: Double?): Color {
     return lerp(TennisTokens.Colors.titleGradientEnd, TennisTokens.Colors.titleGradientStart, f)
 }
 
-private fun DrawScope.drawCourtTopDown(map: (Double, Double) -> Offset, s: Float) {
+internal fun DrawScope.drawCourtTopDown(map: (Double, Double) -> Offset, s: Float) {
     val line = TennisTokens.Colors.primary.copy(alpha = TennisTokens.Vision.lineAlpha)
     Court.lines.forEach { l -> drawLine(line, map(l[0], l[1]), map(l[2], l[3]), strokeWidth = maxOf(1f, 0.05f * s)) }
     drawLine(TennisTokens.Colors.primary, map(0.0, -Court.POST_Y), map(0.0, Court.POST_Y), strokeWidth = maxOf(1.5f, 0.08f * s))
@@ -570,7 +570,7 @@ fun VisionTrends() {
 }
 
 @Composable
-private fun TrendChart(title: String, pts: List<Pair<Long, Double>>, jobs: List<io.github.wotworth.tennis.data.StringJob>) {
+internal fun TrendChart(title: String, pts: List<Pair<Long, Double>>, jobs: List<io.github.wotworth.tennis.data.StringJob>) {
     val zpx = LocalZpx.current
     val measurer = androidx.compose.ui.text.rememberTextMeasurer()
     val small = io.github.wotworth.tennis.ui.theme.textStyleFor(TennisTokens.Type.listSecondary)
@@ -634,7 +634,7 @@ fun VisionShotScreen(id: String, rally: Int, index: Int) {
 }
 
 @Composable
-private fun SideView(tr: Trajectory, s: VisionShot) {
+internal fun SideView(tr: Trajectory, s: VisionShot, colour: Color = speedColour(s.speedContact), caption: Boolean = true) {
     val zpx = LocalZpx.current
     Canvas(Modifier.fillMaxWidth().height(zpx(TennisTokens.Vision.sideViewHeight))) {
         if (tr.xyz.size < 2) return@Canvas
@@ -657,9 +657,9 @@ private fun SideView(tr: Trajectory, s: VisionShot) {
         fun pathOf(ps: List<DoubleArray>) = Path().apply { ps.forEachIndexed { i, p -> map(p).let { if (i == 0) moveTo(it.x, it.y) else lineTo(it.x, it.y) } } }
         drawPath(pathOf(tr.noSpin.filter { it[2] >= 0 }), TennisTokens.Colors.secondary,
             style = Stroke(1.5f * density, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6 * density, 5 * density))))
-        drawPath(pathOf(tr.xyz), speedColour(s.speedContact), style = Stroke(2.5f * density))
+        drawPath(pathOf(tr.xyz), colour, style = Stroke(2.5f * density))
     }
-    TennisText("solid: the real path · dashed: the same shot without spin" +
+    if (caption) TennisText("solid: the real path · dashed: the same shot without spin" +
         (s.spinEffect?.let { " · spin brought it down ${Units.ft(abs(it))}" } ?: ""), TennisTokens.Type.listSecondary)
 }
 

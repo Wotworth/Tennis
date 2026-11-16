@@ -31,6 +31,21 @@ object TennisTokens {
         var titleGradientEnd by mutableStateOf(Color(0xFF2B8A3E))
         /** VIS-04: every tile, one deep green (Q4). */
         var tile by mutableStateOf(Color(0xFF2A7F3E))
+        /**
+         * Design v2 (Chris, 16 Nov; amendment to VIS-04 to VIS-08): player colours, wherever a shot
+         * is drawn. Chris is green, the opponent cobalt blue: blue stays apart from green and the
+         * optic-yellow ball for the commonest colour blindness (red-green), and from the cues'
+         * stroke colours (cyan is 25 degrees of hue away and much lighter). Speed or spin shades
+         * each player's colour from Low (slow, little spin) to High.
+         */
+        var me by mutableStateOf(Color(0xFF6CC24A))
+        var meLow by mutableStateOf(Color(0xFF1E6B32))
+        var meHigh by mutableStateOf(Color(0xFFD4EC4A))
+        var opponent by mutableStateOf(Color(0xFF4F7DFF))
+        var opponentLow by mutableStateOf(Color(0xFF2A47A8))
+        var opponentHigh by mutableStateOf(Color(0xFFB8CBFF))
+        /** Design v2: an unselected segment, and the filter bar and flyout panel. */
+        var segmentOff by mutableStateOf(Color(0xFF333333))
         /** Context menus and prompts (Windows Phone's dark chrome color). */
         var panel by mutableStateOf(Color(0xFF1F1F1F))
         /** NAV-08: the application bar (Windows Phone dark theme). */
@@ -113,6 +128,11 @@ object TennisTokens {
         val pageHeader = Role(42f, Weight.Light, -0.01f, Case.Lowercase, Tone.Primary)
         val sectionHeader = Role(17f, Weight.Semilight, 0f, Case.Lowercase, Tone.Secondary)
         val body = Role(15f, Weight.Regular, 0f, Case.AsTagged, Tone.Primary)
+        /** Design v2: segment strips, the filter bar, a stat grid's number and its label. */
+        val segment = Role(14f, Weight.Regular, 0f, Case.Lowercase, Tone.Primary)
+        val filterBar = Role(15f, Weight.Regular, 0f, Case.Lowercase, Tone.Primary)
+        val statNumber = Role(26f, Weight.Light, -0.01f, Case.AsTagged, Tone.Primary)
+        val statLabel = Role(12f, Weight.Regular, 0f, Case.AsTagged, Tone.Secondary)
         val menuItem = Role(22f, Weight.Light, 0f, Case.Lowercase, Tone.Primary)
         val button = Role(15f, Weight.Semibold, 0f, Case.Lowercase, Tone.Primary)
         val input = Role(16f, Weight.Regular, 0f, Case.AsTagged, Tone.Primary)
@@ -193,6 +213,17 @@ object TennisTokens {
         var hrChartHeight by mutableFloatStateOf(120f)       // zpx
         var trendHeight by mutableFloatStateOf(110f)         // zpx
         var courtMapHeight by mutableFloatStateOf(300f)      // zpx: the whole court on one screen
+        // Design v2 (Chris, 16 Nov)
+        var segmentHeight by mutableFloatStateOf(30f)        // zpx: one segment strip
+        var segmentPadX by mutableFloatStateOf(10f)          // zpx inside a segment
+        var segmentGap by mutableFloatStateOf(2f)            // zpx between segments
+        var filterBarHeight by mutableFloatStateOf(36f)      // zpx
+        var legendBarWidth by mutableFloatStateOf(110f)      // zpx
+        var legendBarHeight by mutableFloatStateOf(6f)       // zpx
+        var spotMinRadius by mutableFloatStateOf(2.2f)       // zpx: dot size for the slowest shot (size-for-speed)
+        var spotMaxRadius by mutableFloatStateOf(6.0f)       // zpx: and the fastest
+        var toggleWidth by mutableFloatStateOf(44f)          // zpx: flat WP toggle
+        var toggleHeight by mutableFloatStateOf(18f)         // zpx
     }
 
     object Easings {
