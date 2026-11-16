@@ -44,8 +44,12 @@ end
 [segs, cuts] = refineSplits(segs, cams, rec, sync, air, prior, opts);
 segs = dropJunk(segs, opts);
 segs = mergeAll(segs, cuts, cams, rec, sync, air, prior, opts);
-% a merge can join a short piece across a real event; look again, then merge what is left
-[segs, cuts2] = refineSplits(segs, cams, rec, sync, air, prior, opts);
+% a merge can join a short piece across a real event; look again, then merge what is left.
+% This time a split that leaves a part worse than opts.junkPx is not an event but a few
+% strays cut off with the good detections around them (16 Nov: the first 90 ms after a hit
+% were lost that way, and with them the speed at contact)
+o2 = opts;  o2.noJunkHalves = true;
+[segs, cuts2] = refineSplits(segs, cams, rec, sync, air, prior, o2);
 segs = dropJunk(segs, opts);
 segs = mergeAll(segs, [cuts, cuts2], cams, rec, sync, air, prior, opts);
 end
@@ -97,6 +101,7 @@ if nnz(oa(:, 1) == 1) < opts.minPerCam || nnz(oa(:, 1) == 2) < opts.minPerCam ||
 sa = tv.recon.fitSegment(oa, cams, rec, sync, air, prior);
 sb = tv.recon.fitSegment(ob, cams, rec, sync, air, prior);
 if ~sa.ok || ~sb.ok, return; end
+if isfield(opts, 'noJunkHalves') && opts.noJunkHalves && max(sa.rmsPx, sb.rmsPx) > opts.junkPx, return; end
 r = sqrt((sa.rmsPx^2 * nnz(a) + sb.rmsPx^2 * nnz(b)) / (nnz(a) + nnz(b)));
 if r < bestRms, bestRms = r; best = [sa; sb]; bestCut = c; end
 end
