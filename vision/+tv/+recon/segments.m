@@ -56,33 +56,55 @@ while merged && numel(segs) > 1
         end
     end
 end
+% a merge can join a short piece across a real event; look again
+segs = refineSplits(segs, cams, rec, sync, air, prior, opts);
 end
 
 function [segs, cuts] = refineSplits(segs, cams, rec, sync, air, prior, opts)
 % A flight that fits clearly worse than a clean one usually hides an event
 % (a late cut, a net cord, the drop after the net): try splitting it at
-% each of 15 moments and keep the split when both halves together fit much
+% 15 moments where both halves keep enough detections, then at the frames
+% next to the best one; keep the split when both halves together fit much
 % better (opts.splitGain of the error or less), then look again.
 k = 1;  cuts = [];
 while k <= numel(segs)
     g = segs(k);
     if g.rmsPx <= opts.splitRms || size(g.obs, 1) < 4 * opts.minPerCam, k = k + 1; continue; end
     ts = sort(g.t);
-    cuts = ts(round(linspace(0.12, 0.88, 15) * numel(ts)));
-    best = [];  bestRms = g.rmsPx * opts.splitGain;
-    for c = cuts(:)'
-        a = g.t < c - opts.edgeMs / 1000;  b = g.t > c + opts.edgeMs / 1000;
-        oa = g.obs(a, :);  ob = g.obs(b, :);
-        if nnz(oa(:, 1) == 1) < opts.minPerCam || nnz(oa(:, 1) == 2) < opts.minPerCam || ...
-           nnz(ob(:, 1) == 1) < opts.minPerCam || nnz(ob(:, 1) == 2) < opts.minPerCam, continue; end
-        sa = tv.recon.fitSegment(oa, cams, rec, sync, air, prior);
-        sb = tv.recon.fitSegment(ob, cams, rec, sync, air, prior);
-        if ~sa.ok || ~sb.ok, continue; end
-        r = sqrt((sa.rmsPx^2 * nnz(a) + sb.rmsPx^2 * nnz(b)) / (nnz(a) + nnz(b)));
-        if r < bestRms, bestRms = r; best = [sa; sb]; bestCut = c; end
+    cams1 = g.obs(:, 1);  [~, o] = sort(g.t);  c1 = cumsum(cams1(o) == 1);  c2 = cumsum(cams1(o) == 2);
+    okCut = c1 >= opts.minPerCam & c2 >= opts.minPerCam & ...
+            c1(end) - c1 >= opts.minPerCam & c2(end) - c2 >= opts.minPerCam;
+    if ~any(okCut), k = k + 1; continue; end
+    lo = ts(find(okCut, 1));  hi = ts(find(okCut, 1, 'last'));
+    best = [];  bestRms = g.rmsPx * opts.splitGain;  bestCut = NaN;
+    % coarse: 15 moments over the range where both halves have enough detections
+    for c = linspace(lo, hi, 15)
+        [best, bestRms, bestCut] = tryCut(g, c, best, bestRms, bestCut, cams, rec, sync, air, prior, opts);
+    end
+    % fine: the frames next to the best moment
+    if ~isnan(bestCut)
+        u = unique(ts);  [~, j] = min(abs(u - bestCut));
+        for jj = max(1, j - 4):min(numel(u) - 1, j + 4)
+            c = (u(jj) + u(jj + 1)) / 2;
+            if c >= lo && c <= hi
+                [best, bestRms, bestCut] = tryCut(g, c, best, bestRms, bestCut, cams, rec, sync, air, prior, opts);
+            end
+        end
     end
     if isempty(best), k = k + 1; else, segs = [segs(1:k-1); best; segs(k+1:end)]; cuts(end+1) = bestCut; end %#ok<AGROW>
 end
+end
+
+function [best, bestRms, bestCut] = tryCut(g, c, best, bestRms, bestCut, cams, rec, sync, air, prior, opts)
+a = g.t < c - opts.edgeMs / 1000;  b = g.t > c + opts.edgeMs / 1000;
+oa = g.obs(a, :);  ob = g.obs(b, :);
+if nnz(oa(:, 1) == 1) < opts.minPerCam || nnz(oa(:, 1) == 2) < opts.minPerCam || ...
+   nnz(ob(:, 1) == 1) < opts.minPerCam || nnz(ob(:, 1) == 2) < opts.minPerCam, return; end
+sa = tv.recon.fitSegment(oa, cams, rec, sync, air, prior);
+sb = tv.recon.fitSegment(ob, cams, rec, sync, air, prior);
+if ~sa.ok || ~sb.ok, return; end
+r = sqrt((sa.rmsPx^2 * nnz(a) + sb.rmsPx^2 * nnz(b)) / (nnz(a) + nnz(b)));
+if r < bestRms, bestRms = r; best = [sa; sb]; bestCut = c; end
 end
 
 function x = shiftStart(m, a)
