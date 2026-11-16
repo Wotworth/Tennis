@@ -20,7 +20,8 @@ for r = 1:size(R.rallyWindows, 1)
     if ~ok
         tv.util.run(sprintf('%s -y -v error %s -c:v libx264 -preset veryfast -crf 23 "%s"', tv.util.ffmpeg(), args, clip));
     end
-    fprintf(fid, 'file ''%s''\n', clip);
+    [~, nm, ex] = fileparts(clip);                      % FFmpeg reads names relative to the list
+    fprintf(fid, 'file ''%s''\n', [nm ex]);
 end
 fclose(fid);
 tv.util.run(sprintf('%s -y -v error -f concat -safe 0 -i "%s" -c copy "%s"', tv.util.ffmpeg(), list, fullfile(outDir, 'reel_1080p.mp4')));

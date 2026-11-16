@@ -28,10 +28,9 @@ air.rho = S.air.rho;                                          % weather from the
 wind10 = 2 * S.air.wind(1:2) + [0.8 -0.5];                    % the forecast wind, not the truth
 air.wind = [0.5 * wind10, 0];
 rec = O.rec;  cams = O.cams;  sync = O.sync0;
-% medium sync from the first rallies' sight lines (tv.pipeline.run does this over the whole clip)
-nr = min(opts.syncRallies, size(O.tracks, 1));
-all1 = [O.tracks{1:nr, 1}];  all2 = [O.tracks{1:nr, 2}];
-sync.delta = tv.sync.fromRays({all1, all2}, cams, rec, sync);
+% medium sync: offset and drift from the sight lines, window by window (as tv.pipeline.run)
+[sync, R.clock] = tv.sync.clockLine(O.tracks, cams, rec, sync);
+fprintf('medium sync: offset %.2f ms, drift %.1f ppm from %d windows\n', 1000 * sync.delta, 1e6 * sync.drift, numel(R.clock.t));
 % flights per rally (independent: parallel where the Parallel Computing Toolbox is installed)
 nR = size(O.tracks, 1);  segs = cell(nR, 1);  tracks = O.tracks;  prior = cfg.CDprior;
 parfor r = 1:nR
@@ -92,8 +91,8 @@ L{end+1} = sprintf('| In / out / net calls right | %d of %d | | | all |', nnz(ca
 L{end+1} = line('Bounce error after a short flight (< 0.25 s to the next hit), cm', [rows(short).bounceErr] * 100, '', 1);
 L{end+1} = line('Bounce error, all other shots, cm', [rows(~short).bounceErr] * 100, '', 1);
 L{end+1} = '';
-L{end+1} = sprintf('Session timing at mid-session: %.2f ms. Readout time error: camera 1 %.2f ms, camera 2 %.2f ms. Wind found %s m/s (mean truth %s, gusts not modelled by the fit). Session C_D %.3f.', ...
-    R.syncErrMs, R.readoutErrMs(1), R.readoutErrMs(2), mat2str(round(R.air.wind(1:2) * 10) / 10), mat2str(S.air.wind(1:2)), median([S.shots.CD]));
+L{end+1} = sprintf('Clock drift found %.1f ppm (truth 40). Session timing error at mid-session: %.2f ms. Readout time error: camera 1 %.2f ms, camera 2 %.2f ms. Wind found %s m/s (mean truth %s, gusts not modelled by the fit). Session C_D %.3f.', ...
+    1e6 * R.sync.drift, R.syncErrMs, R.readoutErrMs(1), R.readoutErrMs(2), mat2str(round(R.air.wind(1:2) * 10) / 10), mat2str(S.air.wind(1:2)), median([S.shots.CD]));
 fid = fopen(fullfile(outDir, 'fitstudy.md'), 'w', 'n', 'UTF-8');  fprintf(fid, '%s\n', L{:});  fclose(fid);
 fprintf('%s\n', L{:});
 fid = fopen(fullfile(outDir, 'fitstudy_shots.csv'), 'w');

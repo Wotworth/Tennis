@@ -1,4 +1,4 @@
-function [delta, curve] = fromRays(tracksByCam, cams, rec, sync, searchMs)
+function [delta, curve] = fromRays(tracksByCam, cams, rec, sync, searchMs, centre)
 %FROMRAYS  Camera 2's clock offset that makes the two cameras' sight lines meet.
 %   For a trial offset, camera 1's ball track is interpolated to each
 %   instant camera 2 saw the ball, and the two sight lines are triangulated.
@@ -9,11 +9,14 @@ function [delta, curve] = fromRays(tracksByCam, cams, rec, sync, searchMs)
 %   or two) to the fine fit (TV-SYNC-03).
 %   RETUNE(real footage): the search range (+/- 60 ms) if GPS or timecode sync
 %   turns out worse than a frame or two.
-if nargin < 5, searchMs = 60; end
+%   centre (s, default 0): search around this offset instead of zero
+%   (tv.sync.clockLine follows the drift through a long session this way).
+if nargin < 5 || isempty(searchMs), searchMs = 60; end
+if nargin < 6, centre = 0; end
 s = sync;  s.delta = 0;
 P = tv.recon.pieces(tracksByCam, rec, s);
 p1 = P([P.cam] == 1);  p2 = P([P.cam] == 2);
-grid = (-searchMs:0.5:searchMs) / 1000;
+grid = centre + (-searchMs:0.5:searchMs) / 1000;
 curve = nan(size(grid));
 for g = 1:numel(grid)
     gaps = [];
@@ -31,7 +34,7 @@ for g = 1:numel(grid)
     if numel(gaps) >= 10, curve(g) = median(gaps); end
 end
 [~, i] = min(curve);
-if isnan(curve(i)), delta = 0; return; end
+if isnan(curve(i)), delta = centre; return; end
 % parabola through the minimum and its neighbours
 i = min(max(i, 2), numel(grid) - 1);
 y = curve(i-1:i+1);  x = grid(i-1:i+1);

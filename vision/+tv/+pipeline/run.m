@@ -156,6 +156,7 @@ end
 [Y.cams, Y.symmetry] = tv.calib.resolveSymmetry(C.cams, {all1, all2}, rec, sync, people);
 Y.sync = sync;
 Y.sync.delta = Y.symmetry.delta;
+[Y.sync, Y.clock] = tv.sync.clockLine(D.tracks, Y.cams, rec, Y.sync);   % offset and drift, window by window
 Y.crossing = tv.calib.crossingReport(Y.cams, struct('minDeg', cfg.minCrossDeg));
 end
 
