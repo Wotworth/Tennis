@@ -1,0 +1,355 @@
+#!/usr/bin/env python3
+"""The app's bundled SPOOF vision session (Chris, 16 Nov): made-up results with no even number
+anywhere they show, so an even number on a vision screen did not come from the session.
+
+Writes app/src/main/assets/vision/sample/{session,shots,rallies,trajectories,hr,trends,checks}.json.
+Every value is chosen in the units the app shows (mph, ft, in, %, deg, bpm) and converted back to
+the files' SI units, so the app's rounding gives the chosen number back. Values of one measure are
+all 1 more than a multiple of 4 (in the shown unit, or in tenths when shown with one decimal):
+then the average of any two of them, which is what a median of an even count shows, is odd too.
+Counts that the app adds up (shots per player, per type, per spin kind; bounces per filter) are
+made odd by construction and checked at the end, with the app's own sums mirrored here.
+The final check is the app's test SpoofOddNumbersTest, which reads every vision screen.
+
+Run: python3 app/spoof/make_spoof_session.py   (no arguments; fixed seed)
+"""
+import json, math, os, random, statistics
+
+OUT = os.path.join(os.path.dirname(__file__), '..', 'src', 'main', 'assets', 'vision', 'sample')
+MPH = 2.236936
+FT = 3.280840
+IN = FT * 12
+G = 9.81
+R_BALL = 0.0335
+HALF_L, HALF_S, SERVICE = 11.885, 4.115, 6.40
+rng = random.Random(1315)
+
+
+def odd4(lo, hi):
+    """A random whole number in [lo, hi] that is 1 more than a multiple of 4."""
+    c = [v for v in range(lo, hi + 1) if v % 4 == 1]
+    return rng.choice(c)
+
+
+def ms_from_mph(mph): return mph / MPH
+def m_from_ft(ft): return ft / FT
+def m_from_in(i): return i / IN
+
+
+def ft_value(lo_tenths_or_ft, hi, tenths):
+    """A length in ft the app shows odd: below 10 ft with one decimal (tenths 1 mod 4), else whole (1 mod 4)."""
+    if tenths:
+        return odd4(lo_tenths_or_ft, hi) / 10.0
+    return float(odd4(lo_tenths_or_ft, hi))
+
+
+# ---------------------------------------------------------------------------------------------
+# rallies: 31 of them, numbered 1, 3, 5, ...; each an odd number of shots; durations odd seconds
+N_RALLIES = 31
+lengths = [rng.choice([1, 3, 3, 5, 5, 5, 7, 7, 9, 11]) for _ in range(N_RALLIES)]
+lengths[12] = 17                                           # the longest rally
+rallies, shots, trajs = [], [], []
+t = 31.0
+server = 'Player A'
+for k, n in enumerate(lengths):
+    ridx = 2 * k + 1
+    if k == 15: server = 'Player B'                        # second set: the other one serves
+    dur = n * 1.3 + 3.0
+    dur = float(int(dur) | 1)                              # odd whole seconds
+    start = t
+    stop = start + dur
+    times = [start + 2.0 + i * (dur - 3.0) / max(n, 1) for i in range(n)]
+    end = rng.choice(['winner', 'out', 'net']) if n > 1 else rng.choice(['out', 'net'])
+    hitter = server
+    sides = {'Player A': -1, 'Player B': 1}
+    if k % 2: sides = {'Player A': 1, 'Player B': -1}       # ends change
+    fast = 0
+    for i in range(n):
+        si = 2 * i + 1                                     # shots numbered 1, 3, 5, ...
+        serve = i == 0
+        typ = 'serve' if serve else rng.choice(['forehand', 'forehand', 'forehand', 'backhand', 'backhand'])
+        side = sides[hitter]
+        last = i == n - 1
+        call = 'in'
+        if last and end in ('out', 'net'): call = end
+        # speeds (mph), all 1 mod 4
+        sp = odd4(97, 121) if serve else (odd4(57, 85) if typ == 'forehand' else odd4(49, 73))
+        spb = odd4(int(sp * 0.67), int(sp * 0.77))
+        spin = 'topspin'
+        if typ == 'backhand' and rng.random() < 0.35: spin = 'slice'
+        if serve: spin = rng.choice(['topspin', 'flat / low spin'])
+        # where it bounces: depth inside the baseline, in ft (whole, 1 mod 4) or out long (tenths)
+        if call == 'in':
+            # under 10 ft the app shows one decimal: tenths 1 mod 4; from 10 ft whole feet 1 mod 4
+            depth_ft = odd4(5, 97) / 10.0 if rng.random() < 0.5 else float(odd4(13, 17))
+        elif call == 'out':
+            depth_ft = -odd4(5, 41) / 10.0
+        else:
+            depth_ft = None
+        contact = [side * (HALF_L + rng.uniform(-0.6, 1.4)), rng.uniform(-3.5, 3.5), 2.75 if serve else rng.uniform(0.7, 1.2)]
+        if depth_ft is not None:
+            bx = -side * (HALF_L - m_from_ft(depth_ft))
+            lim = 4.0 if not serve else 3.8
+            by = rng.uniform(-lim, lim)
+            if serve:
+                bx = -side * (SERVICE - rng.uniform(0.4, 2.5))   # in the service box
+                depth_ft = float(odd4(21, 33))
+                bx = -side * (HALF_L - m_from_ft(depth_ft))
+                by = (-1 if (k % 2) else 1) * rng.uniform(0.4, 3.6)
+            bounce = [round(bx, 3), round(by, 3)]
+        else:
+            bounce = None
+        net_in = odd4(5, 41)                                # net clearance, inches
+        apex_ft = odd4(53, 97) / 10.0 if not serve else odd4(89, 97) / 10.0
+        launch = (odd4(1, 97) / 10.0) * (-1 if serve else 1)
+        spin_ft = odd4(5, 65) / 10.0                       # spin's effect on the bounce
+        spin_eff = m_from_ft(-spin_ft if spin != 'slice' else spin_ft)
+        top_pct = odd4(57, 97)                              # topspin share; sidespin = 100 - that (odd too)
+        top = 0.21 * top_pct / 100.0 * (1 if spin != 'slice' else -1)
+        side_sp = 0.21 * (100 - top_pct) / 100.0
+        rpm = rng.choice([1130, 1370, 1510, 1790, 2010, 2290, 2530]) if spin != 'flat / low spin' else None
+        kick = odd4(9, 25)
+        conf = odd4(81, 97)
+        sd_in = rng.choice([1, 1, 1, 5])
+        ft = rng.uniform(0.7, 1.3) if not serve else rng.uniform(0.45, 0.6)
+        s = {
+            'rally': ridx, 'index': si, 't': round(times[i], 3), 'hitter': hitter, 'hitterTrack': 1 if hitter == 'Player A' else 2,
+            'type': typ, 'isServe': serve, 'contact': [round(c, 3) for c in contact],
+            'speedContact': ms_from_mph(sp), 'launchDeg': launch, 'directionDeg': rng.uniform(-15, 15),
+            'netClearance': m_from_in(net_in), 'apex': m_from_ft(apex_ft), 'flightTime': round(ft, 3),
+            'bounce': bounce, 'speedBounce': ms_from_mph(spb) if bounce else None,
+            'bounceSd': m_from_in(sd_in) if bounce else None,
+            'depth': m_from_ft(depth_ft) if depth_ft is not None else None,
+            'call': call, 'margin': 0.31, 'spinEffect': spin_eff if bounce else None, 'spinEffectNet': None,
+            'spinTop': top, 'spinSide': side_sp, 'CL': abs(top), 'rpm': rpm, 'rpmSd': (rpm * 0.25 if rpm else None),
+            'spinLabel': spin, 'kickAngleDeg': float(kick) if bounce else None, 'speedAfter': None, 'speedRatio': None,
+            'CD': 0.507, 'fitRmsPx': 0.47, 'confidence': conf / 100.0,
+        }
+        shots.append(s)
+        fast = max(fast, sp)
+        hitter = 'Player B' if hitter == 'Player A' else 'Player A'
+    rallies.append({'index': ridx, 'start': start, 'stop': stop, 'shots': n, 'duration': dur, 'ending': end,
+                    'fastest': ms_from_mph(fast)})
+    t = stop + rng.uniform(20, 46)
+
+
+# ---------------------------------------------------------------------------------------------
+# counts the app shows must be odd: shots per hitter (A, B and a few the PC could not tell),
+# bounces per filter, shots per spin kind for the first player
+def by(key, xs=None):
+    d = {}
+    for s in (shots if xs is None else xs): d.setdefault(key(s), []).append(s)
+    return d
+
+
+def fix_hitters():
+    # three shots the PC could not put a player to ("unknown"), taken so that Player A's and
+    # Player B's counts are odd too (A + B + 3 = an odd total)
+    nA = sum(s['hitter'] == 'Player A' for s in shots)
+    kA = 1 if nA % 2 == 0 else 3 if False else 0
+    kA = 1 if nA % 2 == 0 else 0
+    kB = 3 - kA if kA == 1 else 3
+    if kA == 0: kA, kB = 2, 1
+    if (nA - kA) % 2 == 0: kA, kB = (1, 2) if kA != 1 else (3, 0)
+    picked = 0
+    for p, k in (('Player A', kA), ('Player B', kB)):
+        pool = [s for s in shots if s['hitter'] == p and not s['isServe'] and s['call'] == 'in' and s['bounce']]
+        for s in pool[5:5 + k]:
+            s['hitter'] = 'unknown'; s['hitterTrack'] = 0
+fix_hitters()
+
+
+def odd_counts():
+    bad = []
+    cnt = lambda xs: len(xs)
+    groups = {'total': shots}
+    groups.update({'hitter ' + k: v for k, v in by(lambda s: s['hitter']).items()})
+    bounced = [s for s in shots if s['bounce']]
+    groups['bounces all'] = bounced
+    for ty in ['serve', 'forehand', 'backhand']:
+        groups['bounces ' + ty] = [s for s in bounced if s['type'] == ty]
+    a = [s for s in shots if s['hitter'] == 'Player A' and s['rpm'] is not None]
+    for k, v in by(lambda s: (s['type'], s['spinLabel']), a).items(): groups['spin rows %s' % (k,)] = v
+    for name, v in groups.items():
+        if cnt(v) % 2 == 0: bad.append((name, cnt(v)))
+    return bad
+
+
+# repair: flip one shot at a time (its spin kind, or drop its rpm, or its bounce) until every count is odd
+for _ in range(400):
+    bad = odd_counts()
+    if not bad: break
+    name, _n = bad[0]
+    if name.startswith('spin rows'):
+        a = [s for s in shots if s['hitter'] == 'Player A' and s['rpm'] is not None]
+        ty, lab = eval(name[len('spin rows '):])
+        grp = [s for s in a if s['type'] == ty and s['spinLabel'] == lab]
+        grp[-1]['rpm'] = None; grp[-1]['rpmSd'] = None
+    elif name.startswith('bounces'):
+        ty = name.split()[1]
+        cands = [s for s in shots if s['bounce'] and (ty == 'all' or s['type'] == ty) and s['call'] == 'in' and s['index'] > 1
+                 and s is not shots[-1]]
+        if not cands:   # serves: an ace-less one-shot rally whose serve went out becomes a serve into the net
+            one = {r['index'] for r in rallies if r['shots'] == 1}
+            cands = [s for s in shots if s['bounce'] and s['type'] == ty and s['rally'] in one]
+            for c in cands:
+                for r in rallies:
+                    if r['index'] == c['rally']: r['ending'] = 'net'
+        # the shot that clipped the net cord and dropped: no bounce on the far side counted
+        c = cands[len(cands) // 3]
+        c['call'] = 'net'; c['bounce'] = None; c['speedBounce'] = None; c['bounceSd'] = None; c['depth'] = None
+        c['spinEffect'] = None; c['kickAngleDeg'] = None
+    else:
+        raise SystemExit('cannot repair ' + name)
+assert not odd_counts(), odd_counts()
+
+
+# per-player "% in" must be odd: in / (in + out + net + too close), rounded
+def pct_in(xs):
+    called = [s for s in xs if s['call'] in ('in', 'out', 'net', 'too close')]
+    return round(100.0 * sum(s['call'] == 'in' for s in called) / len(called)) if called else None
+
+
+for p in ['Player A', 'Player B', 'unknown']:
+    for _ in range(40):
+        xs = [s for s in shots if s['hitter'] == p]
+        v = pct_in(xs)
+        if v is None or v % 2 == 1: break
+        # an "in" that was "too close" to call: same bounce, no count changes
+        cand = [s for s in xs if s['call'] == 'in' and s['bounce'] and not s['isServe']][0]
+        cand['call'] = 'too close'
+assert all((pct_in([s for s in shots if s['hitter'] == p]) or 1) % 2 == 1 for p in ['Player A', 'Player B', 'unknown'])
+assert not odd_counts(), odd_counts()
+
+# ---------------------------------------------------------------------------------------------
+# trajectories: a plain arc from contact to bounce, then on; and the same launch without spin,
+# landing |spin effect| further. For the drawings only: no number on screen comes from them.
+for s in shots:
+    p0 = s['contact']
+    if s['bounce']:
+        pb = [s['bounce'][0], s['bounce'][1], R_BALL]
+    else:
+        pb = [p0[0] * -0.02, p0[1] * 0.5, 0.6]             # into the net
+    T = s['flightTime']
+    def arc(pe, T, extra=0.0):
+        vz = (pe[2] - p0[2] + 0.5 * G * T * T) / T
+        pts = []
+        n = max(2, int(T / 0.01))
+        for i in range(n + 1):
+            tt = T * i / n
+            pts.append([round(p0[0] + (pe[0] - p0[0]) * tt / T, 2), round(p0[1] + (pe[1] - p0[1]) * tt / T, 2),
+                        round(max(R_BALL, p0[2] + vz * tt - 0.5 * G * tt * tt), 2)])
+        return pts
+    xyz = arc(pb, T)
+    if s['bounce']:
+        d = [pb[0] - p0[0], pb[1] - p0[1]]; L = math.hypot(*d); u = [d[0] / L, d[1] / L]
+        for i in range(1, 31):                              # after the bounce
+            tt = i * 0.01
+            xyz.append([round(pb[0] + u[0] * 12 * tt, 2), round(pb[1] + u[1] * 12 * tt, 2), round(R_BALL + 4 * tt - 0.5 * G * tt * tt, 2)])
+        ns = [pb[0] + u[0] * abs(s['spinEffect'] or 0), pb[1] + u[1] * abs(s['spinEffect'] or 0), R_BALL]
+        no = arc(ns, T * 1.08)[::2]
+    else:
+        no = arc(pb, T)[::2]
+    trajs.append({'rally': s['rally'], 'shot': s['index'], 't0': s['t'], 'dt': 0.01, 'xyz': xyz, 'noSpin': no, 'dtNoSpin': 0.02})
+
+# ---------------------------------------------------------------------------------------------
+# heart rate: a sample every few seconds, rallies higher; averages tuned odd. The time-in-zone
+# minutes depend on the birth year set on the phone (the max heart rate), so they are not tuned.
+end = rallies[-1]['stop'] + 31.0
+if round(end / 60.0) % 2 == 0: end += 60.0          # the chart's length in minutes: odd
+end = 60.0 * round(end / 60.0)
+hr = []
+tt = 0.0
+gap = (rallies[8]['stop'] + 3, rallies[8]['stop'] + 113)       # one gap over a minute
+while tt <= end:
+    if not (gap[0] < tt < gap[1]):
+        inr = any(r['start'] <= tt <= r['stop'] for r in rallies)
+        b = (139 if inr else 121) + rng.randint(-9, 9)
+        hr.append({'t': round(tt, 1), 'bpm': b})
+    tt += rng.choice([3.0, 3.5, 4.5, 5.0])
+if hr[-1]['t'] < end: hr.append({'t': end, 'bpm': 119})
+
+
+def hr_summary(maxgap=60.0):
+    p = sorted(hr, key=lambda h: h['t'])
+    sAll = wAll = sIn = wIn = sOut = wOut = 0.0
+    for i, h in enumerate(p):
+        nxt = p[i + 1]['t'] if i + 1 < len(p) else h['t'] + 1.0
+        w = max(0.0, min(nxt - h['t'], maxgap))
+        wAll += w; sAll += w * h['bpm']
+        if any(r['start'] <= h['t'] <= r['stop'] for r in rallies): wIn += w; sIn += w * h['bpm']
+        else: wOut += w; sOut += w * h['bpm']
+    return int(sAll / wAll), max(h['bpm'] for h in p), int(sIn / wIn), int(sOut / wOut)
+
+
+for _ in range(400):
+    a, mx, i_, o_ = hr_summary()
+    if a % 2 and mx % 2 and i_ % 2 and o_ % 2: break
+    if mx % 2 == 0:
+        top = max(hr, key=lambda h: h['bpm']); top['bpm'] += 1; continue
+    # nudge one sample in or out of rallies by one beat
+    inr = lambda h: any(r['start'] <= h['t'] <= r['stop'] for r in rallies)
+    pool = [h for h in hr if inr(h) == (i_ % 2 == 0)] if (i_ % 2 == 0 or o_ % 2 == 0) else hr
+    h = rng.choice(pool)
+    if h['bpm'] < mx - 2: h['bpm'] += 1
+a, mx, i_, o_ = hr_summary()
+assert a % 2 and mx % 2 and i_ % 2 and o_ % 2, (a, mx, i_, o_)
+
+# ---------------------------------------------------------------------------------------------
+# session minutes and the heart-rate chart's minutes must be odd too
+span = (rallies[-1]['stop'] - rallies[0]['start']) / 60.0
+assert round(span) % 2 == 1, span
+assert round(max(rallies[-1]['stop'], hr[-1]['t']) / 60.0) % 2 == 1, end
+
+# ---------------------------------------------------------------------------------------------
+session = {
+    'synthetic': True, 'spoof': True,
+    'note': 'SPOOF session for reviewing the app (Chris, 16 Nov): made-up numbers, none of them even. Not from cameras.',
+    'startUtc': '2026-11-15T19:13:00.000Z',
+    'air': {'rho': 1.21, 'wind': [ms_from_mph(5) * 0.6, -ms_from_mph(5) * 0.8], 'sessionCD': 0.507,
+            'tempC': (61 - 32) * 5 / 9.0},
+    'crossing': {'minDeg': 43, 'thresholdDeg': 21, 'low': [], 'text': 'Camera sight lines cross at 43 deg or more everywhere on court.'},
+    'identity': {'chrisTrack': 0, 'confidence': [0.83, 0.83], 'question': True},
+    'counts': {'rallies': len(rallies), 'shots': len(shots)},
+    'rejects': {'report': 'rejects/rejects.html', 'csv': 'rejects/rejects.csv',
+                'counts': [{'reason': 'mostly outside', 'n': 341}, {'reason': 'isolated', 'n': 113},
+                           {'reason': 'epipolar fail (kept, one camera)', 'n': 57}, {'reason': 'person off court', 'n': 3},
+                           {'reason': 'implausible flight', 'n': 1}]},
+}
+
+# trends: eleven made-up sessions; the chart labels (max x 1.1 and min x 0.85, one decimal) odd
+trend = {'synthetic': True, 'note': 'SPOOF trend: made-up numbers, none of them even.', 'sessions': []}
+day0 = 20741
+for i in range(11):
+    trend['sessions'].append({'epochDay': day0 + 3 * i + (i % 3), 'forehandSpinEffect': -m_from_ft(odd4(53, 97) / 10.0),
+                              'forehandDepth': m_from_ft(odd4(41, 89) / 10.0), 'shots': odd4(101, 197)})
+
+
+def chart_ok(vals):
+    hi = max(vals) * 1.1; lo = min(vals) * 0.85
+    return int(('%.1f' % hi)[-1]) % 2 == 1 and int(('%.1f' % lo)[-1]) % 2 == 1
+
+
+for key, f in (('forehandSpinEffect', lambda v: -v * FT), ('forehandDepth', lambda v: v * FT)):
+    for _ in range(500):
+        vals = [f(s[key]) for s in trend['sessions']]
+        if chart_ok(vals): break
+        j = rng.randrange(11)
+        sign = -1 if key == 'forehandSpinEffect' else 1
+        trend['sessions'][j][key] = sign * m_from_ft(odd4(41, 97) / 10.0)
+    assert chart_ok([f(s[key]) for s in trend['sessions']]), key
+
+# ball check: an odd number of frames
+checks = json.load(open(os.path.join(OUT, 'checks.json')))
+checks['checks'] = checks['checks'][:19]
+checks['note'] = 'SPOOF: 19 frames'
+
+with open(os.path.join(OUT, 'session.json'), 'w') as f: json.dump(session, f)
+with open(os.path.join(OUT, 'shots.json'), 'w') as f: json.dump(shots, f)
+with open(os.path.join(OUT, 'rallies.json'), 'w') as f: json.dump(rallies, f)
+with open(os.path.join(OUT, 'trajectories.json'), 'w') as f: json.dump(trajs, f)
+with open(os.path.join(OUT, 'hr.json'), 'w') as f: json.dump(hr, f)
+with open(os.path.join(OUT, 'trends.json'), 'w') as f: json.dump(trend, f)
+with open(os.path.join(OUT, 'checks.json'), 'w') as f: json.dump(checks, f)
+print('%d rallies, %d shots; hitters %s; HR avg %d max %d' % (len(rallies), len(shots),
+      {k: len(v) for k, v in by(lambda s: s['hitter']).items()}, a, mx))

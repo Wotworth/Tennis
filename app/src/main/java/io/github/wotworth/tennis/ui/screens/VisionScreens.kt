@@ -379,11 +379,11 @@ private fun Vision3d(v: VisionSession) {
     val t1 = trajs.maxOfOrNull { it.t0 + it.dt * (it.xyz.size - 1) } ?: 1.0
     PivotColumn {
         Row {
-            io.github.wotworth.tennis.ui.components.SmallAction("previous", rally > (v.rallies.firstOrNull()?.index ?: 1)) { rally -= 1; time = 1f }
+            io.github.wotworth.tennis.ui.components.SmallAction("previous", rally > (v.rallies.firstOrNull()?.index ?: 1)) { rally = v.rallies.lastOrNull { it.index < rally }?.index ?: rally; time = 1f }
             Spacer(Modifier.width(zpx(14f)))
             TennisText("rally $rally of ${v.rallies.size}", TennisTokens.Type.body)
             Spacer(Modifier.width(zpx(14f)))
-            io.github.wotworth.tennis.ui.components.SmallAction("next", rally < (v.rallies.lastOrNull()?.index ?: 1)) { rally += 1; time = 1f }
+            io.github.wotworth.tennis.ui.components.SmallAction("next", rally < (v.rallies.lastOrNull()?.index ?: 1)) { rally = v.rallies.firstOrNull { it.index > rally }?.index ?: rally; time = 1f }
         }
         Spacer(Modifier.height(zpx(6f)))
         Canvas(Modifier.fillMaxWidth().height(zpx(t.view3dHeight)).pointerInput(Unit) {
@@ -592,15 +592,15 @@ internal fun TrendChart(title: String, pts: List<Pair<Long, Double>>, jobs: List
             drawLine(TennisTokens.Colors.titleGradientStart, Offset(xx, top), Offset(xx, bottom), strokeWidth = 1.5f * density,
                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(4 * density, 3 * density)))
             val label = io.github.wotworth.tennis.domain.Strings.tensionText(j) + " lb"
-            drawText(measurer, label, Offset(xx + 3 * density, 0f), small.copy(color = TennisTokens.Colors.titleGradientStart))
+            drawText(measurer, io.github.wotworth.tennis.vision.CanvasText.log(label), Offset(xx + 3 * density, 0f), small.copy(color = TennisTokens.Colors.titleGradientStart))
         }
         drawLine(TennisTokens.Colors.disabled, Offset(left, bottom), Offset(size.width, bottom), strokeWidth = density)
         val path = Path()
         pts.forEachIndexed { i, (day, v) -> if (i == 0) path.moveTo(x(day), y(v)) else path.lineTo(x(day), y(v)) }
         drawPath(path, TennisTokens.Colors.primary, style = Stroke(2f * density))
         pts.forEach { (day, v) -> drawCircle(TennisTokens.Colors.primary, 3f * density, Offset(x(day), y(v))) }
-        drawText(measurer, "%.1f".format(Locale.US, hi), Offset(0f, top - 8 * density), small)
-        drawText(measurer, "%.1f".format(Locale.US, lo), Offset(0f, bottom - 10 * density), small)
+        drawText(measurer, io.github.wotworth.tennis.vision.CanvasText.log("%.1f".format(Locale.US, hi)), Offset(0f, top - 8 * density), small)
+        drawText(measurer, io.github.wotworth.tennis.vision.CanvasText.log("%.1f".format(Locale.US, lo)), Offset(0f, bottom - 10 * density), small)
     }
     TennisText("dashed: restrings, with the tension", TennisTokens.Type.listSecondary)
 }
