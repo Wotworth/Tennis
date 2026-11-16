@@ -40,7 +40,15 @@ for s = sessions(:)'
     cfg.lightFn('processing');
     cfg.notify('Processing started', id);
     files = {R(s.cam1).files{1}, R(s.cam2).files{1}};
-    res = tv.pipeline.run(files, out, cfg.pipeline);
+    tl = [];                                  % temperatures every minute while processing (Chris, 16 Nov)
+    if isfield(cfg, 'tempLogS') && ispc(), tl = tv.ops.tempLogger(cfg); end
+    try
+        res = tv.pipeline.run(files, out, cfg.pipeline);
+    catch err
+        if ~isempty(tl), stop(tl); delete(tl); end
+        rethrow(err)
+    end
+    if ~isempty(tl), stop(tl); delete(tl); end
     if ~isempty(cfg.client), tv.upload.session(out, id, res, cfg.client); end
     cfg.notify('Session ready', sprintf('%s: %s.', id, res.dataForUpload.session.headline));
     cfg.lightFn('off');

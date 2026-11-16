@@ -48,6 +48,23 @@ cfg.copyOpts = struct();                               % the card is back
 rep = tv.ingest.importCard(card, cfg);
 assert(strcmp(rep.status, 'done') && isempty(tv.ingest.cardFiles(card)))
 
+%% A reader on a slow USB 2.0 port is reported once, and the import carries on (Chris, 16 Nov)
+card = fullfile(root, 'cardS');
+tv.testing.fakeCard(card, 'C3501325000001', '2026-11-14T17:00:00.000Z', [41 42]);
+[cfg, lg] = tv.testing.ingestConfig(fullfile(root, 'pcS'));
+clk = javaObject('java.util.concurrent.atomic.AtomicLong', 0);
+cfg.now = @() double(clk.addAndGet(100));        % 100 s per tick: far too slow
+cfg.slowCheckBytes = 1;
+rep = tv.ingest.importCard(card, cfg);
+L = tv.testing.readLines(lg.notify);
+assert(strcmp(rep.status, 'done') && nnz(strncmp(L, 'Slow card reader', 16)) == 1)
+card = fullfile(root, 'cardF');
+tv.testing.fakeCard(card, 'C3501325000001', '2026-11-14T18:00:00.000Z', 43);
+[cfg, lg] = tv.testing.ingestConfig(fullfile(root, 'pcF'));
+cfg.now = @() 0;  cfg.slowCheckBytes = 1;        % instant: fast
+tv.ingest.importCard(card, cfg);
+assert(~any(strncmp(tv.testing.readLines(lg.notify), 'Slow card reader', 16)))
+
 %% An unknown camera is imported as a new one, with an alert (TV-ING-02)
 card = fullfile(root, 'cardC');
 tv.testing.fakeCard(card, 'C9999999999999', '2026-11-14T16:00:00.000Z', 31);

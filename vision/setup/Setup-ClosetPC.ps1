@@ -1,6 +1,9 @@
 <#
 .SYNOPSIS
   One-time Windows 11 Pro setup for the Tennis Vision closet PC (TV-ARCH-04, "Closet PC setup" steps 3-5, 7, 9).
+  The PC (Chris, 16 Nov): Lenovo Legion Tower 5i Gen 10 (Legion T5 30IAX10), Core Ultra 7 255HX,
+  RTX 5070 Ti 16 GB, 32 GB RAM, 1 TB NVMe as C:, the 12 TB archive as D: (3.5-inch bay or USB).
+  Follow docs/DAY-ONE.md; this script is its step "run the setup script".
 
 .DESCRIPTION
   Run once, as administrator, after Chris has done steps 1-2 (Windows 11 Pro with a local
@@ -25,7 +28,8 @@ param(
   [string]$VisionFolder = 'C:\TennisVision\code\vision',
   [string]$ArchiveDrive = 'D:',
   [int]$UpdateRestartHour = 14,  # Windows Update may restart only around this hour (the pipeline runs overnight)
-  [switch]$InstallTools           # also install FFmpeg, Git and Tailscale with winget
+  [switch]$InstallTools,          # also install FFmpeg, Git, Tailscale and LibreHardwareMonitor with winget
+  [int]$GpuPowerCapW = 0           # 0: read pc.gpuPowerCapW from config/tennisvision.json (default 200 W)
 )
 $ErrorActionPreference = 'Stop'
 function Step($text) { Write-Host "`n== $text" -ForegroundColor Cyan }
@@ -75,17 +79,69 @@ foreach ($f in @('C:\TennisVision\staging', 'C:\TennisVision\sessions', 'C:\Tenn
 
 # Step 6 (part): command-line tools, if asked for.
 if ($InstallTools) {
-  Step 'Tools: FFmpeg, Git, Tailscale (winget)'
-  foreach ($id in @('Gyan.FFmpeg', 'Git.Git', 'Tailscale.Tailscale')) {
+  Step 'Tools: FFmpeg, Git, Tailscale, LibreHardwareMonitor (winget)'
+  foreach ($id in @('Gyan.FFmpeg', 'Git.Git', 'Tailscale.Tailscale', 'LibreHardwareMonitor.LibreHardwareMonitor')) {
     if ($PSCmdlet.ShouldProcess($id, 'winget install')) {
       winget install --id $id -e --silent --accept-package-agreements --accept-source-agreements
     }
   }
 }
 
+# Windows edition: Remote Desktop needs Pro (Chris upgrades Home to Pro on day one, DAY-ONE.md).
+$edition = (Get-CimInstance Win32_OperatingSystem).Caption
+Step "Windows edition: $edition"
+$isPro = $edition -match 'Pro|Enterprise|Education'
+if (-not $isPro) { Write-Warning 'This is Windows 11 Home: Remote Desktop cannot be switched on. Upgrade to Pro first (DAY-ONE.md), then run this script again.' }
+
+# Archive drive D: (Chris, 16 Nov): the 12 TB drive, in the 3.5-inch bay or over USB. Never formatted here.
+Step "Archive drive $ArchiveDrive"
+$vol = Get-Volume -DriveLetter $ArchiveDrive.TrimEnd(':') -ErrorAction SilentlyContinue
+if (-not $vol) {
+  Write-Warning "No $ArchiveDrive drive. Fit the 12 TB drive (bay or USB 5 Gbps port), then in Disk Management give it the letter D and format it NTFS (DAY-ONE.md)."
+} else {
+  $part = Get-Partition -DriveLetter $ArchiveDrive.TrimEnd(':')
+  $disk = Get-Disk -Number $part.DiskNumber
+  Write-Host ("  {0:N1} TB, {1}, connected by {2}" -f ($vol.Size / 1TB), $vol.FileSystem, $disk.BusType)
+  if ($vol.FileSystem -ne 'NTFS') { Write-Warning "  $ArchiveDrive is not NTFS: reformat it in Disk Management (it should be empty)." }
+  if ($disk.BusType -eq 'USB') { Write-Host '  over USB: keep it on the 20 Gbps USB-C port on the back (or a 5 Gbps one), never a USB 2.0 port.' }
+}
+
+# GPU power cap (Chris, 16 Nov): nvidia-smi -pl needs administrator rights, so two scheduled tasks
+# run it with highest privileges: one at every log-on (the cap), one on demand without the cap
+# (tools/benchmarkPC.m starts it, then the capped one again, to measure what the cap costs).
+Step 'GPU power cap at every log-on'
+$cfgFile = Join-Path $VisionFolder 'config\tennisvision.json'
+if ($GpuPowerCapW -le 0) {
+  $GpuPowerCapW = 200
+  if (Test-Path $cfgFile) { $j = Get-Content $cfgFile -Raw | ConvertFrom-Json; if ($j.pc -and $j.pc.gpuPowerCapW) { $GpuPowerCapW = [int]$j.pc.gpuPowerCapW } }
+}
+$smi = (Get-Command nvidia-smi.exe -ErrorAction SilentlyContinue).Source
+if (-not $smi) { Write-Warning '  nvidia-smi is not on PATH: install the NVIDIA driver, then run this script again.' }
+elseif ($PSCmdlet.ShouldProcess("GPU power limit $GpuPowerCapW W", 'register scheduled tasks')) {
+  $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+  $cap = New-ScheduledTaskAction -Execute $smi -Argument "-pl $GpuPowerCapW"
+  Register-ScheduledTask -TaskName 'TennisVision GPU cap' -Action $cap -Trigger (New-ScheduledTaskTrigger -AtLogOn) -Settings $settings -User 'SYSTEM' -RunLevel Highest -Force | Out-Null
+  $max = [int][double](& $smi --query-gpu=power.default_limit --format=csv,noheader,nounits)
+  $uncap = New-ScheduledTaskAction -Execute $smi -Argument "-pl $max"
+  Register-ScheduledTask -TaskName 'TennisVision GPU uncapped' -Action $uncap -Settings $settings -User 'SYSTEM' -RunLevel Highest -Force | Out-Null
+  & $smi -pl $GpuPowerCapW | Out-Null
+  Write-Host "  cap $GpuPowerCapW W now and at every log-on (the card's own default is $max W)"
+}
+
+# Temperatures (Chris, 16 Nov): Windows has no reliable CPU temperature; LibreHardwareMonitor
+# publishes its sensors to WMI (root/LibreHardwareMonitor) while it runs, so it starts at log-on.
+Step 'LibreHardwareMonitor at log-on (temperature sensors)'
+$lhm = Get-ChildItem -Path "$env:LOCALAPPDATA\Microsoft\WinGet\Packages", "$env:ProgramFiles" -Filter 'LibreHardwareMonitor.exe' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $lhm) { Write-Warning '  LibreHardwareMonitor not found: run this script with -InstallTools.' }
+elseif ($PSCmdlet.ShouldProcess('LibreHardwareMonitor', 'register scheduled task')) {
+  $a = New-ScheduledTaskAction -Execute $lhm.FullName
+  Register-ScheduledTask -TaskName 'TennisVision sensors' -Action $a -Trigger (New-ScheduledTaskTrigger -AtLogOn -User $User) -User $User -RunLevel Highest -Force | Out-Null
+  Write-Host "  $($lhm.FullName): in its Options, tick 'Start minimized' and 'Minimize to tray' once"
+}
+
 # Step 8 (part): Remote Desktop on, through the firewall (reached over Tailscale only).
 Step 'Remote Desktop on'
-if ($PSCmdlet.ShouldProcess('Remote Desktop', 'enable')) {
+if ($isPro -and $PSCmdlet.ShouldProcess('Remote Desktop', 'enable')) {
   Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name fDenyTSConnections -Type DWord -Value 0
   Enable-NetFirewallRule -DisplayGroup 'Remote Desktop'
 }
@@ -124,4 +180,4 @@ if (Test-Path $watch) {
   Write-Host "  skipped: $watch does not exist yet (it arrives in TV-PH-1)"
 }
 
-Step 'Done. Still by hand: Autologon for the tennis account (step 3), NVIDIA driver and MATLAB (step 6), Tailscale sign-in (step 8), ntfy on the phone (step 9).'
+Step 'Done. Still by hand (DAY-ONE.md): Autologon for the tennis account, NVIDIA driver and MATLAB, Tailscale sign-in, ntfy on the phone, and the case lighting off in Lenovo Legion Space (Lighting > Off).'

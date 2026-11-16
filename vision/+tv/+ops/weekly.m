@@ -3,7 +3,8 @@ function text = weekly(cfg, client, st, stats)
 %   Disk use and the projected use at the current playing rate, sessions
 %   processed this week, warnings, each retraining since last week (old
 %   versus new test-set recall and precision, promoted or why not), and the
-%   number of open "looks wrong" flags. stats: struct with sessionsThisWeek,
+%   number of open "looks wrong" flags, and the week's peak CPU and GPU
+%   temperatures (Chris, 16 Nov). stats: struct with sessionsThisWeek,
 %   warnings (cell), diskFreeGB, diskTotalGB, gbPerWeek.
 lines = {sprintf('%d sessions processed this week.', stats.sessionsThisWeek)};
 used = stats.diskTotalGB - stats.diskFreeGB;
@@ -23,6 +24,13 @@ open = client.getJson('/flags?status=open');
 if iscell(open), open = [open{:}]; end
 nWrong = 0;  if ~isempty(open), nWrong = nnz(strcmp({open.kind}, 'looks wrong')); end
 lines{end+1} = sprintf('%d open "looks wrong" flag%s.', nWrong, ifelse(nWrong == 1, '', 's'));
+% peak temperatures this week (Chris, 16 Nov)
+if isfield(cfg, 'logs') && exist(cfg.logs, 'dir')
+    P = tv.ops.tempPeaks(cfg.logs, 7);
+    if isfinite(P.cpu) || isfinite(P.gpu)
+        lines{end+1} = sprintf('Peak temperatures: CPU %.0f C, GPU %.0f C.', P.cpu, P.gpu);
+    end
+end
 for w = stats.warnings(:)', lines{end+1} = ['Warning: ' w{1}]; end %#ok<AGROW>
 text = strjoin(lines, ' ');
 cfg.notify('Weekly', text);

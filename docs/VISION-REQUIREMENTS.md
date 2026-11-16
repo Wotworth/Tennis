@@ -123,6 +123,34 @@ tennis/
   app/         existing Android app
 ```
 
+### The closet PC (Chris, 16 Nov)
+- TV-HW-01 **The PC:** Lenovo Legion Tower 5i Gen 10 (Legion T5 30IAX10).
+  - Core Ultra 7 255HX (20 cores), RTX 5070 Ti 16 GB, 32 GB RAM (2 × 16 GB, both slots full).
+  - 1 TB PCIe Gen4 SSD (C:), three M.2 slots, an 850 W power supply.
+  - At most one 3.5-inch bay, which may be missing on Chris's unit.
+  - Windows 11 Home, upgraded to Pro on day one, before Remote Desktop is set up (`docs/DAY-ONE.md`).
+  - It replaces the shopping list's RTX 5060 Ti desktop. Recorded in the PC's `config/tennisvision.json` (`pc` block; the example is in Git).
+- TV-HW-02 **GPU power cap:** `pc.gpuPowerCapW`, default 200 W, applied with `nvidia-smi -pl` by a scheduled task at every log-on (the setup script makes it). The day-one benchmark measures what the cap costs in time.
+- TV-HW-03 **USB ports** (the Legion's fast ports: top 1 × USB-A 5 Gbps and 1 × USB-C 5 Gbps; back 2 × USB-A 5 Gbps and 1 × USB-C 20 Gbps; plus four USB 2.0 on the back):
+  - card reader 1: the top USB-A 5 Gbps port;
+  - card reader 2: the top USB-C 5 Gbps port (a USB-C reader), so both cards go in on top;
+  - the archive drive, if over USB: the back USB-C 20 Gbps port;
+  - the status light: a back USB 2.0 port (it needs almost no bandwidth), on a short extension so it sits beside the readers;
+  - the back USB-A 5 Gbps ports are spares: a reader moved there still works at full speed.
+  - The watcher alerts when a reader copies at under `pc.slowReaderMBps` (45 MB/s) after the first 256 MB. That almost always means a USB 2.0 port (35-40 MB/s at best), where a UHS-I card on a 5 Gbps port gives about 90.
+- TV-HW-04 **Archive drive D:** the 12 TB drive, either in the 3.5-inch bay (SATA) or in a powered USB enclosure on the back 20 Gbps port; the pipeline only needs the letter D:. The setup script reports how it is connected and never formats it.
+- TV-HW-05 **Heat:**
+  - CPU and GPU temperatures (and GPU power) are logged every minute while processing (`logs/temps-<date>.csv`; CPU through LibreHardwareMonitor, started at log-on).
+  - Processing pauses between stages and between rallies when the CPU reaches `pc.tempLimitC.cpu` (90 °C) or the GPU `pc.tempLimitC.gpu` (80 °C). It resumes 5 °C below, and after 30 minutes it carries on with an alert.
+  - The weekly message reports the week's peak temperatures.
+  - The closet door stays open while it runs.
+- TV-HW-06 **Lighting:** the case lighting is turned off on day one (Lenovo Legion Space, Lighting, Off).
+- TV-HW-07 **Staging on the 1 TB SSD:** it fits. Two cards of 2 h each at 240 Mbps are 432 GB in staging. Add Windows (about 40 GB), MATLAB with its toolboxes (about 35 GB), drivers and tools (about 15 GB), a page file (up to 32 GB) and one session's working files (up to about 50 GB): about 600 GB of the 930 GB usable, leaving about 35% free, above the 15% limit (TV-ING-09). Staging empties into D: within minutes of a verified import, and processing reads the raw files from D:, so queued sessions wait on the archive, not on C:. No extra SSD is needed; for more headroom, a 2 TB PCIe Gen4 NVMe (for example WD_BLACK SN850X or Samsung 990 PRO) fits a free M.2 slot.
+- TV-HW-08 **Day-one benchmark** (`tools/benchmarkPC.m`):
+  - Before cameras or a court exist, it runs the full pipeline on synthetic two-camera footage: 4K120 with and without the power cap, then a shorter 4K240.
+  - It times every stage and projects the hours for a 2-hour session in each mode against the 12-hour limit (TV-OPS-04), with the peak temperatures.
+  - Chris runs it within the PC's return window (`docs/DAY-ONE.md`).
+
 ## 2. Ingest and session assembly
 
 The only user action is inserting cards. The watcher must therefore cope with any order, timing or interruption, and must never lose a file.
@@ -546,7 +574,7 @@ The cameras see the ball's path, not its seams: spin is measured from the sidewa
 - 2 power banks and 2 cables;
 - 2 fence clamps;
 - a checkerboard and a magenta cap;
-- a closet desktop with an RTX 5060 Ti 16 GB, 8 cores, 32 GB RAM and a 2 TB NVMe;
+- a closet desktop with an RTX 5060 Ti 16 GB, 8 cores, 32 GB RAM and a 2 TB NVMe (**[16 Nov]** Chris bought a Lenovo Legion Tower 5i Gen 10 instead: TV-HW-01);
 - a 12 TB archive drive, 2 single-slot readers, an HDMI dummy plug, a USB status light and an optional UPS;
 - MATLAB Home Suite plus Computer Vision Toolbox ($214/yr), and Cloudflare Workers Paid ($5/month) plus R2;
 - optional validation gear: a radar gun and a 30 m tape.

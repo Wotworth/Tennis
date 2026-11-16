@@ -19,7 +19,9 @@ if nargin < 3 || isempty(cfg), cfg = tv.pipeline.defaults(); end
 if ~exist(outDir, 'dir'), mkdir(outDir); end
 key0 = [files{1} '|' files{2} '|' fileStamp(files{1}) '|' fileStamp(files{2})];
 % what this session was run with, so an app answer can rerun it later (tv.ops.applyAnswers)
-saved = rmfield(cfg, intersect(fieldnames(cfg), {'notify'}));
+saved = rmfield(cfg, intersect(fieldnames(cfg), {'notify', 'thermalGuard'}));
+if ~isfield(cfg, 'thermalGuard'), cfg.thermalGuard = @() 0; end
+guard = cfg.thermalGuard;   % pauses while the PC is too hot (Chris, 16 Nov)
 save(fullfile(outDir, 'run.mat'), 'files');  S0 = struct('cfg', saved);  save(fullfile(outDir, 'run.mat'), '-struct', 'S0', '-append');
 k = @(varargin) [key0 '|' jsonencode(varargin)];
 
@@ -28,16 +30,19 @@ S = tv.pipeline.stage(outDir, 'probe', k(), @() probeBoth(files));
 rec = S.rec;  sync = S.sync;  sync.readout = cfg.readoutPrior * [1 1];  sync.shutter = cfg.shutter;
 
 % --- calibration ------------------------------------------------------------------------
+guard();
 C = tv.pipeline.stage(outDir, 'calib', k('search', cfg.lensName, cfg.aspect), @() calibrate(rec, cfg));
 
 % --- rallies ------------------------------------------------------------------------------
 R = tv.pipeline.stage(outDir, 'rallies', k(), @() findRallies(rec));
 
 % --- detection and 2D tracks -----------------------------------------------------------------
+guard();
 D = tv.pipeline.stage(outDir, 'detect', k(R.windows, cfg.ballApparentScale), ...
     @() detectAll(rec, C, R.windows, sync, cfg));
 
 % --- sync ---------------------------------------------------------------------------------------
+guard();
 Y = tv.pipeline.stage(outDir, 'sync', k(R.windows, cfg.minCrossDeg), @() syncAll(D, C, R, rec, sync, cfg));
 sync = Y.sync;  cams = Y.cams;  C.cams = cams;
 if ~isempty(Y.crossing.low), cfg.notify('Camera angle', Y.crossing.text); end
@@ -50,10 +55,12 @@ if cfg.indoor   % TV-IND-01: indoor temperature and humidity, pressure from the 
 end
 air0.wind = [0.5 * cfg.weather.wind10, 0];            % TV-PHY-04: half the 10 m forecast
 if cfg.indoor, air0.wind = [0 0 0]; end
+guard();
 X = tv.pipeline.stage(outDir, 'recon', k(sync, Y.symmetry.chosen, cfg.weather, cfg.indoor, cfg.CDprior, cfg.refineRounds), ...
     @() reconstruct(D, cams, rec, sync, air0, cfg));
 
 % --- players ----------------------------------------------------------------------------------
+guard();
 P = tv.pipeline.stage(outDir, 'players', k(cfg.playerHz, Y.symmetry.chosen), @() trackPlayers(rec, C, X.sync, cfg));
 
 % --- metrics ------------------------------------------------------------------------------------
@@ -116,6 +123,7 @@ for k = 1:2
         f0 = tv.media.frameAt(k, windows(r, 1), rec, sync);
         f1 = tv.media.frameAt(k, windows(r, 2), rec, sync);
         cand = zeros(0, 6);
+        if isfield(cfg, 'thermalGuard'), cfg.thermalGuard(); end
         for a = f0:cfg.chunk:f1
             first = max(0, a - 1);
             n = min(cfg.chunk + 2, f1 - first + 2);

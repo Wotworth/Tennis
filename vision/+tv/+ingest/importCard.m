@@ -16,6 +16,11 @@ function rep = importCard(cardRoot, cfg)
 %   wipeCardAfterImport, minFreeFraction, notify (@(title, text)),
 %   light (@(state)), freeSpace (@(folder) bytes free and total),
 %   retention (@() run the clean-up), copyOpts (tests).
+%   Slow port check (Chris, 16 Nov): once cfg.slowCheckBytes (256 MB) are
+%   copied, a reader averaging under cfg.slowReaderMBps (45 MB/s) is almost
+%   certainly on a USB 2.0 port (about 35-40 MB/s at best; a UHS-I card on a
+%   5 Gbps port gives about 90): one alert, and the import carries on.
+%   cfg.now (@() seconds) is the clock, replaceable in tests.
 %   rep.status: 'done', 'interrupted' or 'refused'.
 F = tv.ingest.cardFiles(cardRoot);
 rep = struct('status', 'done', 'serial', '', 'role', '', 'files', 0, 'bytes', 0, 'archived', {{}});
@@ -57,6 +62,10 @@ M = loadManifest(mfile);
 cfg.notify('Import started', sprintf('Camera %s (%s): %d files, %.1f GB.', serial, role, numel(F), need / 1e9));
 cfg.light('copying');
 % --- copy and verify ---------------------------------------------------------------
+if ~isfield(cfg, 'slowReaderMBps'), cfg.slowReaderMBps = 45; end
+if ~isfield(cfg, 'slowCheckBytes'), cfg.slowCheckBytes = 256 * 2^20; end
+if ~isfield(cfg, 'now'), t00 = tic; cfg.now = @() toc(t00); end
+tCopy = cfg.now();  copied = 0;  warned = false;  rep.mbps = NaN;
 for f = F(:)'
     key = sprintf('%s|%d|%s', f.name, f.bytes, f.date);
     e = entry(M, key);
@@ -71,6 +80,13 @@ for f = F(:)'
         cfg.light('error');
         rep.status = 'interrupted';
         return
+    end
+    copied = copied + f.bytes;
+    rep.mbps = copied / 1e6 / max(cfg.now() - tCopy, eps);
+    if ~warned && copied >= cfg.slowCheckBytes && rep.mbps < cfg.slowReaderMBps
+        warned = true;
+        cfg.notify('Slow card reader', sprintf(['Camera %s copies at %.0f MB/s: its reader is probably on a slow USB 2.0 port ', ...
+            '(the four on the back marked without SS). Move it to a 5 Gbps port next time; this import carries on.'], serial, rep.mbps));
     end
     h2 = tv.ingest.sha256File(dst);
     st = 'verified';

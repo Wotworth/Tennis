@@ -16,5 +16,13 @@
   "upload": {"endpoint": "FILL-IN-TV-PH-4"},
   "alerts": {"ntfyServer": "https://ntfy.sh"},
   "statusLight": {"tool": "C:\\TennisVision\\tools\\blink1-tool.exe"},
-  "thresholds": {"freeSpaceMinFraction": 0.15, "archiveCleanupFraction": 0.85}
+  "thresholds": {"freeSpaceMinFraction": 0.15, "archiveCleanupFraction": 0.85},
+  "pc": {
+    "about": "Lenovo Legion Tower 5i Gen 10 (Legion T5 30IAX10): Core Ultra 7 255HX, RTX 5070 Ti 16 GB, 32 GB RAM, 1 TB NVMe (C:), 12 TB archive as D: (3.5-inch bay or USB). Chris, 16 Nov.",
+    "gpuPowerCapW": 200,
+    "tempLimitC": {"cpu": 90, "gpu": 80},
+    "tempLogS": 60,
+    "slowReaderMBps": 45,
+    "archiveConnection": "FILL-ON-PC: internal or usb"
+  }
 }

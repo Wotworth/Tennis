@@ -21,4 +21,7 @@ cfg.outputs = struct('plots', true, 'reel', true);
 cfg.minCrossDeg = 20;               % usable stereo crossing angle; RETUNE(real footage)
 cfg.alerts = struct('ntfyServer', 'https://ntfy.sh');
 cfg.notify = @(title, text) tv.ops.notify(cfg, title, text);
+% Chris, 16 Nov: pause while too hot. A no-op here; the closet PC's config sets
+% tv.ops.thermalGuard with its limits (tv.ingest.loadConfig).
+cfg.thermalGuard = @() 0;
 end

@@ -25,6 +25,13 @@ cfg.copyOpts = struct();
 cfg.pipeline = tv.pipeline.defaults();
 cfg.pipeline.notify = cfg.notify;
 if isfield(s, 'indoorDefaults'), cfg.pipeline.indoorDefaults = s.indoorDefaults; end
+% the closet PC (Chris, 16 Nov): heat limits, temperature log, slow-port check
+pc = struct('gpuPowerCapW', 200, 'tempLimitC', struct('cpu', 90, 'gpu', 80), 'tempLogS', 60, 'slowReaderMBps', 45);
+if isfield(s, 'pc'), f = fieldnames(s.pc); for i = 1:numel(f), pc.(f{i}) = s.pc.(f{i}); end, end
+cfg.pc = pc;
+cfg.tempLimitC = pc.tempLimitC;  cfg.tempLogS = pc.tempLogS;  cfg.slowReaderMBps = pc.slowReaderMBps;
+g = struct('tempLimitC', pc.tempLimitC, 'logs', cfg.logs, 'notify', cfg.notify);
+cfg.pipeline.thermalGuard = @() tv.ops.thermalGuard(g);
 % the cloud API (TV-PH-4): endpoint in the config, write token in secrets.local.json
 cfg.client = [];
 cfg.answersSeconds = 300;                   % TV-PLY-07: check for app answers every 5 minutes

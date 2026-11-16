@@ -6,10 +6,11 @@ function segs = segments(P, cams, rec, sync, air, prior, opts)
 %   possible events is fitted with the flight model; then neighbours are
 %   merged back whenever one flight explains both (a gap was not an event).
 %   Returns segments sorted in time (struct array from tv.recon.fitSegment).
-%   RETUNE(real footage): opts.clusterMs, opts.edgeMs, opts.minPerCam and the
-%   merge test.
+%   RETUNE(real footage): opts.clusterMs, opts.edgeMs, opts.minPerCam, the
+%   merge test, its 3 px cap and the 5 px junk limit.
 if nargin < 7, opts = struct(); end
-d = struct('clusterMs', 25, 'edgeMs', 4, 'minPerCam', 4, 'mergeRms', 1.5, 'splitRms', 0.6, 'splitGain', 0.6);
+d = struct('clusterMs', 25, 'edgeMs', 4, 'minPerCam', 4, 'mergeRms', 1.5, 'splitRms', 0.6, 'splitGain', 0.6, ...
+           'mergeCapPx', 3, 'junkPx', 5);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 segs = [];
@@ -43,6 +44,8 @@ segs = mergeAll(segs, cuts, cams, rec, sync, air, prior, opts);
 % a merge can join a short piece across a real event; look again, then merge what is left
 [segs, cuts2] = refineSplits(segs, cams, rec, sync, air, prior, opts);
 segs = mergeAll(segs, [cuts, cuts2], cams, rec, sync, air, prior, opts);
+% what still fits worse than opts.junkPx is not one ball's flight (a stray track): drop it
+if ~isempty(segs), segs = segs([segs.rmsPx] <= opts.junkPx); end
 end
 function [segs, cuts] = refineSplits(segs, cams, rec, sync, air, prior, opts)
 % A flight that fits clearly worse than a clean one usually hides an event
@@ -103,7 +106,8 @@ while merged && numel(segs) > 1
         % a split refineSplits made is never merged back
         if any(cuts > max(a.t) & cuts < min(b.t)), continue; end
         m = tv.recon.fitSegment(o, cams, rec, sync, air, prior, a.x);
-        if m.ok && m.rmsPx < max(opts.mergeRms, 1.3 * max(a.rmsPx, b.rmsPx))
+        % never above opts.mergeCapPx: a junk fragment's large error must not license a junk merge
+        if m.ok && m.rmsPx < min(max(opts.mergeRms, 1.3 * max(a.rmsPx, b.rmsPx)), opts.mergeCapPx)
             m.x = shiftStart(m, a);
             segs = [segs(1:k-1); m; segs(k+2:end)];
             merged = true;

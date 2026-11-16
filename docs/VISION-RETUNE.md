@@ -26,6 +26,8 @@ The first real footage is the TV-PH-0 lens calibration and trial sessions; most 
 | Players | `+tv/+players/track.m` | Same-person distance, gates, speed, colour weight, cap evidence | Changeovers in real sessions (AC-13) |
 | Metrics | `+tv/+metrics/shot.m` | Confidence formula, 2.5 m hitter limit | AC-06, AC-13 |
 | Spin | `+tv/+metrics/spin.m` | The C_L(S) table: the spec's straight line, to be fitted to Cross & Lindsey | Literature fit; AC-11 |
+| Flights | `+tv/+recon/segments.m` | Merge cap (3 px) and junk limit (5 px) | Trials: stray tracks (other balls, shoes) and real merges |
+| Heat | `+tv/+ops/thermalGuard.m`, config `pc.tempLimitC` | CPU 90 C and GPU 80 C limits, 5 C resume, 30 min longest wait | The day-one benchmark's peak temperatures, then summer sessions |
 | Retention | `+tv/+ops/retention.m` | Rally segments kept 3 months are not cut out yet | TV-OPS-03 once the archive fills |
 | Synthetic footage | `+tv/+synth/renderBackground.m`, `+tv/+synth/renderFrame.m`, `+tv/+synth/renderAudio.m` | Make the generator look and sound like real footage (shadows, compression, voices) | Compare with trial footage; then re-run every synthetic test |
 | Synthetic footage | `+tv/+physics/bounce.m` | Court restitution and friction | Trials (bounce kick) |
