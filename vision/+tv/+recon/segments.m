@@ -39,27 +39,11 @@ for w = 1:numel(E) - 1
 end
 % split flights that hide an event, then merge neighbours one flight explains
 [segs, cuts] = refineSplits(segs, cams, rec, sync, air, prior, opts);
-merged = true;
-while merged && numel(segs) > 1
-    merged = false;
-    for k = 1:numel(segs) - 1
-        a = segs(k);  b = segs(k + 1);
-        o = [a.obs; b.obs];
-        % a split refineSplits made is never merged back
-        if any(cuts > max(a.t) & cuts < min(b.t)), continue; end
-        m = tv.recon.fitSegment(o, cams, rec, sync, air, prior, a.x);
-        if m.ok && m.rmsPx < max(opts.mergeRms, 1.3 * max(a.rmsPx, b.rmsPx))
-            m.x = shiftStart(m, a);
-            segs = [segs(1:k-1); m; segs(k+2:end)];
-            merged = true;
-            break
-        end
-    end
+segs = mergeAll(segs, cuts, cams, rec, sync, air, prior, opts);
+% a merge can join a short piece across a real event; look again, then merge what is left
+[segs, cuts2] = refineSplits(segs, cams, rec, sync, air, prior, opts);
+segs = mergeAll(segs, [cuts, cuts2], cams, rec, sync, air, prior, opts);
 end
-% a merge can join a short piece across a real event; look again
-segs = refineSplits(segs, cams, rec, sync, air, prior, opts);
-end
-
 function [segs, cuts] = refineSplits(segs, cams, rec, sync, air, prior, opts)
 % A flight that fits clearly worse than a clean one usually hides an event
 % (a late cut, a net cord, the drop after the net): try splitting it at
@@ -105,6 +89,27 @@ sb = tv.recon.fitSegment(ob, cams, rec, sync, air, prior);
 if ~sa.ok || ~sb.ok, return; end
 r = sqrt((sa.rmsPx^2 * nnz(a) + sb.rmsPx^2 * nnz(b)) / (nnz(a) + nnz(b)));
 if r < bestRms, bestRms = r; best = [sa; sb]; bestCut = c; end
+end
+
+function segs = mergeAll(segs, cuts, cams, rec, sync, air, prior, opts)
+% merge neighbours one flight explains (a gap was not an event), never across a split's cut
+merged = true;
+while merged && numel(segs) > 1
+    merged = false;
+    for k = 1:numel(segs) - 1
+        a = segs(k);  b = segs(k + 1);
+        o = [a.obs; b.obs];
+        % a split refineSplits made is never merged back
+        if any(cuts > max(a.t) & cuts < min(b.t)), continue; end
+        m = tv.recon.fitSegment(o, cams, rec, sync, air, prior, a.x);
+        if m.ok && m.rmsPx < max(opts.mergeRms, 1.3 * max(a.rmsPx, b.rmsPx))
+            m.x = shiftStart(m, a);
+            segs = [segs(1:k-1); m; segs(k+2:end)];
+            merged = true;
+            break
+        end
+    end
+end
 end
 
 function x = shiftStart(m, a)
