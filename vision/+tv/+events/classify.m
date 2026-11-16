@@ -45,10 +45,10 @@ for k = 1:n - 1
 end
 % the last flight: does it bounce or hit the net soon after the cameras lose it?
 z = segs(n);
-tt = (max(z.t):0.002:max(z.t) + 0.4)';
+tt = (z.t0:0.002:max(z.t) + 0.4)';   % the whole flight: the cameras may last see it right at the net
 Pz = tv.recon.segmentModel(z.x, z.t0, tt, air);
 xc = find(sign(Pz(1:end-1, 1)) ~= sign(Pz(2:end, 1)), 1);
-g  = find(Pz(:, 3) < c.ballRadius, 1);
+g  = find(Pz(:, 3) < c.ballRadius & tt >= max(z.t) - 0.01, 1);
 if ~isempty(xc) && (isempty(g) || xc < g) && Pz(xc, 3) - c.ballRadius < tv.court.netHeight(Pz(xc, 2))
     ev(end+1) = struct('type', 'net', 't', tt(xc), 'p', Pz(xc, :), 'segBefore', n, 'segAfter', 0);
 elseif ~isempty(g) && g > 1

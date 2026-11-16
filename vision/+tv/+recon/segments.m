@@ -38,18 +38,17 @@ for w = 1:numel(E) - 1
     if s.ok, segs = [segs; s]; end %#ok<AGROW>
 end
 % split flights that hide an event, then merge neighbours one flight explains
-segs = refineSplits(segs, cams, rec, sync, air, prior, opts);
+[segs, cuts] = refineSplits(segs, cams, rec, sync, air, prior, opts);
 merged = true;
 while merged && numel(segs) > 1
     merged = false;
     for k = 1:numel(segs) - 1
         a = segs(k);  b = segs(k + 1);
         o = [a.obs; b.obs];
+        % a split refineSplits made is never merged back
+        if any(cuts > max(a.t) & cuts < min(b.t)), continue; end
         m = tv.recon.fitSegment(o, cams, rec, sync, air, prior, a.x);
-        % the pair as two flights; refineSplits' test, so a split is never merged back
-        two = sqrt((a.rmsPx^2 * size(a.obs, 1) + b.rmsPx^2 * size(b.obs, 1)) / size(o, 1));
-        hides = m.rmsPx > opts.splitRms && two < opts.splitGain * m.rmsPx;
-        if m.ok && ~hides && m.rmsPx < max(opts.mergeRms, 1.3 * max(a.rmsPx, b.rmsPx))
+        if m.ok && m.rmsPx < max(opts.mergeRms, 1.3 * max(a.rmsPx, b.rmsPx))
             m.x = shiftStart(m, a);
             segs = [segs(1:k-1); m; segs(k+2:end)];
             merged = true;
@@ -59,12 +58,12 @@ while merged && numel(segs) > 1
 end
 end
 
-function segs = refineSplits(segs, cams, rec, sync, air, prior, opts)
+function [segs, cuts] = refineSplits(segs, cams, rec, sync, air, prior, opts)
 % A flight that fits clearly worse than a clean one usually hides an event
 % (a late cut, a net cord, the drop after the net): try splitting it at
 % each of 15 moments and keep the split when both halves together fit much
 % better (opts.splitGain of the error or less), then look again.
-k = 1;
+k = 1;  cuts = [];
 while k <= numel(segs)
     g = segs(k);
     if g.rmsPx <= opts.splitRms || size(g.obs, 1) < 4 * opts.minPerCam, k = k + 1; continue; end
@@ -80,9 +79,9 @@ while k <= numel(segs)
         sb = tv.recon.fitSegment(ob, cams, rec, sync, air, prior);
         if ~sa.ok || ~sb.ok, continue; end
         r = sqrt((sa.rmsPx^2 * nnz(a) + sb.rmsPx^2 * nnz(b)) / (nnz(a) + nnz(b)));
-        if r < bestRms, bestRms = r; best = [sa; sb]; end
+        if r < bestRms, bestRms = r; best = [sa; sb]; bestCut = c; end
     end
-    if isempty(best), k = k + 1; else, segs = [segs(1:k-1); best; segs(k+1:end)]; end
+    if isempty(best), k = k + 1; else, segs = [segs(1:k-1); best; segs(k+1:end)]; cuts(end+1) = bestCut; end %#ok<AGROW>
 end
 end
 

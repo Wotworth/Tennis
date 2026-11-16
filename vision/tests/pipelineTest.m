@@ -75,6 +75,15 @@ assert(median(rep.spinEffectErr) < 0.10 && max(rep.spinEffectErr) < 0.40)
 %% Shots credited to the right player, through the changeover (AC-13)
 assert(mean(rep.hitterOk) >= 0.99)
 
+%% No phantom hits: every hit found is within 30 ms of a true one
+tHit = [T.truth.shots.tHit];
+for r = 1:numel(R.result.events)
+    ev = R.result.events{r};
+    for e = ev(strcmp({ev.type}, 'hit'))
+        assert(min(abs(tHit - e.t)) < 0.03, sprintf('phantom hit at %.3f s', e.t))
+    end
+end
+
 %% Calls (in / out / net) match
 assert(all(rep.callOk))
 
