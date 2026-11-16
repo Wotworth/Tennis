@@ -15,6 +15,7 @@ The first real footage is the TV-PH-0 lens calibration and trial sessions; most 
 | Twin choice | `+tv/+calib/resolveSymmetry.m` | Weight of player agreement against ball agreement | First sessions in each layout |
 | Rallies | `+tv/+rally/fromAudio.m` | Onset threshold, 3 s cadence limit, minimum sounds; add the ball-motion check (TV-RAL-01) | Sessions with talking, wind and neighbouring courts (AC-03) |
 | Timing | `+tv/+sync/fromRays.m` | Search range (±60 ms) | Real timecode/GPS start error (TV-SYNC-01) |
+| Timing | `+tv/+sync/clockLine.m` | Window length (10 min) and search around the drift line (±30 ms) | Real camera drift over a 2-hour session (TV-SYNC-02) |
 | Timing | `+tv/+pipeline/defaults.m` (readoutPrior), `+tv/+recon/refineSession.m` | Readout prior (8 ms ± 1 ms): replace with each camera's flicker measurement (TV-SYNC-06, `tools/readoutFromFlicker.m`) and tighten to ± 0.1 ms; drift and wind priors, rounds | Flicker clip per camera and mode (TV-PH-0); spec chooses the mode at the end of TV-PH-2 |
 | Ball | `+tv/+detect/ballCandidates.m` | Every threshold; optic-yellow hue range in real light; size range at 4K | Labelled frames from trials (then the learned detector, TV-PH-5) |
 | Ball | `+tv/+learn/netLayers.m` | The learned detector's input size, width and depth | The PC's GPU and the first 20,000 auto-labels |
