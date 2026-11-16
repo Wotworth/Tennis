@@ -11,7 +11,7 @@ rows = [];
 for s = S.shots'
     row = struct('rally', s.rally, 'index', s.index, 'kind', s.kind, 'serve', s.isServe, 'truthCall', s.result, ...
         'shortAfterBounce', s.shortFlight, 'toNextHit', s.toNextHit, 'found', false, 'hitDtMs', NaN, ...
-        'speedErr', NaN, 'bounceErr', NaN, 'spinErr', NaN, 'netErr', NaN, 'rpmErrPct', NaN, 'call', '', ...
+        'speedErr', NaN, 'bounceErr', NaN, 'spinErr', NaN, 'netErr', NaN, 'rpmErrPct', NaN, 'rpmKnownClPct', NaN, 'call', '', ...
         'bounceSegN', NaN, 'bounceSegS', NaN, 'rms', NaN);
     E = ev{s.rally};  G = segs{s.rally};
     if isempty(E) || isempty(G), rows = [rows; row]; continue; end %#ok<AGROW>
@@ -39,6 +39,12 @@ for s = S.shots'
     end
     if isfinite(s.netClearance) && isfinite(m.netClearance), row.netErr = m.netClearance - s.netClearance; end
     if isfinite(m.rpm) && s.rpm0 > 0, row.rpmErrPct = 100 * (m.rpm - s.rpm0) / s.rpm0; end
+    % AC-11 reads "true C_L(S) known": score against the rpm the spec curve gives for the
+    % shot's TRUE lift (its 15% scatter included), i.e. the lift measurement alone
+    if isfinite(m.rpm) && isfield(s, 'CLnom') && s.CLnom > 0.03 && s.CL0 > 0.03
+        ref = s.rpm0 * (s.CL0 - 0.03) / (s.CLnom - 0.03);
+        row.rpmKnownClPct = 100 * (m.rpm - ref) / ref;
+    end
     row.call = m.call;
     rows = [rows; row]; %#ok<AGROW>
 end

@@ -86,7 +86,8 @@ L{end+1} = line('Speed at contact error, mph', abs([rows.speedErr]) * 2.23694, '
 L{end+1} = line('Bounce position error, cm', [rows.bounceErr] * 100, 'median 5 cm (AC-08)', 1);
 L{end+1} = line('Spin effect error, cm', abs([rows.spinErr]) * 100, '10 cm (AC-10)', 1);
 L{end+1} = line('Net clearance error, cm', abs([rows.netErr]) * 100, '3-5 cm (spec estimate)', 1);
-L{end+1} = line('rpm error, %', abs([rows.rpmErrPct]), '10% (AC-11)', 0);
+L{end+1} = line('rpm error, %', abs([rows.rpmErrPct]), '(rpm +/-25% shown, TV-SPN-03)', 0);
+L{end+1} = line('rpm error with the true lift known, %', abs([rows.rpmKnownClPct]), '10% (AC-11)', 0);
 L{end+1} = sprintf('| In / out / net calls right | %d of %d | | | all |', nnz(callOk), nnz(callable));
 L{end+1} = line('Bounce error after a short flight (< 0.25 s to the next hit), cm', [rows(short).bounceErr] * 100, '', 1);
 L{end+1} = line('Bounce error, all other shots, cm', [rows(~short).bounceErr] * 100, '', 1);
@@ -96,10 +97,10 @@ L{end+1} = sprintf('Clock drift found %.1f ppm (truth 40). Session timing error 
 fid = fopen(fullfile(outDir, 'fitstudy.md'), 'w', 'n', 'UTF-8');  fprintf(fid, '%s\n', L{:});  fclose(fid);
 fprintf('%s\n', L{:});
 fid = fopen(fullfile(outDir, 'fitstudy_shots.csv'), 'w');
-fprintf(fid, 'rally,index,kind,serve,truthCall,call,found,hitDtMs,speedErr_mps,bounceErr_m,spinErr_m,netErr_m,rpmErrPct,shortAfterBounce,toNextHit_s,bounceSegN,bounceSegS,rmsPx\n');
+fprintf(fid, 'rally,index,kind,serve,truthCall,call,found,hitDtMs,speedErr_mps,bounceErr_m,spinErr_m,netErr_m,rpmErrPct,rpmKnownClPct,shortAfterBounce,toNextHit_s,bounceSegN,bounceSegS,rmsPx\n');
 for r = rows'
-    fprintf(fid, '%d,%d,%s,%d,%s,%s,%d,%.2f,%.3f,%.4f,%.4f,%.4f,%.1f,%d,%.3f,%g,%.3f,%.2f\n', r.rally, r.index, r.kind, r.serve, ...
-        r.truthCall, r.call, r.found, r.hitDtMs, r.speedErr, r.bounceErr, r.spinErr, r.netErr, r.rpmErrPct, r.shortAfterBounce, ...
+    fprintf(fid, '%d,%d,%s,%d,%s,%s,%d,%.2f,%.3f,%.4f,%.4f,%.4f,%.1f,%.1f,%d,%.3f,%g,%.3f,%.2f\n', r.rally, r.index, r.kind, r.serve, ...
+        r.truthCall, r.call, r.found, r.hitDtMs, r.speedErr, r.bounceErr, r.spinErr, r.netErr, r.rpmErrPct, r.rpmKnownClPct, r.shortAfterBounce, ...
         r.toNextHit, r.bounceSegN, r.bounceSegS, r.rms);
 end
 fclose(fid);

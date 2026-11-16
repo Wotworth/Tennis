@@ -62,3 +62,21 @@ Both go on the real-footage retune list.
 ## Design preview
 
 [docs/preview](../preview/README.md): the app's real screens on a synthetic 90-minute session, a launcher tile mockup, and the PC's MATLAB plots.
+
+## Fit study, first run (16 Nov) — SYNTHETIC
+
+400-shot study (366 shots in 79 rallies, 90 minutes), truth model unlike the fitter. Camera 2's clock drift (40 ppm) was not estimated, so only rallies 1 to 7 (about 15 minutes) were reconstructed: 51 shots. On those:
+
+| Measure | Median | 90th percentile | Target |
+|---|---|---|---|
+| Hit time error | 1.3 ms | 16 ms | |
+| Speed at contact | 1.2 mph | 3.3 mph | 2 mph for 90% (AC-07) |
+| Bounce position | 4.4 cm | 11.5 cm | median 5 cm (AC-08) |
+| Spin effect | 23 cm | 85 cm | 10 cm (AC-10) |
+| Net clearance | 1.3 cm | 4.3 cm | |
+| rpm | 33% | 90% | 10% (AC-11) |
+| In / out / net calls | 45 of 45 right | | all |
+
+Item 10 (the 11 cm bounce): after a short flight (< 0.25 s to the next hit) 2 shots, median 12 cm; all others 4.2 cm median. Too few short flights to settle it; the rerun has more.
+
+The drift is now estimated window by window (DECISIONS 16 Nov, TV-SYNC-02). Spin effect errors flip sign with the hitter, which points at the wind error (found [1.9 -1.0] m/s against a mean truth of [1.5 -0.8]) being taken up as spin; to check on the rerun. Full output: the CI job `fit-study`.

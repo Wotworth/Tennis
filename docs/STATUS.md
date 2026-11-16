@@ -29,13 +29,21 @@ Retune list: docs/VISION-RETUNE.md.
 
 11. Detector improvement loop, spin kinds and opponents (Chris, 15 Nov; section A items 13-15): Ball check (PC picks and crops, app screen), "this looks wrong", "missed a shot here", test set and auto-labels kept apart, retraining (GPU or CPU) with promotion only when recall and precision don't drop, weekly message; opponents prompt, list and pages (in memory until the cloud exists); spin shown by kind; tile "N frames to check" at the lowest priority.
 
-All MATLAB tests pass in CI (67 of 67, including the end-to-end test on synthetic footage and the learning loop); results in docs/reports/TV-BUILD-1.md. Watch on real footage: an 11 cm bounce error on a short flight, camera 2's readout settling 2.5 ms off.
+MATLAB tests: 83 of 85 passed in the last full CI run; the 2 pipeline-test failures (a phantom hit, one call) have a fix in this push. Earlier: all passed (67 of 67, including the end-to-end test on synthetic footage and the learning loop); results in docs/reports/TV-BUILD-1.md. Watch on real footage: an 11 cm bounce error on a short flight, camera 2's readout settling 2.5 ms off.
 
 Outside-check review (16 Nov), items 1-10: health data confirmed never built in the cloud and removed from the spec; one host (the Worker streams R2, already built); court frame from geometry with a swapped-camera test; detector data kept forever (TV-OPS-07, about 0.65 TB a year); layout 2 placement (docs/reports/TV-PH-0a.md); doubles cut from v1; synthetic truth now flies unlike the fitter, with a 400-shot fit study as its own CI job; readout time measured from a flickering lamp (TV-SYNC-06); the 11 cm bounce traced to detections that were not the flying ball, fixed by a 6 px outlier cut and lift priors. Fit study numbers: see docs/reports/TV-BUILD-1.md once CI finishes.
 
 Design v2 (Chris, 16 Nov; VIS-09 amends VIS-04 to VIS-08): variations of the court map, shot card and trends, with player colours (opponent cobalt blue), in docs/preview/v2. Waiting for Chris's pick; then apply to the vision screens, then cues, racquets, sessions and library, and update the screenshot tests.
 
 TV-OPS-04 / AC-12 (16 Nov): processing limit 12 h per 2-hour session (13 h cards to app); 6 h is a goal; processing time per mode feeds the TV-PH-2 capture-mode choice.
+
+Overnight 16 Nov (Chris's items 1-8):
+- Closet PC ready (TV-HW-01 to 08): GPU 200 W cap at log-on, USB port plan with a slow-reader alert, archive D: (internal or USB), heat log each minute with slow-down above 90/80 °C and weekly peaks, RGB off, staging check, Windows 11 Pro before Remote Desktop. Setup script untested (no Windows here).
+- tools/benchmarkPC.m (4K120 capped and uncapped, 4K240; each stage timed, projected to 2 h against 12 h). Its CI smoke run crashed on the reel step (fixed, rerunning).
+- docs/DAY-ONE.md, docs/CLOUDFLARE-SETUP.md (token steps; nothing deployed).
+- Error budget: docs/reports/TV-ERROR-BUDGET.md. Calibration dominates positions; frame rate dominates speed and spin (240 fps passes AC-07).
+- Ingest fault injection (tests pass), toolbox guard test, docs/READING-GUIDE.md.
+- Fit study (400 shots) found that camera 2's clock drift was never estimated: only the first 15 minutes of a 90-minute session were reconstructed. Fixed (tv.sync.clockLine, offset and drift per 10-minute window); fit study rerunning in CI.
 
 Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens calibration and trial sessions). The launcher needs the new "checks" tile state (LAUNCHER-REQUESTS.md), not built.
 
