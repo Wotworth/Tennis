@@ -14,3 +14,33 @@ vision/config/tennisvision.json
 vision/config/*.local.json
 out/
 vision/config/secrets.local.json
+# Footage is private (Chris, 16 Nov): no video ever goes into this public repository.
+*.mp4
+*.MP4
+*.mov
+*.MOV
+*.m4v
+*.M4V
+*.mts
+*.MTS
+*.m2ts
+*.avi
+*.AVI
+*.mkv
+*.hevc
+*.h264
+*.lrv
+*.LRV
+*.thm
+*.THM
+*.360
+*.insv
+*.wav
+*.WAV
+footage/
+Footage/
+inbox/
+raw/
+**/DCIM/
+# ...except the one public GoPro sample-telemetry file the tests use (GoPro's own sample, no people)
+!vision/tests/fixtures/gopro/hero8.mp4

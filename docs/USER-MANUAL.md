@@ -19,6 +19,7 @@ Contents:
 12. Troubleshooting
 13. Court-day quick reference
 14. Preliminary single-camera test (HERO7 Black + ball machine)
+15. iPhone match footage: the earliest pipeline test
 
 ---
 
@@ -605,3 +606,98 @@ The pass test is the same (≤ 0.5 px).
 - [ ] 9 blocks × 15 balls, setting card before each
 - [ ] Optional block 10: hit forehands back
 - [ ] Upload clips, calibration clip and notes.txt to MATLAB Drive
+
+---
+
+## 15. iPhone match footage: the earliest pipeline test
+
+**Purpose:** a first look at real footage of a real match, filmed by iPhone from behind the baseline, before any GoPro or the closet PC.
+- **One camera,** so like section 14: detection, tracking and bounce positions on the ground, not true 3D or spin rate.
+- **Private:** the footage shows you and your opponent.
+  - It **never goes into the GitHub repository**, which is public. `.gitignore` blocks video files and footage folders.
+  - It is **never processed in GitHub's test machines**, whose logs anyone can read.
+  - It is processed only in my private session's machine.
+  - Reports in the repository give numbers only, never pictures from it.
+
+### 15.1 Check the file on the iPhone first
+1. Photos > the video > swipe up (or tap ⓘ). Note:
+   - the size (e.g. 4.2 GB);
+   - the resolution and frame rate (e.g. 4K · 60 fps);
+   - the length;
+   - HEVC or H.264.
+2. Send me those four things. They decide the route in 15.3.
+3. Don't trim or edit it in Photos: an edited copy is re-encoded. I can cut parts out losslessly on my side.
+
+### 15.2 Get the original off the iPhone without re-compressing
+1. Photos > the video > **Share**.
+2. At the top of the share sheet, tap **Options**.
+   - Turn **All Photos Data** on (it keeps the original file and its metadata: time, location, frame timing).
+   - If it shows **Format**, choose **Current** (keeps HEVC as recorded). **Never "Most Compatible"**: that re-encodes to H.264 and loses quality.
+3. Tap **Save to Files** > **On My iPhone** > a new folder `TennisVision` > Save.
+4. In Files, rename the file to the naming convention (15.4).
+
+**Avoid:** Messages, WhatsApp, Mail, any "small / medium / actual size" choice, and social apps. They all re-compress. AirDrop to a Mac also keeps the original, but only with **All Photos Data** on; it isn't needed here.
+
+### 15.3 Where it lives until the closet PC arrives
+
+What my session can reach today: files you attach in our chat, and the open internet only through hosts the environment allows. Google Drive isn't connected (only Gmail and Calendar are), and Gmail can't carry videos (25 MB attachment limit).
+
+| Option | Private? | Size | How I get it | Trade-offs |
+|---|---|---|---|---|
+| **A. Google Drive, folder `TennisVision/footage`, link-sharing on only while I download (recommended)** | Private, except for the minutes the link is on | 15 GB free (more with Google One) | You share a link, I allow Google Drive's download host once, then download it straight into my session's machine. You turn the link off when I say it's done. | Anyone with the link could open it during those minutes; the link is long and random, and not listed anywhere. Simple from the phone. It is also the hand-over route to the closet PC. |
+| B. Attach the file in our chat | Private | Unknown limit; very likely too small for a whole match | Directly | Fine for a short clip, not for the full match. I can't confirm the limit. |
+| C. A private Cloudflare R2 bucket (your account) | Fully private | Large | Needs the Cloudflare token (section 2.3) and a download key saved on the environment | Uploading from an iPhone is awkward: the dashboard takes up to 300 MB per file. Better once the cloud service is deployed. |
+| D. A private GitHub repository | Private | 2 GB per file, quotas | Through the GitHub access I already have | Uploading big files from a phone is clumsy, GitHub's free storage quotas are small, and it's too close to the public repository for comfort. Not recommended. |
+
+**Recommended: A.** Steps on the phone:
+1. Install **Google Drive** from the App Store, and sign in.
+2. Drive > **+** > **Folder** `TennisVision`, inside it `footage`.
+3. Open `footage` > **+** > **Upload** > **Browse** > On My iPhone > `TennisVision` > the renamed file. Upload from **Files**, not from Photos, so Drive gets the untouched original.
+4. Keep Drive open until the upload finishes (it can take a while on Wi-Fi). Plug in the phone.
+5. **Tell me it's uploaded.** I'll then ask to allow Google Drive's download host for my session, which you approve on screen.
+6. When I ask, open the file in Drive > ⋯ > **Share** > **Copy link**, with "General access: Anyone with the link · Viewer". Paste the link to me.
+7. When I say the download is done and checked (I compare the size, and record its SHA-256 fingerprint), set General access back to **Restricted**.
+
+### 15.4 File naming (all footage, now and later)
+
+`YYYY-MM-DD_HHMM_LOCxx_CAMERA_TYPE_pNN.ext`
+
+| Part | Meaning | Examples |
+|---|---|---|
+| `YYYY-MM-DD_HHMM` | Date and start time, local | `2026-11-14_1530` |
+| `LOCxx` | Location code, never the court's name (court names stay on the phone) | `LOC01` your usual courts, `LOC02` the next |
+| `CAMERA` | Which camera | `IPHONE`, `H7` (HERO7), `M1A`, `M1B` (the two MISSION 1 PROs) |
+| `TYPE` | What it is | `MATCH`, `PRACTICE`, `MACHINE` (ball machine), `CALIB` (checkerboard), `TEST` |
+| `pNN` | Part, if a recording is split | `p01`, `p02` |
+
+Example: `2026-11-14_1530_LOC01_IPHONE_MATCH_p01.mov`.
+
+GoPro cards imported by the closet PC keep GoPro's own names inside the archive's date and serial folders (section 9). This convention is for footage you bring in by hand.
+
+### 15.5 What happens after you confirm
+1. I download it into my session's private machine and check the size and fingerprint. Then you turn the link off.
+2. I write the single-camera steps for it:
+   - a lens model estimated from the court lines (no checkerboard exists for this iPhone);
+   - the court's position;
+   - detection and tracking;
+   - bounces;
+   - rough speeds.
+3. I run them on my private machine.
+4. The report gives numbers only, with no frames of you or your opponent. Pictures, if useful, come to you in the chat, never in the repository.
+5. Nothing starts until you've confirmed the upload.
+
+My session's machine is wiped when the session ends. Google Drive stays the master copy.
+
+### 15.6 When the closet PC arrives
+1. Over Remote Desktop, open Google Drive in the browser and download `TennisVision/footage/*` into `C:\TennisVision\inbox\`. TBD: a hand-delivered-footage inbox is part of the PC's import, to be built.
+2. The PC fingerprints each file, archives it to `D:\TennisVision\raw\manual\`, and records it in the archive index. The same file is never imported twice.
+3. Everything learnt from this test carries over: detector settings, and any labels you made. They live in the code and on the PC, not in my session. The PC simply reprocesses the footage with the full pipeline. Nothing has to be filmed or labelled again.
+4. Keep the Drive copy as a backup until the PC's archive has it.
+
+### 15.7 Phone checklist
+- [ ] Photos > ⓘ: note size, resolution, frame rate, length; send them to me
+- [ ] Share > Options: All Photos Data on, Format Current > Save to Files > On My iPhone > TennisVision
+- [ ] Rename: `YYYY-MM-DD_HHMM_LOC01_IPHONE_MATCH_p01.mov`
+- [ ] Google Drive > TennisVision > footage > Upload > Browse > the file
+- [ ] Tell me it's uploaded; approve my request for Google Drive access
+- [ ] Share link when I ask; set back to Restricted when I say it's done
