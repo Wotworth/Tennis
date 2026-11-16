@@ -371,7 +371,12 @@ Back-fence corners (layout 2) also work; see the report.
 
 ## 8. During the session
 - Play. Nothing else is needed.
-- **Switching racquets:** in the app, tap "switched racquet", then the racquet you picked up. Do it between points. A rough time is fine. TBD: comes with Part F.
+- **Switching racquets** (TBD: comes with Part F):
+  1. At a changeover, tap **Switched racquet** in the app or on the launcher tile.
+  2. Tap the racquet you picked up.
+  3. Optionally tap a reason: strings felt flat, broke a string, other.
+
+  A rough time is fine: the PC moves the switch to the nearest break between points, so no point is split between racquets. "Broke a string" also goes into that racquet's string history, for how long strings last.
 - If a camera falls or is knocked, re-aim it. The PC notices and recalibrates from that moment.
 
 ---
@@ -387,7 +392,7 @@ Back-fence corners (layout 2) also work; see the report.
    - phone: **"Cards safe to remove"**, and the light goes green.
 4. **Processing** starts when the PC is free. Up to **12 hours** for a 2-hour session, 6 hours being the goal. The day-one benchmark gives the real figure for your PC.
 5. **When it's done,** the session appears in the app (Sessions), and your phone gets a message. If it fails, the message says why (section 12), and the light goes red.
-6. **Racquet switches:** open the session > racquets > review, to check or move the switch times, or add one you forgot. TBD: comes with Part F.
+6. **Racquet switches:** open the session > racquets > review. You can move a switch to another break, change a racquet or reason, add a switch you forgot, or delete a wrong one. Each rally shows its first frame, so you can see which racquet you held. If a tap fell mid-point and was a close call, the app asks "before or after this rally?" once. TBD: comes with Part F.
 7. If the app asks "Which one is you?", tap your picture. If it asks "Who did you play?", pick your opponent.
 
 ---
@@ -416,6 +421,15 @@ Back-fence corners (layout 2) also work; see the report.
   - measurement confidence.
 - **Line calls** within the bounce's uncertainty say "too close", not in or out.
 - **Rallies, 3D, health and trends:** described on each page.
+- **Racquets and strings** (TBD, Part F):
+  - the session's racquets row shows which rallies used which racquet;
+  - Trends can group by racquet, string setup or hours on the strings, to see whether spin and depth fall as strings go flat;
+  - the racquet's page shows string breaks and the hours they lasted.
+- **Fatigue** (TBD, Part F), on the health page:
+  - serve speed, depth, placement spread and in-percentage per quarter of the session;
+  - after long rallies against after short ones;
+  - by heart-rate zone.
+  - Heart rate never leaves the phone.
 - **Warnings** and what they mean:
   - "**weak camera angle** in …": the two cameras see that part of the court from nearly the same direction, so positions there are less certain.
   - "**poorly calibrated** (camera 2: far baseline 3.4 px)": positions and speeds are less certain this session. Usually a camera moved or the view was blocked. TBD: comes with Part C.
@@ -436,7 +450,9 @@ Back-fence corners (layout 2) also work; see the report.
 | "Slow card reader" | A reader is on a USB 2.0 port | Move it to a top port. |
 | "Import failed: copy did not match" | A file didn't copy cleanly | Leave the card in the reader; the PC retries. The card is never wiped unless every file checked. |
 | Session missing frames / "dropped frames at 41:20" | The camera skipped frames | Nothing; timing uses each frame's own time stamp. If it's frequent, check the card is on GoPro's list. |
-| Forgot to tap a racquet switch | Shots after the switch show the old racquet | Session > racquets > review > add the switch at the right rally (TBD, Part F). |
+| Forgot to tap a racquet switch | Shots after the switch show the old racquet | Session > racquets > review > add the switch before the right rally (TBD, Part F). |
+| Forgot to pick the starting racquet | The app uses the racquet of your logged session at that time, or asks once | Answer the question, or correct it in review. |
+| Broke a string but didn't log the reason | The break isn't in the string history | Review > tap the switch > reason "broke a string". |
 | Forgot Timecode Sync | The PC searches wider for timing | Nothing; it still works. Do it next time. |
 | Light red, phone says "processing failed" | The message gives the stage and reason | Send me the message, or the crash log from the app's diagnostics. |
 | "Too hot: pausing" | The PC paused to cool | Open the closet door; it resumes by itself. |
@@ -458,7 +474,7 @@ Back-fence corners (layout 2) also work; see the report.
 - [ ] Cap on for the first 10 minutes
 
 **During:**
-- [ ] Racquet switch: tap in the app (TBD, Part F)
+- [ ] Racquet switch: Switched racquet > new racquet > reason (TBD, Part F)
 
 **After:**
 - [ ] Stop both cameras, take the cards home

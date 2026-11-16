@@ -1,80 +1,132 @@
-# Part F: racquets, sessions and mid-session switches (16 Nov). Not implemented; for Chris's approval.
-
-Chris's message was cut off partway through Part F ("…to see whether performance dr…"). This covers the questions that arrived and a design for racquet switches. The rest of Part F, including fatigue, is waiting for the full text.
+# Part F: racquets, sessions and fatigue (16 Nov). Not implemented; for Chris's approval.
 
 ## 1. Answers: what the current design does
 
-**Is every session tied to the racquet, with its string setup at the time?**
-- **Logged sessions** (manual, or detected from Health Connect): yes.
-  - Each has its racquet (`session_racquets`; one racquet per session since 6 Nov).
-  - The string setup is the racquet's latest restring on or before the session's date: string type, gauge, tension, hybrid, restring date. The app derives it; it doesn't copy it into the session.
-- **Vision sessions** (the cameras): **no, not yet.**
-  - The spec asks for it (TV-HC-05: link the vision session to the matching logged session and the racquet in use, asking once if unclear; TV-MET-03: trends linked to racquet, string, tension and days since restring).
-  - It is not built. The app's vision trends today are the spoof/synthetic sample, with the selected racquet's restrings drawn as markers.
-- **Shots:** not tied to a racquet. A shot belongs to a vision session; once that session is linked, all its shots inherit one racquet. There is no way yet to switch racquets mid-session.
+**Is every session, and every shot, tied to the racquet I used, with its string setup at the time?**
+- **Logged sessions** (manual, or detected from Health Connect): yes, one racquet each.
+  - The string setup is the string job that was current for that racquet on the session's date: string type, gauge, tension, hybrid, restring date (STR-05). The app derives it; it doesn't copy it.
+  - Since v0.4 a session can't be split between racquets (RAC-03).
+- **Vision sessions** (the cameras): **not yet.**
+  - The spec asks for it: TV-HC-05 links the vision session to the overlapping logged session and its racquet, asking once if unclear; TV-MET-03 links trends to racquet, string, tension and days since restring.
+  - Not built. The vision sample in the app has no racquet.
+- **Shots:** not tied to a racquet. They would inherit the session's one racquet once the link exists.
 
-**Can I compare stats across racquets, string setups and string age?**
+**Can I compare performance across racquets, string setups and string age, e.g. whether performance drops as strings go flat?**
 - Specified (TV-MET-03, TV-APP-06), not built.
-- The app compares racquets today only on the logged sessions' own measures (hours, feel, heart rate), not on vision stats such as depth, spin effect, serve speed or placement.
+- Today the app compares racquets only on logged-session measures (hours on strings, feel, heart rate), not on depth, spin effect, serve speed or placement.
 
-## 2. Design: racquet per shot, with mid-session switches
+**Is session data merged with Health Connect heart rate to show fatigue, e.g. placement or serve speed late in a match or after long rallies?**
+- **Partly.** The vision session's **health** page (built, sample data) shows:
+  - heart rate over the session, with rallies shaded;
+  - average and highest;
+  - in rallies against between;
+  - time in zones.
 
-**Principle:** which racquet was in Chris's hand is decided on the phone and stays on the phone, like court names (section A item 11). The PC never needs it.
-- The app joins its own racquet log to the shots it downloads.
-- No racquet name or string detail leaves the phone.
+  It comes from Health Connect on the phone and never leaves it (TV-HC-02 to 04).
+- **No fatigue analysis:** nothing links shot stats to time in the session, to rally length, or to heart rate.
 
-### 2.1 Before the session: the starting racquet
-- The **court session** screen (or the launcher tile's "court" action) has **Start**.
-  - Start asks one question: "Starting with:" and the racquets, most recently used first. One tap.
-  - It writes a **racquet log** entry: (start time, racquet), with the phone's clock in UTC.
-- If Chris forgets to tap Start, the app uses the racquet of the logged session that overlaps in time, or else asks once when the vision session arrives ("Which racquet did you start with?").
+**How is the racquet recorded for a session today, and what if I forget?**
+- **Selected in the app.** Logging or confirming a session asks for one racquet (RAC-05, SES-05), preselected: the racquet whose page you opened it from, else the one used last.
+- A session detected from Health Connect asks the same way when you confirm it.
+- **If you forget:**
+  - a manual session simply gets the preselected one;
+  - a detected session waits unconfirmed until you answer;
+  - vision sessions have no racquet at all yet.
 
-### 2.2 During the session: logging a switch
-- One action: **"switched racquet"** on the court session screen (and as a launcher tile action), then a tap on the new racquet. It writes (time, racquet).
-- It doesn't need to be exact: Chris taps when he changes racquets, between points.
+## 2. Requirement change
 
-### 2.3 Matching phone times to the footage
-- **Clocks:** the phone keeps network time. The cameras' clocks come from the phone through Timecode Sync (Part D), and the footage carries its start time. So phone times and video times agree to well under a second, which is plenty: switches happen between points.
-- **Rule:** a switch takes effect at the **next rally start after the tap**. If the tap falls inside a rally (a late tap), the app asks once after the session: "You switched to Blade #2 during rally 14. From rally 14 or 15?"
-- **Each shot gets:**
-  - its racquet;
-  - the string setup active on the session date (string, gauge, tension, hybrid);
-  - the string age at that moment: days since restring, and hours played since restring. Hours count logged sessions before this one, plus the time in this session up to the shot.
-- The string setup is **snapshotted** onto the session's racquet segments when the session is linked. A restring entered or changed later doesn't silently rewrite past sessions; editing a past restring asks whether to update the linked sessions.
+**RAC-03** (one racquet per session, no split) is **replaced**:
+- a session is split into racquet segments;
+- each segment's time counts toward that racquet's hours on its current strings;
+- RAC-05 / SES-05 pick the **starting** racquet.
 
-### 2.4 After the session: review and correct
-- The vision session's summary gets a **racquets** section: "rallies 1–13 Blade #1 · rallies 14–31 Blade #2".
-- **Review** opens a list of rallies with their racquet. Chris can:
-  - move a switch to another rally boundary;
-  - add a switch he forgot to tap ("switched before rally 9");
+## 3. Design: mid-session racquet switches
+
+**Principle:** which racquet you held is decided on the phone and stays there, like court names. The PC never needs it. The app joins its racquet log to the shots it receives.
+
+### 3.1 Starting racquet
+- **Court session** in the app (and a launcher tile action) has **Start**: "Starting with:" and your racquets, last used first. One tap.
+- It records (phone time in UTC, racquet).
+- **If you forget Start:**
+  - the racquet of the logged session that overlaps in time is used;
+  - else the app asks once when the vision session arrives: "Which racquet did you start with?", with the last used preselected.
+
+### 3.2 "Switched racquet"
+- A big **Switched racquet** button on the court session screen and on the launcher tile, usable in a changeover.
+- Tapping it:
+  1. records the tap time (UTC);
+  2. shows your other racquets: one tap;
+  3. offers an optional reason, one tap or skip: **strings felt flat**, **broke a string**, **other**.
+- Three taps at most; works with no signal (it's all on the phone).
+
+### 3.3 Snapping to a break between points
+- **Clocks:** the phone keeps network time. The cameras get their time from the phone through Timecode Sync (Part D), and the footage carries it. Phone and video agree to well under a second.
+- **Rule:** each switch snaps to the **nearest break between points**. A break is the gap between one rally's end and the next rally's start, from the video's rallies (Part A: rallies from video).
+  - A tap inside a rally snaps to that rally's start or end, whichever is nearer.
+  - No point is ever split across two racquets.
+- **Ties, or a tap more than 2 minutes from any break:** the app asks once after the session. "You switched to Blade #2 during rally 14: before or after it?"
+
+### 3.4 Segments, shots and string setup
+- The session becomes segments: (first rally, last rally, racquet, string job).
+- **Every shot and stat in a segment belongs to that racquet** and to its string job at the session date: string, gauge, tension, hybrid, restring date.
+- **String age per shot:** days since restring, and hours played on those strings up to that shot (earlier sessions plus this session's time on that racquet so far).
+- **Snapshot:** each segment stores its string job. A restring edited later asks before it re-points past sessions (keeps STR-05's rule, made explicit).
+- **Hours** (replaces RAC-03): each segment's duration counts toward its racquet's current strings. The duration runs from the segment's first rally start to the next switch, or the session end.
+
+### 3.5 Review and correct afterwards
+- The vision session's summary gets a **racquets** row: "rallies 1–13 Blade #1 · 14–31 Blade #2 (strings felt flat)".
+- **Review** lists the rallies with their racquet, each with its first frame (to see the racquet in hand). You can:
+  - move a switch to another break;
+  - change a segment's racquet;
+  - change or add a reason;
+  - **add a switch you forgot** ("switched before rally 9");
   - delete a wrong one.
+- Changes apply at once; the PC doesn't rerun.
 
-  Each rally row shows its first frame, so he can see the racquet in his hand.
-- Changes apply at once to that session's stats and trends. No PC rerun is needed, since the racquet is the app's own data.
+### 3.6 Broken strings
+- **"Broke a string"** records a **string-break event** in that racquet's string history: (racquet, the string job, time, session, hours and sessions on those strings at the break).
+- **The racquet's page:**
+  - the current strings show "broken on 14 Nov after 11.3 h, 9 sessions";
+  - hours stop counting on that job until you log a restring.
+- **Durability:** the string history and stats show, per string type and tension, the hours and sessions to breakage. A break is the strongest end-of-life signal there is; "strings felt flat" switches are kept too, as a softer one.
 
-### 2.5 Comparing racquets, strings and string age
-- **Trends** (TV-APP-06) gain a "group by" choice:
+### 3.7 Comparing racquets, strings and string age (flat strings)
+- **Trends** (TV-APP-06) get a "group by":
   - racquet;
   - string setup;
-  - string age (bands: 0–5, 5–15, 15–30, 30+ hours since restring).
-- Per group: depth, spin effect, serve speed, placement spread (the consistency ellipse), in-percentage, net clearance, with the shot count and a ± band.
-- **Only Chris's shots are counted,** and only from sessions whose identity is settled (TV-PLY-07).
+  - string age bands (0–5, 5–15, 15–30, 30+ hours on the strings).
+- **Measures:** depth, spin effect, serve speed, placement spread (consistency ellipse), in-percentage, net clearance. Each with its shot count and an uncertainty band; only your shots, from sessions with a settled identity.
+- **"Do my strings go flat?":** spin effect and depth plotted against hours on the strings, per string type, with the restrings and switches marked, and the switch reasons shown.
 
-### 2.6 Data (phone only)
-- `racquet_log(sessionRef, utcMillis, racquetId, source = tap | review | assumed)`.
-- `vision_racquet_segments(visionSessionId, fromRally, racquetId, stringJobId, mainsLb, crossesLb, restringDate)`, the snapshot.
-- Shots carry no racquet field in the cloud. The app joins by rally.
+### 3.8 Fatigue (heart rate stays on the phone)
+- **Computed on the phone** from the vision shots plus Health Connect heart rate, never uploaded (TV-HC rules).
+- **Views on the health page:**
+  - **across the session:** serve speed, depth, placement spread and in-percentage per quarter of the session (or per 20 minutes);
+  - **after long rallies:** the same measures for the next rally after one of 9 or more shots, against after short ones (rally length configurable);
+  - **by heart rate:** the measures for shots hit while your heart rate was in each zone;
+  - each with shot counts and an uncertainty band, and "not enough shots" below 10 in a group.
+- Trends across sessions can show the late-session drop, e.g. serve speed in the last quarter minus the first.
 
-### 2.7 Tests
-- Unit tests for:
-  - a tap between rallies;
-  - a late tap inside a rally;
-  - a forgotten Start (overlap rule);
-  - a forgotten switch added in review;
-  - a restring edited after the session (snapshot kept unless confirmed).
-- Screenshot tests of the racquets section and the review list, on the spoof session.
+### 3.9 Data (phone only)
+- `racquet_log(sessionRef, utcMillis, racquetId, reason, source = tap | review | assumed)`.
+- `vision_racquet_segments(visionSessionId, fromRally, toRally, racquetId, stringJobId, snapshot of string/gauge/tension/restring date)`.
+- `string_breaks(racquetId, stringJobId, utcMillis, sessionRef, hoursOnStrings, sessionsOnStrings)`.
+- Shots in the cloud carry no racquet field. The app joins by rally.
 
-## 3. Waiting for the rest of Part F
+### 3.10 Tests (synthetic sessions)
 
-- **Fatigue:** the title mentions it, but the requirement text was cut off.
-- Anything after "performance dr…": presumably "drops as strings age", which section 2.5 covers. I'll confirm once the full text arrives.
+| Test | Expected |
+|---|---|
+| Single switch, tapped in a break | Two segments, split at that break; shots and stats split accordingly; hours split |
+| Multiple switches (3) | Four segments, in order; each racquet's hours and string ages right |
+| Switch tapped mid-point | Snaps to the nearer end of that rally; that rally wholly in one segment |
+| Forgotten switch added in review | Segments and stats update without a PC rerun |
+| "Broke a string" | A string-break event with the right hours and sessions; that job stops counting hours |
+| Forgotten Start | Starting racquet from the overlapping logged session, else asked once |
+| Restring edited after the session | Segment snapshot kept unless confirmed |
+| Fatigue views | On the spoof session: quarter and long-rally groups with the right counts |
+
+Plus screenshot tests of the switch button flow, the racquets row, the review list and the fatigue views.
+
+### 3.11 Placement
+Phase **TV-PH-4** (app and cloud), together with TV-HC-05's session linking. The switch button and string-break events don't depend on the cameras, so they could come earlier for logged sessions if Chris wants.
