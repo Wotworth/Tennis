@@ -65,6 +65,12 @@ class PreviewScreenshots {
     @Test fun p06Replay() = screen("06-3d-replay", Screen.Vision(id, 4), identified())
     @Test fun p07Health() = screen("07-health", Screen.Vision(id, 5), identified())
     @Test fun p08Trends() = screen("08-trends", Screen.VisionTrends, identified())
+    // Footage tests (Chris, 17 Nov): the one-camera iPhone runs bundled in assets/vision/tests/
+    private val footage = "iphone-2025-04-16"
+    @Test fun p13FootageSummary() = screen("13a-footage-test-summary", Screen.FootageTest(footage, 0))
+    @Test fun p13FootageCourt() = screen("13b-footage-test-court", Screen.FootageTest(footage, 1))
+    @Test fun p13FootageBall() = screen("13c-footage-test-ball", Screen.FootageTest(footage, 2))
+    @Test fun p13FootageBounces() = screen("13d-footage-test-bounces", Screen.FootageTest(footage, 3))
     @Test fun p09WhichOne() = screen("09-which-one-is-you", Screen.VisionIdentity(id))
     @Test fun p10Courts() = screen("10a-courts-list", Screen.Hub(LIBRARY))
     @Test fun p10AddCourt() = screen("10b-add-court", Screen.CourtEdit())
