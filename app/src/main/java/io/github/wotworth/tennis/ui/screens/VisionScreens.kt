@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import io.github.wotworth.tennis.R
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -123,6 +124,7 @@ fun VisionSessionScreen(id: String, initial: Int) {
     val app = LocalApp.current
     val nav = LocalNav.current
     val v = app.vision.session(id) ?: run { Page("vision") { TennisText("This session is not on the phone.", TennisTokens.Type.listPrimary) }; return }
+    val filter = remember(id) { VisionFilter() }
     PivotScreen(
         visionDay(v) + if (v.sample) " · sample" else "", VISION_PIVOTS, initial,
         onChange = { i -> nav.stack[nav.stack.lastIndex] = Screen.Vision(id, i) },
@@ -131,8 +133,8 @@ fun VisionSessionScreen(id: String, initial: Int) {
     ) { i, _ ->
         when (i) {
             V_SUMMARY -> VisionSummary(v)
-            V_COURT -> VisionCourt(v)
-            V_SHOTS -> VisionShots(v)
+            V_COURT -> VisionCourt(v, filter)
+            V_SHOTS -> VisionShots(v, filter)
             V_RALLIES -> VisionRallies(v)
             V_3D -> Vision3d(v)
             V_HEALTH -> VisionHealth(v)
@@ -244,71 +246,15 @@ fun playerLine(sh: List<VisionShot>): String {
     ).joinToString(" · ")
 }
 
+/** Design v2, court B (Chris, 17 Nov): the filter bar instead of three rows of words; the map gets the room. */
 @Composable
-private fun VisionCourt(v: VisionSession) {
-    val zpx = LocalZpx.current
+private fun VisionCourt(v: VisionSession, f: VisionFilter) {
     val nav = LocalNav.current
     val app = LocalApp.current
     val answer = if (v.sample) app.prefs.visionSampleIdentity else null
-    var type by remember { mutableStateOf(VisionDefaults.courtType) }
-    var who by remember { mutableStateOf("all") }
-    var colourBy by remember { mutableStateOf(VisionDefaults.courtColour) }
-    val players = v.shots.map { it.hitter }.distinct().sorted()
-    val shots = v.shots.filter { it.bounce != null && (type == "all" || it.type == type) && (who == "all" || it.hitter == who) }
-    val t = TennisTokens.Vision
     PivotColumn {
-        ChoiceRow(null, listOf("all" to "all", "serve" to "serves", "forehand" to "forehands", "backhand" to "backhands"), setOf(type), { type = it })
-        ChoiceRow(null, listOf("speed" to "by speed", "spin" to "by spin effect"), setOf(colourBy), { colourBy = it })
-        ChoiceRow(null, listOf("all" to "everyone") + players.map { it to v.who(it, answer) }, setOf(who), { who = it })
-        Spacer(Modifier.height(zpx(8f)))
-        val lengthM = 2 * (Court.HALF_LENGTH + t.courtMarginM)
-        val widthM = 2 * (Court.HALF_DOUBLES + t.courtMarginM)
-        var mapping by remember { mutableStateOf<(Double, Double) -> Offset>({ _, _ -> Offset.Zero }) }
-        Canvas(Modifier.fillMaxWidth().height(zpx(TennisTokens.Vision.courtMapHeight)).pointerInput(shots) {
-            detectTapGestures { p ->
-                val near = shots.minByOrNull { s -> (mapping(s.bounce!![0], s.bounce[1]) - p).getDistance() }
-                if (near != null && (mapping(near.bounce!![0], near.bounce[1]) - p).getDistance() < zpx(t.spotTapRadius).toPx()) {
-                    nav.open(Screen.VisionShot(v.id, near.rally, near.index))
-                }
-            }
-        }) {
-            // the court runs up the screen: court x -> screen y, court y -> screen x
-            val pad = zpx(t.courtSidePadding).toPx()
-            val s = minOf((size.width - 2 * pad) / widthM.toFloat(), (size.height - 2 * pad) / lengthM.toFloat())
-            val cx = size.width / 2;  val cy = size.height / 2
-            val map = { x: Double, y: Double -> Offset(cx + (y * s).toFloat(), cy - (x * s).toFloat()) }
-            mapping = map
-            drawCourtTopDown(map, s)
-            shots.forEach { sh ->
-                val c = if (colourBy == "speed") speedColour(sh.speedContact) else spinColour(sh.spinEffect)
-                drawCircle(c, zpx(t.spotRadius).toPx(), map(sh.bounce!![0], sh.bounce[1]))
-            }
-        }
-        Spacer(Modifier.height(zpx(6f)))
-        ScaleBar(if (colourBy == "speed") "${t.speedLowMph.roundToInt()} mph" else "no spin", if (colourBy == "speed") "${t.speedHighMph.roundToInt()} mph" else "${t.spinEffectHighFt.roundToInt()} ft shorter")
-        Spacer(Modifier.height(zpx(6f)))
-        TennisText("${shots.size} bounces. Tap one for that shot.", TennisTokens.Type.listSecondary)
+        CourtB(v, answer, f) { sh -> nav.open(Screen.VisionShot(v.id, sh.rally, sh.index)) }
     }
-}
-
-/** The colour scale under the court map: the title gradient, deep green to yellow-green. */
-@Composable
-private fun ScaleBar(low: String, high: String) {
-    val zpx = LocalZpx.current
-    Row {
-        TennisText(low, TennisTokens.Type.listSecondary, Modifier.width(zpx(60f)))
-        Canvas(Modifier.width(zpx(120f)).height(zpx(10f)).align(androidx.compose.ui.Alignment.CenterVertically)) {
-            drawRect(androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(TennisTokens.Colors.titleGradientEnd, TennisTokens.Colors.titleGradientStart)))
-        }
-        Spacer(Modifier.width(zpx(8f)))
-        TennisText(high, TennisTokens.Type.listSecondary)
-    }
-}
-
-fun spinColour(effectM: Double?): Color {
-    val t = TennisTokens.Vision
-    val f = ((-(effectM ?: 0.0)) * Units.FT_PER_M / t.spinEffectHighFt).toFloat().coerceIn(0f, 1f)
-    return lerp(TennisTokens.Colors.titleGradientEnd, TennisTokens.Colors.titleGradientStart, f)
 }
 
 internal fun DrawScope.drawCourtTopDown(map: (Double, Double) -> Offset, s: Float) {
@@ -324,13 +270,16 @@ fun speedColour(ms: Double?): Color {
 }
 
 @Composable
-private fun VisionShots(v: VisionSession) {
+private fun VisionShots(v: VisionSession, f: VisionFilter) {
     val nav = LocalNav.current
     val app = LocalApp.current
+    val zpx = LocalZpx.current
     val answer = if (v.sample) app.prefs.visionSampleIdentity else null
     PivotColumn {
-        v.shots.forEach { s ->
-            TextRow("rally ${s.rally} · shot ${s.index}", shotLine(s, v.who(s.hitter, answer))) { nav.open(Screen.VisionShot(v.id, s.rally, s.index)) }
+        VisionFilterBar(v, answer, f)
+        Spacer(Modifier.height(zpx(10f)))
+        v.shots.filter { f.keep(it) }.forEach { s ->
+            ShotRow(v, s, answer) { nav.open(Screen.VisionShot(v.id, s.rally, s.index)) }
         }
     }
 }
@@ -567,12 +516,34 @@ fun VisionTrends() {
     if (pts.size < 2) return
     val racquet = d.racquet(app.prefs.selectedRacquet ?: -1) ?: d.active.firstOrNull()
     val jobs = d.jobs.filter { it.racquetId == racquet?.id }
-    SectionHeader("vision · forehand" + if (racquet != null) " · ${racquet.name}" else "")
-    TennisText("Synthetic trend for the preview.", TennisTokens.Type.listSecondary)
+    // Design v2, trends A (Chris, 17 Nov): the line of choices as selectors that open the flyout.
+    // Only what the trend data holds can be chosen: forehands, yours, so those stay plain words.
+    var racquetId by remember { mutableStateOf(racquet?.id) }
+    var measure by remember { mutableStateOf("both") }
+    val shown = d.racquet(racquetId ?: -1) ?: racquet
+    val shownJobs = if (shown == null) jobs else d.jobs.filter { it.racquetId == shown.id }
+    val o = LocalOverlays.current
+    val measures = listOf("both" to "spin and depth", "spin" to "spin effect", "depth" to "depth")
+    fun open() = o.panel("trend choices", onReset = { racquetId = racquet?.id; measure = "both" }) {
+        TennisText("racquet", TennisTokens.Type.listSecondary)
+        Spacer(Modifier.height(zpx(4f)))
+        SegmentStrip(d.active.map { it.id.toString() to it.name.lowercase() }, racquetId?.toString() ?: "") { racquetId = it.toLongOrNull() }
+        Spacer(Modifier.height(zpx(10f)))
+        TennisText("measures", TennisTokens.Type.listSecondary)
+        Spacer(Modifier.height(zpx(4f)))
+        SegmentStrip(measures, measure) { measure = it }
+        Spacer(Modifier.height(zpx(10f)))
+    }
+    SectionHeader("vision · forehands · you")
+    // one selector a line: side by side, a long racquet name pushed the second off the screen
+    if (shown != null) { Selector(shown.name.lowercase()) { open() }; Spacer(Modifier.height(zpx(6f))) }
+    Selector(measures.first { it.first == measure }.second) { open() }
+    Spacer(Modifier.height(zpx(4f)))
+    TennisText("Synthetic trend for the preview. Tap a choice to change it.", TennisTokens.Type.listSecondary)
     Spacer(Modifier.height(zpx(6f)))
-    TrendChart("spin effect, ft shorter", pts.map { it.epochDay to -it.forehandSpinEffect * Units.FT_PER_M }, jobs)
-    Spacer(Modifier.height(zpx(10f)))
-    TrendChart("depth, ft inside the baseline", pts.map { it.epochDay to it.forehandDepth * Units.FT_PER_M }, jobs)
+    if (measure != "depth") TrendChart("spin effect, ft shorter", pts.map { it.epochDay to -it.forehandSpinEffect * Units.FT_PER_M }, shownJobs)
+    if (measure == "both") Spacer(Modifier.height(zpx(10f)))
+    if (measure != "spin") TrendChart("depth, ft inside the baseline", pts.map { it.epochDay to it.forehandDepth * Units.FT_PER_M }, shownJobs)
 }
 
 @Composable
@@ -607,35 +578,33 @@ internal fun TrendChart(title: String, pts: List<Pair<Long, Double>>, jobs: List
 }
 
 // ---------------------------------------------------------------------------------------------
-/** TV-APP-04: one shot's card: its figures and a side view of the real path against no spin. */
+/**
+ * TV-APP-04: one shot's card: its figures and a side view of the real path against no spin.
+ * Design v2, shot A (Chris, 17 Nov): the hitter's colour, a two-column grid of figures, and an
+ * app bar with labelled icons: previous and next shot (in session order), and "looks wrong".
+ */
 @Composable
 fun VisionShotScreen(id: String, rally: Int, index: Int) {
     val app = LocalApp.current
-    val zpx = LocalZpx.current
+    val nav = LocalNav.current
     val v = app.vision.session(id)
     val s = v?.shot(rally, index)
-    Page("shot $rally·$index") {
-        if (v == null || s == null) { TennisText("This shot is not on the phone.", TennisTokens.Type.listPrimary); return@Page }
-        TennisText(shotLine(s, v.who(s.hitter, if (v.sample) app.prefs.visionSampleIdentity else null)), TennisTokens.Type.listSecondary)
-        Spacer(Modifier.height(zpx(10f)))
-        v.trajectory(rally, index)?.let { SideView(it, s) }
-        Spacer(Modifier.height(zpx(12f)))
-        TextRow(Units.mph(s.speedContact), "speed at contact" + (s.speedBounce?.let { " · ${Units.mph(it)} at the bounce" } ?: ""))
-        TextRow(s.launchDeg?.let { "%.1f°".format(Locale.US, it) } ?: "–", "launch angle")
-        TextRow(Units.inches(s.netClearance), "net clearance")
-        TextRow(Units.ft(s.apex), "highest point")
-        s.bounce?.let { b -> TextRow("${s.call} · ${Units.ft(s.depth)} inside the baseline", "bounce ± ${Units.inches(s.bounceSd)}") }
-        TextRow(s.spinEffect?.let { "${Units.ft(abs(it))} ${if (it < 0) "shorter" else "longer"}" } ?: "–", "spin's effect on the bounce, against no spin")
-        TextRow(s.spinLabel.ifBlank { "–" } + (s.rpm?.let { " · ${Units.rpm(it, s.rpmSd)}" } ?: ""), spinSplit(s))
-        s.kickAngleDeg?.let { TextRow("%.0f°".format(Locale.US, it), "kick off the court") }
-        TextRow(s.confidence?.let { "${(it * 100).roundToInt()}%" } ?: "–", "measurement confidence")
-        Spacer(Modifier.height(zpx(10f)))
-        val o = LocalOverlays.current
-        MetroButton("this looks wrong") {
+    if (v == null || s == null) { Page("shot $rally·$index") { TennisText("This shot is not on the phone.", TennisTokens.Type.listPrimary) }; return }
+    val answer = if (v.sample) app.prefs.visionSampleIdentity else null
+    val k = v.shots.indexOf(s)
+    fun go(d: Int) { v.shots.getOrNull(k + d)?.let { n -> nav.stack[nav.stack.lastIndex] = Screen.VisionShot(id, n.rally, n.index) } }
+    val o = LocalOverlays.current
+    val actions = listOf(
+        LabeledAction(R.drawable.fluent_arrow_up, "previous") { go(-1) },
+        LabeledAction(R.drawable.fluent_arrow_down, "next") { go(1) },
+        LabeledAction(R.drawable.fluent_flag, "looks wrong") {
             o.menu(*io.github.wotworth.tennis.vision.LOOKS_WRONG_REASONS.map { reason ->
                 reason to { app.vision.flag(id, io.github.wotworth.tennis.vision.Feedback.looksWrong(rally, index, reason)) }
             }.toTypedArray())
-        }
+        },
+    )
+    PivotFrame("shot $rally·$index", "shot", null, bar = { LabeledAppBar(actions) }) {
+        ShotCardA(v, s, answer)
     }
 }
 

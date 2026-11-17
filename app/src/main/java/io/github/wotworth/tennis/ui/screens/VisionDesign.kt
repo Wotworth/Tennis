@@ -22,6 +22,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -52,8 +58,9 @@ import kotlin.math.roundToInt
  * that opens a flyout panel, flat toggles, legends for every colour scale, two-column stat grids,
  * selectors marked with a chevron, labelled app bar icons, and one colour per player.
  *
- * This file holds the parts and the VARIATIONS Chris chooses between (docs/preview/v2). Nothing
- * here is wired into navigation until he picks one.
+ * This file holds the parts and the VARIATIONS Chris chose between (docs/preview/v2). Chris, 17 Nov:
+ * build them in, with the recommended picks: court B, shot A, trends A (VisionScreens uses
+ * VisionFilterBar, CourtMapV2, ShotCardA and TrendSelectors; the variants stay for the previews).
  */
 
 // ---- the parts --------------------------------------------------------------------------------
@@ -217,16 +224,26 @@ enum class CourtStyle { Shades, Size }
 
 /** The court seen from above with each bounce: player colour, shaded or sized by speed or spin. */
 @Composable
-fun CourtMapV2(v: VisionSession, shots: List<VisionShot>, answer: String?, bySpin: Boolean, style: CourtStyle, heightZpx: Float) {
+fun CourtMapV2(v: VisionSession, shots: List<VisionShot>, answer: String?, bySpin: Boolean, style: CourtStyle, heightZpx: Float,
+               onShot: ((VisionShot) -> Unit)? = null) {
     val zpx = LocalZpx.current
     val t = TennisTokens.Vision
     val lengthM = 2 * (Court.HALF_LENGTH + t.courtMarginM)
     val widthM = 2 * (Court.HALF_DOUBLES + t.courtMarginM)
-    Canvas(Modifier.fillMaxWidth().height(zpx(heightZpx))) {
+    var mapping by remember { mutableStateOf<(Double, Double) -> Offset>({ _, _ -> Offset.Zero }) }
+    val tap = if (onShot == null) Modifier else Modifier.pointerInput(shots) {
+        detectTapGestures { p ->
+            val near = shots.minByOrNull { sh -> (mapping(sh.bounce!![0], sh.bounce[1]) - p).getDistance() }
+            if (near != null && (mapping(near.bounce!![0], near.bounce[1]) - p).getDistance() < zpx(t.spotTapRadius).toPx()) onShot(near)
+        }
+    }
+    Canvas(Modifier.fillMaxWidth().height(zpx(heightZpx)).then(tap)) {
+        // the court runs up the screen: court x -> screen y, court y -> screen x
         val pad = zpx(t.courtSidePadding).toPx()
         val s = minOf((size.width - 2 * pad) / widthM.toFloat(), (size.height - 2 * pad) / lengthM.toFloat())
         val cx = size.width / 2;  val cy = size.height / 2
         val map = { x: Double, y: Double -> Offset(cx + (y * s).toFloat(), cy - (x * s).toFloat()) }
+        mapping = map
         drawCourtTopDown(map, s)
         shots.forEach { sh ->
             val me = PlayerColour.isMe(v, sh, answer)
@@ -245,11 +262,11 @@ fun CourtMapV2(v: VisionSession, shots: List<VisionShot>, answer: String?, bySpi
 fun CourtLegends(bySpin: Boolean, style: CourtStyle, players: List<Boolean>) {
     val zpx = LocalZpx.current
     val t = TennisTokens.Vision
-    val lo = if (bySpin) "0 ft" else "${t.speedLowMph.roundToInt()} mph"
-    val hi = if (bySpin) "${t.spinEffectHighFt.roundToInt()} ft" else "${t.speedHighMph.roundToInt()} mph"
+    val lo = if (bySpin) "no spin" else "${t.speedLowMph.roundToInt()} mph"
+    val hi = if (bySpin) "${t.spinEffectHighFt.roundToInt()} ft shorter" else "${t.speedHighMph.roundToInt()} mph"
     when (style) {
         CourtStyle.Shades -> players.forEach { me ->
-            GradientLegend((if (me) "you" else "opponent") + if (bySpin) ", ft shorter" else "", PlayerColour.shade(me, 0f), PlayerColour.shade(me, 1f), lo, hi)
+            GradientLegend(if (me) "you" else "opponent", PlayerColour.shade(me, 0f), PlayerColour.shade(me, 1f), lo, hi)
             Spacer(Modifier.height(zpx(4f)))
         }
         CourtStyle.Size -> {
@@ -536,5 +553,70 @@ private fun TrendsFlyout(racquet: String?) {
         FlyoutRow("player") { SegmentStrip(listOf("you" to "you", "opponents" to "opponents"), "you") }
         FlyoutRow("racquet") { SegmentStrip(listOfNotNull("any" to "any racquet", racquet?.let { it to it.lowercase() }), racquet ?: "any") }
         FlyoutRow("measures") { SegmentStrip(listOf("spin" to "spin effect", "depth" to "depth", "speed" to "speed", "net" to "net clearance"), "spin") }
+    }
+}
+
+// ---- built in (Chris, 17 Nov: court B, shot A, trends A) ---------------------------------------------
+
+/** The data pages' shared choices (court, shots): kept while the session is open. */
+class VisionFilter {
+    var type by mutableStateOf(VisionDefaults.courtType)
+    var colour by mutableStateOf(VisionDefaults.courtColour)
+    var who by mutableStateOf("all")
+    fun reset() { type = VisionDefaults.courtType;  colour = VisionDefaults.courtColour;  who = "all" }
+    fun keep(s: VisionShot) = (type == "all" || s.type == type) && (who == "all" || s.hitter == who)
+}
+
+/** Court B's filter bar: one line of the current choices; tap for the flyout with every option. */
+@Composable
+fun VisionFilterBar(v: VisionSession, answer: String?, f: VisionFilter) {
+    val app = LocalApp.current
+    val o = io.github.wotworth.tennis.ui.components.LocalOverlays.current
+    FilterBar(summaryOf(f.type, f.colour, f.who, v, answer)) {
+        o.panel("filters · kept across court and shots", onReset = { f.reset() }) {
+            FlyoutRow("shot type") { SegmentStrip(TYPE_OPTIONS, f.type) { f.type = it } }
+            FlyoutRow("colour by") { SegmentStrip(COLOUR_OPTIONS, f.colour) { f.colour = it } }
+            FlyoutRow("player") { SegmentStrip(whoOptions(v, answer), f.who) { f.who = it } }
+            if (!v.sample || answer != null) FlatToggle("opponent's stats", v.id in app.prefs.opponentStatsOn) { app.prefs.showOpponentStats(v.id, it) }
+        }
+    }
+}
+
+/** Court B on a real session: the filter bar, the map (tap a bounce for its shot), a legend per player. */
+@Composable
+fun CourtB(v: VisionSession, answer: String?, f: VisionFilter, onShot: (VisionShot) -> Unit) {
+    val zpx = LocalZpx.current
+    val shots = v.shots.filter { it.bounce != null && f.keep(it) }
+    VisionFilterBar(v, answer, f)
+    Spacer(Modifier.height(zpx(6f)))
+    CourtMapV2(v, shots, answer, f.colour == "spin", CourtStyle.Shades, TennisTokens.Vision.courtMapHeight + 110f, onShot)
+    Spacer(Modifier.height(zpx(6f)))
+    CourtLegends(f.colour == "spin", CourtStyle.Shades, players(v, shots, answer))
+    TennisText("${shots.size} bounces. Tap one for that shot.", TennisTokens.Type.listSecondary)
+}
+
+/** Shot A on a real shot: swatch and line, the side view in the hitter's colour, the two-column grid. */
+@Composable
+fun ShotCardA(v: VisionSession, s: VisionShot, answer: String?) {
+    val zpx = LocalZpx.current
+    val me = PlayerColour.isMe(v, s, answer)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        PlayerSwatch(PlayerColour.base(me)); Spacer(Modifier.width(zpx(6f)))
+        TennisText(shotLine(s, v.who(s.hitter, answer)), TennisTokens.Type.listSecondary)
+    }
+    Spacer(Modifier.height(zpx(6f)))
+    v.trajectory(s.rally, s.index)?.let { SideView(it, s, PlayerColour.base(me)) }
+    Spacer(Modifier.height(zpx(10f)))
+    StatGrid(shotStats(s))
+}
+
+/** A shots-list row with the hitter's colour before it. */
+@Composable
+fun ShotRow(v: VisionSession, s: VisionShot, answer: String?, onClick: () -> Unit) {
+    val zpx = LocalZpx.current
+    Row(verticalAlignment = Alignment.Top) {
+        Box(Modifier.padding(top = zpx(9f))) { PlayerSwatch(PlayerColour.base(PlayerColour.isMe(v, s, answer))) }
+        Spacer(Modifier.width(zpx(8f)))
+        io.github.wotworth.tennis.ui.components.TextRow("rally ${s.rally} · shot ${s.index}", shotLine(s, v.who(s.hitter, answer)), onClick = onClick)
     }
 }

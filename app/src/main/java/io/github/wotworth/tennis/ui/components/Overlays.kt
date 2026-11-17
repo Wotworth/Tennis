@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,12 +32,15 @@ class Overlays {
     data class Menu(val items: List<Pair<String, () -> Unit>>) : Overlay
     /** A message box: title, text, and two buttons. */
     data class Message(val title: String, val text: String, val ok: String, val cancel: String?, val onOk: () -> Unit) : Overlay
+    /** Design v2 (VIS-09): the filter flyout: full width, square, every option as strips, done / reset. */
+    data class Panel(val title: String, val onReset: () -> Unit, val content: @Composable ColumnScope.() -> Unit) : Overlay
 
     var current by mutableStateOf<Overlay?>(null)
         private set
     fun menu(vararg items: Pair<String, () -> Unit>) { current = Menu(items.toList()) }
     fun confirm(title: String, text: String, ok: String, onOk: () -> Unit) { current = Message(title, text, ok, "cancel", onOk) }
     fun tell(title: String, text: String) { current = Message(title, text, "ok", null) {} }
+    fun panel(title: String, onReset: () -> Unit, content: @Composable ColumnScope.() -> Unit) { current = Panel(title, onReset, content) }
     fun dismiss() { current = null }
 }
 
@@ -62,6 +66,16 @@ fun OverlayHost(o: Overlays) {
             when (cur) {
                 is Overlays.Menu -> cur.items.forEach { (label, action) ->
                     TennisText(label, TennisTokens.Type.menuItem, Modifier.fillMaxWidth().press(description = label) { o.dismiss(); action() }.padding(vertical = zpx(9f)))
+                }
+                is Overlays.Panel -> {
+                    TennisText(cur.title, TennisTokens.Type.sectionHeader)
+                    Spacer(Modifier.height(zpx(10f)))
+                    cur.content(this)
+                    Spacer(Modifier.height(zpx(6f)))
+                    Row(horizontalArrangement = Arrangement.spacedBy(zpx(8f))) {
+                        PanelButton("done", TennisTokens.Colors.tile) { o.dismiss() }
+                        PanelButton("reset", TennisTokens.Colors.segmentOff) { cur.onReset() }
+                    }
                 }
                 is Overlays.Message -> {
                     TennisText(cur.title, TennisTokens.Type.listPrimary)
@@ -91,5 +105,13 @@ fun MetroButton(label: String, modifier: Modifier = Modifier, enabled: Boolean =
         contentAlignment = Alignment.Center,
     ) {
         androidx.compose.foundation.text.BasicText(label, style = io.github.wotworth.tennis.ui.theme.textStyleFor(TennisTokens.Type.button).copy(color = color))
+    }
+}
+
+@Composable
+private fun PanelButton(label: String, colour: Color, onClick: () -> Unit) {
+    val zpx = LocalZpx.current
+    Box(Modifier.background(colour).press(description = label, onClick = onClick).padding(horizontal = zpx(18f), vertical = zpx(8f))) {
+        TennisText(label, TennisTokens.Type.button)
     }
 }
