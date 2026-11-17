@@ -14,5 +14,6 @@ if ~any(far), return; end
 s = c(1) ./ (c(1) - P(far, 1));               % fraction of the way to the point at x = 0
 yAt = c(2) + s .* (P(far, 2) - c(2));
 zAt = c(3) + s .* (P(far, 3) - c(3));
-hid(far) = zAt < tv.court.netHeight(yAt) + marginM & abs(yAt) <= tv.court.constants().postY;
+cc = tv.court.constants();
+hid(far) = zAt < tv.court.netHeight(yAt) + marginM & abs(yAt) <= cc.postY;
 end
