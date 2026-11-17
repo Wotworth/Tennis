@@ -11,6 +11,8 @@ class VisionStore(private val context: Context) {
     private val sample: VisionSession? by lazy { loadSample() }
     val outbox by lazy { Outbox(context.filesDir) }
     val opponents = Opponents()
+    /** One-camera tests on real footage (Chris, 17 Nov), bundled in assets/vision/tests/. */
+    val tests by lazy { FootageTests(context) }
     private val answered = androidx.compose.runtime.mutableStateListOf<Int>()
 
     /** "Ball check": crops still to look at (the sample's synthetic ones until the cloud exists). */

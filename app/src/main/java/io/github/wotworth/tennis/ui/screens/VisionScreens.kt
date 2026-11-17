@@ -102,6 +102,7 @@ fun VisionTiles() {
     val nav = LocalNav.current
     val zpx = LocalZpx.current
     val l = TennisTokens.Layout
+    FootageTestTiles()
     val checks = app.vision.checks(app.prefs.visionSample).size
     if (checks > 0) TextRow("ball check", "$checks frames to look at: a few taps teach the detector") { nav.open(Screen.BallCheck) }
     val d = io.github.wotworth.tennis.ui.appData()

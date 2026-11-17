@@ -213,6 +213,7 @@ object TennisTokens {
         var hrChartHeight by mutableFloatStateOf(120f)       // zpx
         var trendHeight by mutableFloatStateOf(110f)         // zpx
         var courtMapHeight by mutableFloatStateOf(300f)      // zpx: the whole court on one screen
+        var testLineWidth by mutableFloatStateOf(1.2f)       // zpx: fitted court lines over a footage test's picture
         // Design v2 (Chris, 16 Nov)
         var segmentHeight by mutableFloatStateOf(30f)        // zpx: one segment strip
         var segmentPadX by mutableFloatStateOf(10f)          // zpx inside a segment
