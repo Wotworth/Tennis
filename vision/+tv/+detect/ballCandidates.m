@@ -14,15 +14,25 @@ function C = ballCandidates(F, bg, mask, opts)
 %   Runs on the GPU when there is one, else on the CPU (same code).
 %   Returns C, one row per candidate: [frame u v area elongation score],
 %   frame 1-based within F, (u, v) the 1-based pixel column and row.
+%   First real footage (iPhone, 17 Nov): the ball looks pale, washed out by compression and
+%   blur (saturation about 0.18, brightness 0.92, green slightly above red): hue [55 140],
+%   minSat 0.12, minVal 0.75 there (cfg.single.detectOpts); and a pale green shirt passes
+%   that colour test, so opts.bigPatchArea (px, 0 = off) drops spots that belong to a
+%   larger patch of ball colour.
 %   RETUNE(real footage): every threshold in opts; the hue range for optic
 %   yellow under real light; the size range (opts.minArea, opts.maxArea).
 if nargin < 4, opts = struct(); end
 d = struct('diffThr', 30, 'motionThr', 18, 'hue', [40 95], 'minSat', 0.35, 'minVal', 0.35, ...
-           'minArea', 2, 'maxArea', 400, 'maxElong', 8);
+           'minArea', 2, 'maxArea', 400, 'maxElong', 8, 'bigPatchArea', 0);
 f = fieldnames(d);
 for k = 1:numel(f), if ~isfield(opts, f{k}), opts.(f{k}) = d.(f{k}); end, end
 N = size(F, 4);
 C = zeros(0, 6);
+% work only inside the mask's bounding box (same result, much less work on real frames)
+[rr, cc0] = find(mask);
+if isempty(rr), return; end
+r0 = min(rr);  r1 = max(rr);  c0 = min(cc0);  c1 = max(cc0);
+F = F(r0:r1, c0:c1, :, :);  bg = bg(r0:r1, c0:c1, :);  mask = mask(r0:r1, c0:c1);
 bgD = tv.util.toDevice(single(bg));
 ref = mean(bgD(:));
 G = tv.util.toDevice(single(F));
@@ -40,6 +50,13 @@ for n = 2:N - 1
     hue = hueDeg(cur, mx, mn);
     yellow = hue >= opts.hue(1) & hue <= opts.hue(2) & sat >= opts.minSat & val >= opts.minVal;
     cand = tv.util.fromDevice(dBg > opts.diffThr & max(dPrev, dNext) > opts.motionThr & yellow) & mask;
+    if opts.bigPatchArea > 0
+        % a ball is a small spot of its colour; pieces of a larger patch of that colour (a pale
+        % green shirt, first real footage) are not balls
+        patch = tv.util.fromDevice(dBg > opts.diffThr & yellow);
+        big = bwareaopen(imclose(patch, true(5)), opts.bigPatchArea);
+        if any(big(:)), cand = cand & ~imdilate(big, true(7)); end
+    end
     if ~any(cand(:)), continue; end
     score = tv.util.fromDevice(dBg .* sat);
     cc = bwconncomp(cand, 8);
@@ -52,7 +69,7 @@ for n = 2:N - 1
         u = sum(q .* w);  v = sum(r .* w);
         el = elongation(q, r);
         if el > opts.maxElong, continue; end
-        C(end+1, :) = [n, u, v, a, el, sum(score(idx))]; %#ok<AGROW>
+        C(end+1, :) = [n, u + c0 - 1, v + r0 - 1, a, el, sum(score(idx))]; %#ok<AGROW>
     end
 end
 end
