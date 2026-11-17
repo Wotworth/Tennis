@@ -9,7 +9,9 @@ function m = adjacentMetrics(result, truth, cams, sc, limits)
 %   falseNeg   Chris's ball: detections that joined a 2D track but were then
 %              rejected (by the gate or the flight fit), as a share of those
 %              that joined a track (AC-15). Detections the detector or tracker
-%              never linked are outside this test (TV-DET-06).
+%              never linked are outside this test (TV-DET-06). Chris's ball where it
+%              truly is outside the court of interest is rejected by design and
+%              counted apart (mineOutsideBox).
 %   swaps      hits credited to anyone but the true hitter, plus kept player
 %              tracks that switch person, plus kept tracks that are a neighbour (AC-16)
 %   pass       each against limits (cfg.adjacentTest: maxFalsePos, maxFalseNeg, maxSwaps)
@@ -19,14 +21,16 @@ tolPx = 4 * sc.frameSize(1) / 960;
 balls = {truth.ballP};  kinds = {'mine'};
 for o = truth.others.balls(:)', balls{end+1} = o.ballP; kinds{end+1} = o.kind; end %#ok<AGROW>
 % --- label every candidate, and mark the ones that joined a track / were accepted
-lab = {};  inTrack = [];  accepted = [];  why = {};
+lab = {};  inTrack = [];  accepted = [];  why = {};  outsideBox = [];
+box = tv.court.interest(tv.pipeline.defaults().court);
 for r = 1:size(result.candidates, 1)
     acc = obsOf(result.segs{r});
     rej = result.gateLog{r};
     for k = 1:2
         C = result.candidates{r, k};
         if isempty(C), continue; end
-        L = labelCands(C, k, result.rec, cams, truth, balls, kinds, tolPx);
+        [L, Ptrue] = labelCands(C, k, result.rec, cams, truth, balls, kinds, tolPx);
+        outsideBox = [outsideBox; ~tv.court.inInterest(Ptrue, box)]; %#ok<AGROW>
         a = ismember([k * ones(size(C, 1), 1), C(:, 1), round(C(:, 2:3) * 100)], ...
                      [acc(:, 1:2), round(acc(:, 3:4) * 100)], 'rows');
         iso = false(size(C, 1), 1);  w = repmat({''}, size(C, 1), 1);
@@ -46,6 +50,11 @@ for r = 1:size(result.candidates, 1)
     end
 end
 mine = strcmp(lab, 'mine');  other = ~mine & ~strcmp(lab, 'none');
+% Chris's ball where it truly is outside the court of interest (flying on past the box after an
+% out ball) is rejected by design (TV-ADJ-01); counted apart, not as a false negative (17 Nov)
+outsideBox = logical(outsideBox);
+m.mineOutsideBox = nnz(mine & outsideBox);
+mine = mine & ~outsideBox;
 accepted = logical(accepted);  inTrack = logical(inTrack);
 m.accepted = nnz(accepted);
 m.acceptedOther = nnz(accepted & other);
@@ -92,16 +101,16 @@ o = zeros(0, 4);
 for s = segs(:)', o = [o; s.obs(:, 1:4)]; end %#ok<AGROW>
 end
 
-function L = labelCands(C, k, rec, cams, truth, balls, kinds, tolPx)
+function [L, Pbest] = labelCands(C, k, rec, cams, truth, balls, kinds, tolPx)
 cam = cams(k);
 clock = cam.recordStart + rec(k).pts(C(:, 1) + 1) + cam.readout * (C(:, 3) - 1) / cam.height + cam.shutter / 2;
 T = tv.synth.truthTime(cam, clock);
-best = inf(size(C, 1), 1);  L = repmat({'none'}, size(C, 1), 1);
+best = inf(size(C, 1), 1);  L = repmat({'none'}, size(C, 1), 1);  Pbest = nan(size(C, 1), 3);
 for b = 1:numel(balls)
     P = tv.synth.ballAt(struct('T', truth.T, 'ballP', balls{b}), T);
     [px, ok] = tv.camera.project(cam, P);
     d = sqrt(sum((px - C(:, 2:3)).^2, 2));  d(~ok | any(isnan(P), 2)) = Inf;
     take = d < best & d <= tolPx;
-    best(take) = d(take);  L(take) = kinds(b);
+    best(take) = d(take);  L(take) = kinds(b);  Pbest(take, :) = P(take, :);
 end
 end

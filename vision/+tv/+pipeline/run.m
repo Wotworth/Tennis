@@ -175,12 +175,12 @@ end
 
 function G = gateAll(D, cams, rec, sync, cfg)
 box = tv.court.interest(cfg.court);
-G.tracks = cell(size(D.tracks));  G.log = cell(size(D.tracks, 1), 1);
+G.tracks = cell(size(D.tracks));  G.partners = cell(size(D.tracks));  G.log = cell(size(D.tracks, 1), 1);
 for r = 1:size(D.tracks, 1)
     cand = {zeros(0, 3), zeros(0, 3)};
     if isfield(D, 'candidates'), cand = D.candidates(r, :); end
-    [kt, lg] = tv.recon.gateTracks(D.tracks(r, :), cand, cams, rec, sync, box, cfg.gate);
-    G.tracks(r, :) = kt;
+    [kt, lg, pt] = tv.recon.gateTracks(D.tracks(r, :), cand, cams, rec, sync, box, cfg.gate);
+    G.tracks(r, :) = kt;  G.partners(r, :) = pt;
     for m = 1:numel(lg), lg(m).rally = r; end
     G.log{r} = lg;
 end
@@ -189,8 +189,17 @@ end
 function X = reconstruct(D, cams, rec, sync, air, cfg)
 segs = cell(size(D.tracks, 1), 1);  X.dropped = cell(size(segs));
 for r = 1:size(D.tracks, 1)
-    P = tv.recon.pieces(D.tracks(r, :), rec, sync);
-    [segs{r}, X.dropped{r}] = tv.recon.segments(P, cams, rec, sync, air, cfg.CDprior);
+    % one ball at a time: two balls in view at once are fitted apart (tv.recon.ballGroups)
+    pr = {};  if isfield(D, 'partners'), pr = D.partners(r, :); end
+    groups = tv.recon.ballGroups(D.tracks(r, :), pr);
+    for g = 1:numel(groups)
+        P = tv.recon.pieces(groups{g}, rec, sync);
+        [sg, dg] = tv.recon.segments(P, cams, rec, sync, air, cfg.CDprior);
+        segs{r} = [segs{r}; sg(:)];  X.dropped{r} = [X.dropped{r}; dg(:)];
+    end
+    if numel(groups) > 1 && ~isempty(segs{r})
+        [~, o] = sort([segs{r}.t0]);  segs{r} = segs{r}(o);
+    end
 end
 opts = struct('rounds', cfg.refineRounds, 'windPrior', air.wind(1:2), 'indoor', cfg.indoor, ...
               'readoutPrior', cfg.readoutPrior);

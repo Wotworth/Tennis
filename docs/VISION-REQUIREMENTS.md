@@ -553,7 +553,7 @@ m v̇ = m g − ½ ρ A C_D |u| u + ½ ρ A C_L |u|² (ω̂ × û),  u = v − w
 | AC-12 | 2-hour session, cards in to app | ≤ 13 h **[16 Nov]** (was 7 h) |
 | AC-13 | Shots credited to the right player, including after changeovers | ≥ 99% |
 | AC-14 | Adjacent courts: neighbours' ball detections accepted (synthetic, TV-ADJ-08) | ≤ 0.5% of accepted **[16 Nov]** |
-| AC-15 | Adjacent courts: Chris's ball detections rejected (synthetic) | ≤ 2% **[16 Nov]** |
+| AC-15 | Adjacent courts: Chris's ball detections rejected (synthetic), counting only where the ball truly is inside the court of interest (past the box it is rejected by design, counted apart) | ≤ 2% **[16 Nov; 17 Nov]** |
 | AC-16 | Adjacent courts: identity swaps (synthetic) | 0 **[16 Nov]** |
 
 ### Open questions for TV-PH-0

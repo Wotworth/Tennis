@@ -1,4 +1,4 @@
-function [kept, log] = gateTracks(tracks, cands, cams, rec, sync, box, opts)
+function [kept, log, partners] = gateTracks(tracks, cands, cams, rec, sync, box, opts)
 %GATETRACKS  Keep only the ball on Chris's court (TV-ADJ-02 to 04, 06), one rally.
 %   tracks: 1-by-2 cell of 2D tracks per camera (tv.track.ball2d); cands: 1-by-2
 %   cell of that rally's candidates [frame u v ...] (for the isolated ones).
@@ -29,6 +29,8 @@ function [kept, log] = gateTracks(tracks, cands, cams, rec, sync, box, opts)
 %   explains ("implausible flight", logged by the pipeline).
 %
 %   kept: 1-by-2 cell of the kept tracks (points removed as above).
+%   partners: 1-by-2 cell; for each kept track, the id of its stereo partner track in the
+%   other camera (0 if none), so two balls in view at once are fitted apart (tv.recon.ballGroups).
 %   log: struct array, one row per rejected candidate: cam, frame, u, v, t,
 %   X (1-by-3, NaN if never triangulated), track (that camera's track id, 0 if
 %   none), reason, errPx.
@@ -63,12 +65,13 @@ for k = 1:2
             [E(:, jj), XX(:, :, jj), cov] = pairWith(k, trk, T{k}{j}, tracks{o}(jj), T{o}{jj}, cams, fps, opts);
             covered = covered | cov;
         end
-        best = inf(n, 1);  X = nan(n, 3);
+        best = inf(n, 1);  X = nan(n, 3);  pid = 0;
         if ~isempty(E)
             med = arrayfun(@(jj) medFinite(E(:, jj)), 1:size(E, 2));
             [mp, partner] = min(med);
             [emin, imin] = min(E, [], 2);
             usePartner = isfinite(mp) & mp <= opts.epipolarPx & E(:, partner) <= opts.epipolarPx;
+            if isfinite(mp) && mp <= opts.epipolarPx, pid = tracks{o}(partner).id; end
             pick = imin;  pick(usePartner) = partner;
             for m = 1:n
                 best(m) = E(m, pick(m));  X(m, :) = XX(m, :, pick(m));
@@ -81,11 +84,11 @@ for k = 1:2
         st(paired) = {'ok'};
         out = paired & ~tv.court.inInterest(X, box);
         st(out) = {'outside court of interest'};
-        info{k}{j} = struct('status', {st}, 'X', X, 'err', best);
+        info{k}{j} = struct('status', {st}, 'X', X, 'err', best, 'partner', pid);
     end
 end
 % 3: track decisions
-keptErr = {{}, {}};  keptT = {{}, {}};  keptX = {{}, {}};
+keptErr = {{}, {}};  keptT = {{}, {}};  keptX = {{}, {}};  partners = {zeros(1, 0), zeros(1, 0)};
 for k = 1:2
     for j = 1:numel(tracks{k})
         trk = tracks{k}(j);  I = info{k}{j};  t = T{k}{j};
@@ -122,6 +125,7 @@ for k = 1:2
             keptErr{k}{end+1} = I.err(~drop); %#ok<AGROW>
             keptT{k}{end+1} = t(~drop); %#ok<AGROW>
             keptX{k}{end+1} = I.X(~drop, :); %#ok<AGROW>
+            partners{k}(end+1) = I.partner; %#ok<AGROW>
         end
     end
 end
@@ -157,7 +161,7 @@ for k = 1:2
         end
     end
     short = arrayfun(@(x) numel(x.frames) < 3, kept{k});
-    kept{k} = kept{k}(~short);
+    kept{k} = kept{k}(~short);  partners{k} = partners{k}(~short);
 end
 % 4: candidates in no track
 for k = 1:2

@@ -67,11 +67,15 @@ assert(sum(strcmp({log.reason}, 'overlaps a better track')) == numel(sel))
 % the overlap step must not treat two different balls as two tracks of one
 other = [5 + 0 * t, -2 - 3 * t, c.ballRadius + 0 * t];
 [tr, cand, rec, sync] = tv.testing.ballTracks(cams, {mine, other}, fps, 0.3);
-[kept, log] = tv.recon.gateTracks(tr, cand, cams, rec, sync, box, struct());
+[kept, log, partners] = tv.recon.gateTracks(tr, cand, cams, rec, sync, box, struct());
 for k = 1:2
     assert(numel(kept{k}) == 2, 'camera %d kept %d tracks', k, numel(kept{k}))
 end
 assert(~any(strcmp({log.reason}, 'overlaps a better track')))
+% and they are fitted apart: two groups, each seen by both cameras
+G = tv.recon.ballGroups(kept, partners);
+assert(numel(G) == 2)
+assert(all(cellfun(@(g) numel(g{1}) == 1 && numel(g{2}) == 1, G)))
 
 %% Every rejected detection is logged with a reason, and isolated candidates too
 [tr, cand, rec, sync] = tv.testing.ballTracks(cams, {mine}, fps, 0.3);

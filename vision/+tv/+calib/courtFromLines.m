@@ -72,18 +72,20 @@ end, end
 report.nLines = numel(L);  report.nHypotheses = size(hyp, 1);
 if isempty(hyp), error('tv:calib:noCourt', 'No court line pattern found.'); end
 [~, o] = sort(hyp(:, 1), 'descend');
-best = -Inf;  cam = [];  cands = zeros(0, 6);
+best = -Inf;  cam = [];  cands = zeros(0, 6);  report.rejected = {};
 for i = o(1:min(end, opts.keepPoses))'
     Hm = reshape(hyp(i, 2:10), 3, 3);
-    [c0, ok] = poseFromH(Hm, lens, fPix, opts.fitFocal, W);
-    if ~ok, continue; end
+    % the court is the same mirrored left to right, so a mirrored match is the same court
+    [c0, ok, why] = poseFromH(Hm, lens, fPix, opts.fitFocal, W);
+    if ~ok, [c0, ok, why] = poseFromH(Hm * diag([1 -1 1]), lens, fPix, opts.fitFocal, W); end
+    if ~ok, report.rejected{end+1} = why; continue; end
     [cR, rep] = tv.calib.courtPose(bg, c0, struct('searchDeg', 1, 'maxMove', 2, 'lineOpts', opts.lineOpts, ...
         'fitFocal', opts.fitFocal));
     sup = tv.calib.lineSupport(cR, mask, struct('tolPx', opts.tolPx));
     cands(end+1, :) = [cR.pos, sup, rep.rmsPx, hyp(i, 1)]; %#ok<AGROW>
     if sup > best, best = sup; cam = cR; report.rmsPx = rep.rmsPx; report.inliers = rep.inliers; end
 end
-if isempty(cam), error('tv:calib:noCourt', 'No pose from the court line pattern.'); end
+if isempty(cam), error('tv:calib:noCourt', 'No pose from the court line pattern (%s).', strjoin(unique(report.rejected), '; ')); end
 report.support = best;
 report.hfovDeg = NaN;
 if strcmp(cam.lens.type, 'rectilinear'), report.hfovDeg = 2 * atand(1 / cam.lens.F); end
@@ -143,8 +145,8 @@ if S(8, 8) < 1e-9 * S(1, 1), Hm = []; return; end
 Hm = reshape(V(:, 9), 3, 3)';
 end
 
-function [cam, ok] = poseFromH(Hm, lens, fPix, fitFocal, W)
-ok = false;  cam = [];
+function [cam, ok, why] = poseFromH(Hm, lens, fPix, fitFocal, W)
+ok = false;  cam = [];  why = '';
 h1 = Hm(:, 1);  h2 = Hm(:, 2);
 if fitFocal
     f2 = [];
@@ -152,9 +154,9 @@ if fitFocal
     if isfinite(a) && a > 0, f2(end+1) = a; end
     b = (h1(1)^2 + h1(2)^2 - h2(1)^2 - h2(2)^2) / (h2(3)^2 - h1(3)^2);
     if isfinite(b) && b > 0, f2(end+1) = b; end
-    if isempty(f2), return; end
+    if isempty(f2), why = 'no focal length'; return; end
     fPix = sqrt(mean(f2));
-    if fPix < 0.3 * W / 2 || fPix > 6 * W / 2, return; end     % 160 deg to 19 deg wide
+    if fPix < 0.3 * W / 2 || fPix > 6 * W / 2, why = sprintf('focal %.0f px', fPix); return; end     % 160 deg to 19 deg wide
     lens.F = fPix / (W / 2);
 end
 K = diag([fPix fPix 1]);
@@ -164,9 +166,9 @@ r1 = lam * M(:, 1);  r2 = lam * M(:, 2);  t = lam * M(:, 3);
 if t(3) < 0, r1 = -r1; r2 = -r2; t = -t; end
 R = [r1, r2, cross(r1, r2)];
 [U, ~, V] = svd(R);  R = U * V';
-if det(R) < 0, return; end
+if det(R) < 0, why = 'mirrored'; return; end
 C = (-R' * t)';
-if C(3) <= 0.2, return; end
+if C(3) <= 0.2, why = sprintf('camera height %.1f m', C(3)); return; end
 cam = tv.camera.make(lens, C, 0, 0, 0);
 cam.R = R;               % rows: right, down, forward in court axes
 ok = true;
