@@ -1,6 +1,6 @@
 # Session summary: key figures against your average, and a trends tab (17 Nov)
 
-Release: RELEASE_LINK
+Release: [v0.6.33](https://github.com/Wotworth/Tennis/releases/tag/v0.6.33)
 
 | Summary | Trends |
 | --- | --- |
@@ -20,8 +20,17 @@ The figures appear once "which one is you?" is answered, because until then the 
 
 ## What CI proved
 
-CI_PROVED
+- **Build and release (run 44171693473): passed.** The app built, and its unit and screenshot tests passed.
+- **The tests cover:**
+  - the summary and trends tab render on the sample session;
+  - every number on them is odd, including both averages;
+  - a pinch zooms the court map without changing tab.
 
 ## On your phone
 
-PHONE_STEPS
+1. Install v0.6.33, then open **Sessions → vision · sample**.
+2. On **summary**, answer "which one is you?" if asked. The key figures then appear: **accuracy, serves, topspin, speed**. Each shows "above / below your average" and a "last ten" figure underneath.
+3. Swipe to **trends**, the last tab. Each figure has its own chart, with this session as the large green dot and a grey line for the average of the last ten sessions.
+4. On **court**, pinch to zoom in on a cluster of bounces and tap one. Double-tap to see the whole court again.
+5. Check that the **iPhone test** tiles are gone from the sessions page.
+6. Tell me whether the summary helps you spot a good or bad day, and what you'd add.

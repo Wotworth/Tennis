@@ -67,7 +67,7 @@ Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens ca
 
 ## Next
 
-- Design v2 (VIS-09): vision pages done with Chris's 17 Nov feedback (tabs summary/court/3D/health, rally pages with replay, wide court colour scale, swipeable tab names; reports DESIGN-V2-1, DESIGN-V2-2, release v0.6.28). App-wide: shared parts done (segments, square buttons, labelled app bar). Next: whichever hub pages Chris names after testing v0.6.28.
+- Design v2 (VIS-09): vision pages done with Chris's 17 Nov feedback (tabs summary/court/3D/health, rally pages with replay, wide court colour scale, swipeable tab names; reports DESIGN-V2-1, DESIGN-V2-2, release v0.6.28). App-wide: shared parts done (segments, square buttons, labelled app bar). Then (v0.6.33): court map pinch-zoom; summary key figures (accuracy, serves, topspin, speed) against all earlier sessions and the last ten; session trends tab with a rolling ten-session average; iPhone footage tests removed from the app. Next: whichever hub pages Chris names after testing v0.6.28.
 
 - Chris tests the overnight builds (one release per phase; each report has numbered steps) and picks a strings layout (grid, hero, mixed).
 - Chris sets his birth year, and runs debug → try a day on a pre-injury tennis day; tune detection from it.
