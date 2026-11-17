@@ -13,7 +13,8 @@ s.code = tv.util.codeVersion();
 s.created = tv.util.nowUtc();
 s.startUtc = R.rec(1).startUtc;
 s.cameras = arrayfun(@(k) struct('serial', R.rec(k).serial, 'position', R.cams(k).pos, ...
-    'lineRmsPx', R.calib(k).rmsPx, 'readoutS', R.sync.readout(k)), 1:2);
+    'lineRmsPx', R.calib(k).rmsPx, 'readoutS', R.sync.readout(k), ...
+    'cornersOutOfView', {cornersMissing(R.calib(k))}), 1:2);   % TV-CAL-20
 s.sync = struct('startOffsetS', R.sync.startOffset(2), 'deltaS', R.sync.delta, 'drift', R.sync.drift);
 s.air = struct('rho', R.air.rho, 'wind', R.air.wind(1:2), 'sessionCD', R.air.sessionCD);
 s.symmetry = struct('chosen', R.symmetry.chosen, 'ballGapM', R.symmetry.ballGap', 'playerGapM', R.symmetry.playerGap', ...
@@ -73,4 +74,9 @@ for s = R.shots'
 end
 tv.util.writeJson(file, T);
 gzip(file);  delete(file);
+end
+
+function m = cornersMissing(rep)
+m = {};
+if isfield(rep, 'corners') && ~isempty(rep.corners), m = rep.corners.missing(:)'; end
 end

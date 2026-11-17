@@ -353,6 +353,8 @@ Back-fence corners (layout 2) also work; see the report.
 
 ---
 
+**Check the whole court is in view.** Before pressing record, look at each camera's preview on your phone: all four corners of the doubles court must be inside the picture, with a little margin. After each session the PC checks this from the court lines (TV-CAL-20). If a corner was cut off, you get a phone message naming it (for example "near right doubles"), and the session summary shows it. Shots landing there may be missed.
+
 ## 7. Before every session (checklist)
 1. **Batteries:** both cameras charged; power banks charged and connected.
 2. **Cards:** each camera has an empty card, at least 2 hours' free (about 220 GB at 4K120 High). The PC empties cards after a verified import.

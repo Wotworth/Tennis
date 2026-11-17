@@ -226,6 +226,7 @@ A ball at 30 m/s moves 3 cm per millisecond, so a 1 ms timing error between the 
 - TV-CAL-13 Target: line reprojection RMS ≤ 1.0 px per camera. Report it in `session.json`.
 - TV-CAL-14 Re-solve the pose every 5 min of footage, and whenever the gyro shows a bump. If the camera moved more than 0.05°, split the session and use a pose per segment.
 - TV-CAL-15 If automatic calibration fails, post an alert. Provide `tools/clickCourt.m`, a GUI used over Remote Desktop to click at least six court points, and resume from there.
+- TV-CAL-20 **Court corners in view (Chris, 17 Nov).** After each camera's pose is fitted, report which of the eight court corners (singles and doubles, both baselines) it sees. If any is out of view: a phone alert naming them ("Court corners out of view: near right singles, near right doubles"), the list in session.json (`cameras[].cornersOutOfView`), and the session summary shows it. Shots and bounces there may be missed and are not counted as detector failures. Found on the first real footage (an iPhone that cut off the near right corners).
 
 ### Time sync between the cameras
 The cameras are not genlocked, so pairing frames by index is wrong. The model maps camera 2's clock onto camera 1's with an offset and a slow drift. It also accounts for rolling shutter: each row of the image is exposed slightly later than the row above.

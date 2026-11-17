@@ -31,7 +31,12 @@ rec = S.rec;  sync = S.sync;  sync.readout = cfg.readoutPrior * [1 1];  sync.shu
 
 % --- calibration ------------------------------------------------------------------------
 guard();
-C = tv.pipeline.stage(outDir, 'calib', k('search', cfg.lensName, cfg.aspect), @() calibrate(rec, cfg));
+C = tv.pipeline.stage(outDir, 'calib', k('search', cfg.lensName, cfg.aspect, 'corners'), @() calibrate(rec, cfg));
+for kk = 1:numel(C.report)                            % TV-CAL-20: framing warning
+    if isfield(C.report(kk), 'corners') && ~isempty(C.report(kk).corners.text)
+        cfg.notify(sprintf('Camera %d framing', kk), C.report(kk).corners.text);
+    end
+end
 
 % --- rallies ------------------------------------------------------------------------------
 R = tv.pipeline.stage(outDir, 'rallies', k(), @() findRallies(rec));
@@ -105,6 +110,7 @@ for k = 1:2
     % RETUNE(real footage): the background should come from a quiet minute
     bg = tv.calib.background(rec(k), 61);
     [cam, rep] = tv.calib.searchPose(bg, L);
+    rep.corners = tv.calib.corners(cam);              % TV-CAL-20: which court corners this camera sees
     C.cams(k) = cam;  C.bg{k} = bg;  C.report(k) = rep;
 end
 end
