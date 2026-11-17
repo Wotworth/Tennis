@@ -54,7 +54,7 @@ k = @(varargin) [key0 '|' jsonencode(varargin)];
 P = tv.pipeline.stage(outDir, 'probe', k(), @() tv.media.probe(file));
 rec = P;
 C = tv.pipeline.stage(outDir, 'clips', k(s.clipOpts, s.wholeFile, s.windowS), @() findClips(rec, s));
-K = tv.pipeline.stage(outDir, 'calib', k(s.overlayBoxes, s.lineOpts, s.hfovStart), @() calibrate(rec, s));
+K = tv.pipeline.stage(outDir, 'calib', k(s.overlayBoxes, s.lineOpts, s.hfovStart, s.steady, s.steadyMaxPx), @() calibrate(rec, s));
 if ~isempty(K.corners.text) && isfield(cfg, 'notify'), cfg.notify('Camera framing', K.corners.text); end
 if s.detectOnly
     % a worker: detect the clips in s.clipList only (each saved as it finishes), then stop
@@ -154,7 +154,7 @@ end
 
 function K = calibrate(rec, s)
 % the empty court: median over the whole file (players move between clips)
-bg = tv.calib.background(rec, 61);
+bg = tv.calib.background(rec, 61, [], s.steady * s.steadyMaxPx);
 bg = blank(bg, s.overlayBoxes);
 h = s.hfovStart;
 E = struct('name', 'single', 'aspect', 'any', 'hfov', h, 'vfov', 2 * atand(tand(h / 2) * rec.height / rec.width), ...

@@ -19,11 +19,13 @@ function C = ballCandidates(F, bg, mask, opts)
 %   minSat 0.12, minVal 0.75 there (cfg.single.detectOpts); and a pale green shirt passes
 %   that colour test, so opts.bigPatchArea (px, 0 = off) drops spots that belong to a
 %   larger patch of ball colour.
+%   opts.skipLinesPx (px, 0 = off): leave out spots within that distance of the empty court's
+%   bright lines, for a ball as white as the tape (indoor light).
 %   RETUNE(real footage): every threshold in opts; the hue range for optic
 %   yellow under real light; the size range (opts.minArea, opts.maxArea).
 if nargin < 4, opts = struct(); end
 d = struct('diffThr', 30, 'motionThr', 18, 'hue', [40 95], 'minSat', 0.35, 'minVal', 0.35, ...
-           'minArea', 2, 'maxArea', 400, 'maxElong', 8, 'bigPatchArea', 0);
+           'minArea', 2, 'maxArea', 400, 'maxElong', 8, 'bigPatchArea', 0, 'skipLinesPx', 0);
 f = fieldnames(d);
 for k = 1:numel(f), if ~isfield(opts, f{k}), opts.(f{k}) = d.(f{k}); end, end
 N = size(F, 4);
@@ -33,6 +35,16 @@ C = zeros(0, 6);
 if isempty(rr), return; end
 r0 = min(rr);  r1 = max(rr);  c0 = min(cc0);  c1 = max(cc0);
 F = F(r0:r1, c0:c1, :, :);  bg = bg(r0:r1, c0:c1, :);  mask = mask(r0:r1, c0:c1);
+if opts.skipLinesPx > 0
+    % a ball nearly as white as the tape (indoors under warm light, Chris's clay video, 17 Nov):
+    % spots on the empty court's bright lines are not looked at; the lines shift by a fraction
+    % of a pixel between frames and would pass as moving ball-coloured spots
+    bmx = max(bg, [], 3);  bmn = min(bg, [], 3);
+    % pale and grey in the empty court: tape, net tapes, a white roof (not the clay, more saturated)
+    lines = bmx / 255 >= 0.6 & (bmx - bmn) ./ max(bmx, 1) < 0.18;
+    lines = imdilate(bwareaopen(lines, 30), true(2 * opts.skipLinesPx + 1));
+    mask = mask & ~lines;
+end
 bgD = tv.util.toDevice(single(bg));
 ref = mean(bgD(:));
 G = tv.util.toDevice(single(F));
