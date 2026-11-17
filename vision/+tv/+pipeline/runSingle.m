@@ -131,7 +131,7 @@ for r = list(:)'
     % (a clip file is reused only when it was made with the same settings)
     cf = fullfile(cd0, sprintf('clip_%03d.mat', r));
     f0 = clips(r, 1);  f1 = clips(r, 2);
-    key = jsonencode({f0, f1, s.overlayBoxes, cfg.court, K.cam.pos, opts, s.steady, s.steadyMaxPx, cfg.chunk});
+    key = jsonencode({f0, f1, s.overlayBoxes, cfg.court, K.cam.pos, opts, s.steady, s.steadyMaxPx, cfg.chunk, 'mask2'});
     if exist(cf, 'file')
         S = load(cf);
         if isfield(S, 'key') && strcmp(S.key, key), D.candidates{r} = S.cand; D.tracks{r} = S.trk; continue; end

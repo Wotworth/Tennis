@@ -5,8 +5,11 @@ function mask = volumeMask(cam, margin, maxHeight)
 %   from the ground to maxHeight (the spec before 16 Nov: 4 m, 8 m).
 %   Everything else (sky, people walking past) is ignored by the ball detector;
 %   a neighbouring court can still show through it, and is removed in 3D (tv.recon.gateTracks).
-%   RETUNE(real footage): the margin, and the mask's dilation (25 px) and
-%   closing (41 px) at 4K.
+%   Each pixel's sight line is tested against the box exactly (slab test), then the mask is
+%   widened by 9 px so a ball at the edge keeps its whole blob. Until 17 Nov the mask was
+%   a grid of projected points, dilated and closed: near the camera the points fell too far
+%   apart and left holes where the near player stands (first real footage, video 1).
+%   RETUNE(real footage): the 9 px widening.
 if nargin >= 2 && isstruct(margin)
     box = margin;
 else
@@ -15,12 +18,20 @@ else
     c = tv.court.constants();
     box = struct('x', (c.halfLength + margin) * [-1 1], 'y', (c.halfDoubles + margin) * [-1 1], 'z', [0 maxHeight]);
 end
-[gx, gy, gz] = ndgrid(linspace(box.x(1), box.x(2), 60), linspace(box.y(1), box.y(2), 25), ...
-    linspace(max(0, box.z(1)), box.z(2), 17 + 8 * (box.z(2) > 8)));
-[px, ok] = tv.camera.project(cam, [gx(:), gy(:), gz(:)]);
+lo = [box.x(1), box.y(1), max(0, box.z(1))];
+hi = [box.x(2), box.y(2), box.z(2)];
+o = cam.pos(:)';
 mask = false(cam.height, cam.width);
-idx = sub2ind(size(mask), round(min(max(px(ok,2), 1), cam.height)), round(min(max(px(ok,1), 1), cam.width)));
-mask(idx) = true;
-mask = imdilate(mask, ones(25));
-mask = imfill(imclose(mask, ones(41)), 'holes');
+cols = 1:cam.width;
+for r0 = 1:100:cam.height
+    rows = r0:min(cam.height, r0 + 99);
+    [uu, vv] = meshgrid(cols, rows);
+    [D, ok] = tv.camera.rays(cam, [uu(:), vv(:)]);
+    t1 = (lo - o) ./ D;  t2 = (hi - o) ./ D;
+    t1(isnan(t1)) = -Inf;  t2(isnan(t2)) = Inf;
+    tin = max(min(t1, t2), [], 2);  tout = min(max(t1, t2), [], 2);
+    hit = ok(:) & tout >= max(tin, 0);
+    mask(rows, :) = reshape(hit, numel(rows), cam.width);
+end
+mask = imdilate(mask, true(9));
 end
