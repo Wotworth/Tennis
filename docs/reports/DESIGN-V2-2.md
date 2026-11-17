@@ -1,6 +1,6 @@
 # Design v2, second build: your feedback on the vision pages (17 Nov)
 
-Release: RELEASE_LINK
+Release: [v0.6.28](https://github.com/Wotworth/Tennis/releases/tag/v0.6.28)
 
 | Court map | 3D tab | A rally |
 | --- | --- | --- |
@@ -40,8 +40,24 @@ The spoof session's heart-rate readings were all made odd, so the per-rally figu
 
 ## What CI proved
 
-CI_PROVED
+- **Build and release (run 44165872844): passed.** The app built, its unit and screenshot tests passed, and the release is published.
+- **The tests cover:**
+  - every vision tab and every rally page renders on the sample session;
+  - the spoof session shows only odd numbers, including the new per-rally heart rate;
+  - the forms render with the new segments and buttons.
+- **Not testable in CI:** dragging, playing at real speed and swiping on the tab names need the phone.
 
 ## On your phone
 
-PHONE_STEPS
+1. Install v0.6.28 from the release above, then open the sample session (Sessions → **vision · sample**).
+2. **Tab names:** put your finger on the big names at the top and swipe. The tabs should change, and should read **summary court 3D health**.
+3. **Court:** tap the grey bar and switch between **you** and your opponent. The dots should run from deep green through yellow to red, with one legend. Try **spin**.
+4. **3D:** each rally should show your shots in green and your opponent's in blue, with **you** at the near end. Tap a rally.
+5. **On the rally page:**
+   - Tap **play**: the ball should move at real speed.
+   - Try **back a shot**, **next shot** and **restart**, and tap **play** again at the end.
+   - Drag the bar: it should move through the rally without changing tabs.
+   - Drag the court to turn it.
+6. Scroll down the rally page. Check the shots, and the **heart rate** (highest in the rally, lowest before the next point). Tap a shot for its card.
+7. Open **log session** and **restrung**: the choices should be square segments, the buttons flat squares, and the bottom buttons labelled.
+8. Tell me what still feels hard to use, and which page you'd like done next.
