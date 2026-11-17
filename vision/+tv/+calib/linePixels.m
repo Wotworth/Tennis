@@ -10,11 +10,14 @@ function [mask, white] = linePixels(img, opts)
 %   Real footage (first test, Chris's iPhone video, 17 Nov): trees, fence mesh and
 %   the net's mesh give short ridges. opts.minLength (px, default 0 = off) keeps
 %   only thinned pieces at least that long; court lines are long and straight.
+%   opts.maxPieceSat (default Inf = off) drops pieces whose median colour saturation is
+%   above it: coloured tape (pickleball lines) as opposed to white paint.
 if nargin < 2, opts = struct(); end
 if ~isfield(opts, 'minContrast'), opts.minContrast = 6; end
 if ~isfield(opts, 'reach'), opts.reach = 3; end
 if ~isfield(opts, 'maxSat'), opts.maxSat = 0.5; end
 if ~isfield(opts, 'minLength'), opts.minLength = 0; end
+if ~isfield(opts, 'maxPieceSat'), opts.maxPieceSat = Inf; end
 img  = double(img);
 g    = mean(img, 3);
 across = -inf(size(g));
@@ -35,6 +38,16 @@ if opts.minLength > 0
     nb = conv2(double(mask), [1 1 1; 1 0 1; 1 1 1], 'same');
     pieces = mask & ~(mask & nb > 2);
     pieces = bwareaopen(pieces, opts.minLength, 8);
+    if isfinite(opts.maxPieceSat)
+        % coloured tape (a pickleball court taped over the tennis court, common on public
+        % courts) is pale enough to pass the pixel colour limit; judged per piece, by its
+        % median colour, white paint stays near 0.06 and pink tape near 0.23 (17 Nov)
+        [lab, n] = bwlabel(pieces, 8);
+        if n > 0
+            ms = accumarray(lab(lab > 0), sat(lab > 0), [n 1], @median);
+            pieces(lab > 0) = ms(lab(lab > 0)) <= opts.maxPieceSat;
+        end
+    end
     mask = mask & imdilate(pieces, true(3));
 end
 end

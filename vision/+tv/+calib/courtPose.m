@@ -22,6 +22,9 @@ if ~isfield(opts, 'searchDeg'), opts.searchDeg = 3; end
 % real footage)
 if ~isfield(opts, 'maxMove'), opts.maxMove = 5; end
 if ~isfield(opts, 'minHeight'), opts.minHeight = 0.3; end
+% opts.fitFocal: also fit the lens's focal length (a scale, within +/-40%), for a camera whose
+% lens is not calibrated (a phone; TV-CAL-01's checkerboard calibration replaces it for the GoPros)
+if ~isfield(opts, 'fitFocal'), opts.fitFocal = false; end
 if ~isfield(opts, 'lineOpts'), opts.lineOpts = struct(); end
 [mask, ~] = tv.calib.linePixels(bg, opts.lineOpts);   % lineOpts: real-footage line settings (tv.calib.linePixels)
 D = bwdist(mask);
@@ -30,6 +33,7 @@ M = tv.calib.modelPoints(0.05);
 [~, ok0] = tv.camera.project(cam0, M);
 M = M(ok0, :);
 p0 = [cam0.pos, 0, 0, 0];                      % position + small rotation (deg)
+if opts.fitFocal, p0(7) = 0; end               % log focal scale
 
 % 1. coarse search over yaw and pitch, loose cap
 best = p0;  bestCost = cost(p0, 12);
@@ -44,6 +48,7 @@ end
 % finite-difference steps of 1 mm / 0.001 deg: the distance map is flat at much finer steps
 o = optimset('Display', 'off', 'TolFun', 1e-10, 'TolX', 1e-9, 'MaxIter', 200, 'DiffMinChange', 1e-3);
 lb = [cam0.pos - opts.maxMove, -30 -30 -30];  ub = [cam0.pos + opts.maxMove, 30 30 30];
+if opts.fitFocal, lb(7) = log(0.6); ub(7) = log(1.4); end
 lb(3) = max(lb(3), opts.minHeight);  ub(3) = max(ub(3), lb(3) + 0.1);
 best = min(max(best, lb), ub);
 p = lsqnonlin(@(p) res(p, 12), best, lb, ub, o);
@@ -58,6 +63,7 @@ report.params = p;
 
     function c = apply(p)
         p = p(:)';  c = cam0;  c.pos = p(1:3);
+        if numel(p) >= 7, c.lens = scaleFocal(cam0.lens, exp(p(7))); end
         Rd = rotation(p(4:6));
         c.R = (cam0.R' * Rd)';          % small rotation about the camera's own axes
     end
@@ -81,4 +87,11 @@ Ry = [cos(a(1)) 0 -sin(a(1)); 0 1 0; sin(a(1)) 0 cos(a(1))];
 Rp = [1 0 0; 0 cos(a(2)) sin(a(2)); 0 -sin(a(2)) cos(a(2))];
 Rr = [cos(a(3)) sin(a(3)) 0; -sin(a(3)) cos(a(3)) 0; 0 0 1];
 R = Ry * Rp * Rr;
+end
+
+function lens = scaleFocal(lens, k)
+switch lens.type
+    case 'rectilinear', lens.F = lens.F * k;
+    case 'radial',      lens.c1 = lens.c1 * k;  lens.c3 = lens.c3 * k;
+end
 end
