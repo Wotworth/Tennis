@@ -59,6 +59,10 @@ Chris's six-part prompt (16 Nov), delivered for approval, nothing implemented:
 
 Hero 7 ball-machine trial (Chris 16 Nov): proposed, not started. One GoPro Hero 7 Black on a ball machine, run in MATLAB Online, as a preliminary test of detection, tracking, bounce positions and a one-camera speed estimate. Waiting for Chris's answers on capture mode and the plan.
 
+iPhone match footage (Chris 17 Nov, option C: this file now, the original later if found): downloaded into the session only (never the repo or CI), 1,006,279,048 bytes, SHA-256 48fe3a34…2245. 1080p60 HEVC, 7:53, 25 Apr 2025. **It is a SwingVision "included rallies" export:** about 46 clips, its overlays burned in (mini-map top right, shot type and mph, logo bottom right), and a virtual camera that pans and zooms within each clip. So a fixed calibration doesn't apply; each frame needs undoing to a reference view first. Waiting for Chris: whether SwingVision can export the full recording without overlays or auto-zoom; which player he is.
+
+Adjacent courts (AC-14 to 16) on CI 17 Nov: false positives 0% (limit 0.5%), swaps 0 (limit 0), **false negatives 13.5% (limit 2%)**, and shots found under 95%. Mostly "overlaps a better track" (195 of 402). Being fixed; stage files now printed by CI.
+
 Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens calibration and trial sessions). The launcher needs the new "checks" tile state (LAUNCHER-REQUESTS.md), not built.
 
 ## Next
@@ -77,6 +81,8 @@ Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens ca
 - After Chris accepts PH-0: PH-1 (logging).
 
 ## Open questions
+
+- iPhone footage: SwingVision export without overlays and auto-zoom (full match if possible)? Which player is Chris (green shirt and orange shorts, or black)?
 
 - Hero 7 trial: capture mode (1080p120 H.264 vs 2.7K120 HEVC, after a 10-second MATLAB Online test clip), whether a radar gun is available, MATLAB Online access on his licence.
 
