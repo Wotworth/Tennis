@@ -15,7 +15,9 @@ function R = runSingle(file, outDir, cfg)
 %     players   people every 1/cfg.single.playerHz s, placed on the court (TV-PLY-01)
 %   cfg.single: overlayBoxes ([x0 y0 x1 y1] per row, pixels): burned-in graphics to blank
 %   (e.g. SwingVision's mini-map, shot box and logo); lens (an uncalibrated rectilinear lens,
-%   its focal length fitted); lineOpts; playerHz; clipOpts.
+%   its focal length fitted); lineOpts; playerHz; clipOpts; stillMps (1.5: tracks slower than
+%   this at the far end of the court are balls lying still, tv.track.dropStill), measured
+%   over stillWindowS (0.25 s).
 %   R: the stages' results, also saved as outDir/single.mat.
 %   RETUNE(real footage): every cfg.single value; the detector's thresholds (tv.detect).
 if nargin < 3 || isempty(cfg), cfg = tv.pipeline.defaults(); end
@@ -23,7 +25,7 @@ if ~isfield(cfg, 'single'), cfg.single = struct(); end
 s = cfg.single;
 d = struct('overlayBoxes', zeros(0, 4), 'lineOpts', struct('minContrast', 20, 'minLength', 40, 'reach', [3 7]), ...
            'playerHz', 2, 'clipOpts', struct(), 'hfovStart', 65, 'wholeFile', false, 'bounceMinPx', 1.5, ...
-           'detectOpts', struct(), 'clipList', [], 'detectOnly', false);
+           'detectOpts', struct(), 'clipList', [], 'detectOnly', false, 'stillMps', 1.5, 'stillWindowS', 0.25);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(s, fn{k}), s.(fn{k}) = d.(fn{k}); end, end
 if ~exist(outDir, 'dir'), mkdir(outDir); end
@@ -42,12 +44,26 @@ if s.detectOnly
 end
 s.clipList = [];
 D = tv.pipeline.stage(outDir, 'detect', k(C.clips, s.overlayBoxes, cfg.court, K.cam.pos, s.detectOpts), @() detectAll(rec, C.clips, K, cfg, s, outDir));
-B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos), @() findBounces(rec, D, K, s));
+[D, nStill] = dropStillTracks(D, rec, K, cfg, s);
+B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS), @() findBounces(rec, D, K, s));
 Y = tv.pipeline.stage(outDir, 'players', k(s.playerHz, C.clips, K.cam.pos), @() trackPlayers(rec, C.clips, K, s));
 R = struct('rec', rec, 'clips', C.clips, 'cutT', C.cutT, 'cam', K.cam, 'calib', K.report, 'corners', K.corners, ...
     'bg', K.bg, 'overlayBoxes', s.overlayBoxes, 'candidates', {D.candidates}, 'tracks', {D.tracks}, ...
-    'bounces', B.bounces, 'players', Y.samples);
+    'bounces', B.bounces, 'players', Y.samples, 'stillTracks', nStill, 'stillMps', s.stillMps);
 save(fullfile(outDir, 'single.mat'), '-struct', 'R');
+end
+
+function [D, n] = dropStillTracks(D, rec, K, cfg, s)
+% tracks slower than s.stillMps at the farthest ground point of interest: balls lying still
+box = tv.court.interest(cfg.court);
+[gx, gy] = ndgrid(box.x, box.y);
+dmax = max(sqrt(sum(([gx(:), gy(:), zeros(numel(gx), 1)] - K.cam.pos).^2, 2)));
+minPx = s.stillMps / dmax * tv.lens.pxPerRad(K.cam.lens) / rec.fps;
+n = 0;
+for r = 1:numel(D.tracks)
+    [D.tracks{r}, st] = tv.track.dropStill(D.tracks{r}, minPx, max(2, round(s.stillWindowS * rec.fps)));
+    n = n + nnz(st);
+end
 end
 
 function C = findClips(rec, s)
