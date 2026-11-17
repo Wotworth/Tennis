@@ -12,16 +12,18 @@ function [cam, report] = courtFromLines(bg, lens, opts)
 %      that is not the tennis court (a pickleball court, the neighbour's lines) leaves some
 %      tennis line over bare court and scores low, whatever the tape's colour.
 %   4. The best few become poses (focal length from the homography when opts.fitFocal),
-%      refined on all line pixels (tv.calib.courtPose), and the best refined pose wins.
+%      refined on all line pixels (tv.calib.courtPose); the refined pose with paint under
+%      the most of its near-half lines (tv.calib.ridgeSupport, on the picture itself) wins.
 %   Assumes the camera looks along the court from behind or beside the -x baseline; the
 %   other end is the same court turned half round (tv.calib.rotate180 resolves it later).
 %   opts.lineOpts: tv.calib.linePixels settings; opts.fitFocal: the lens's focal length is
 %   unknown (a phone); lens must then be rectilinear. report: rmsPx, inliers, support,
 %   hfovDeg, nLines, nHypotheses, candidates.
-%   RETUNE(real footage): acrossDeg, keepPerClass, keepPoses, hypTolPx, tolPx, explainM.
+%   RETUNE(real footage): acrossDeg, keepPerClass, keepPoses, hypTolPx, tolPx, explainM,
+%   polishContrast, polishRounds.
 if nargin < 3, opts = struct(); end
 d0 = struct('lineOpts', struct(), 'fitFocal', false, 'acrossDeg', 15, 'keepPerClass', 8, ...
-            'keepPoses', 12, 'tolPx', 3, 'explainM', 0.12, 'hypTolPx', 8);
+            'keepPoses', 20, 'tolPx', 3, 'explainM', 0.12, 'hypTolPx', 8, 'polishContrast', 8, 'polishRounds', 3);
 fn = fieldnames(d0);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d0.(fn{k}); end, end
 if opts.fitFocal && ~strcmp(lens.type, 'rectilinear')
@@ -108,10 +110,11 @@ for b1 = 1:numel(along), for b2 = b1 + 1:numel(along), for b3 = b2 + 1:numel(alo
 end, end, end
 end
 if isfield(opts, 'scoreCam')       % diagnosis: how a known pose scores here
-    cc = opts.scoreCam;  Kc = diag([cc.lens.F * W / 2, cc.lens.F * W / 2, 1]);
-    Rc = cc.R;  tc = -Rc * cc.pos(:);
-    Hc = Kc * [Rc(:, 1), Rc(:, 2), tc];
-    report.camScore = [support(Hc), explained(Hc)];
+    report.camScore = zeros(numel(opts.scoreCam), 2);
+    for ci = 1:numel(opts.scoreCam)
+        Hc = camH(opts.scoreCam(ci), W, H);
+        report.camScore(ci, :) = [support(Hc), explained(Hc)];
+    end
     if ~isempty(hyp), [~, ib] = max(hyp(:, 1)); Hb = reshape(hyp(ib, 2:10), 3, 3); report.bestScore = [support(Hb), explained(Hb)]; end
 end
 report.nLines = numel(L);  report.nAcross = numel(across);  report.nAlong = numel(along);  report.nHypotheses = size(hyp, 1);
@@ -119,7 +122,7 @@ report.lines = L;
 if isempty(hyp), error('tv:calib:noCourt', 'No court line pattern found.'); end
 [~, o] = sort(hyp(:, 1), 'descend');
 best = -Inf;  cam = [];  cands = zeros(0, 6);  report.rejected = {};
-if isfield(opts, 'scoreCam'), printf('known pose: support %.2f explained %.2f; best match: support %.2f explained %.2f\n', report.camScore, report.bestScore); end
+if isfield(opts, 'scoreCam'), disp(report.camScore); disp(report.bestScore); end
 for i = o(1:min(end, opts.keepPoses))'
     Hm = reshape(hyp(i, 2:10), 3, 3);
     % the court is the same mirrored left to right, so a mirrored match is the same court
@@ -128,11 +131,23 @@ for i = o(1:min(end, opts.keepPoses))'
     if ~ok, report.rejected{end+1} = why; continue; end
     [cR, rep] = tv.calib.courtPose(bg, c0, struct('searchDeg', 1, 'maxMove', 2, 'lineOpts', opts.lineOpts, ...
         'fitFocal', opts.fitFocal));
-    sup = tv.calib.lineSupport(cR, mask, struct('tolPx', opts.tolPx));
+    % final judge: is there paint under every near-half line this pose draws, looked for in
+    % the picture itself (tv.calib.ridgeSupport): faded paint passes, bare court fails
+    sup = tv.calib.ridgeSupport(cR, bg);
     cands(end+1, :) = [cR.pos, sup, rep.rmsPx, hyp(i, 1)]; %#ok<AGROW>
     if sup > best, best = sup; cam = cR; report.rmsPx = rep.rmsPx; report.inliers = rep.inliers; end
 end
 if isempty(cam), error('tv:calib:noCourt', 'No pose from the court line pattern (%s).', strjoin(unique(report.rejected), '; ')); end
+% polish: refit on a more sensitive line map (faded lines join in), keeping each round only if
+% more of the drawn lines have paint under them (first real footage: 64.3 deg, 20 px from
+% Chris's hand-drawn court, against 69 deg and 64 px before)
+po = opts.lineOpts;  po.minContrast = opts.polishContrast;
+for it = 1:opts.polishRounds
+    [cP, rP] = tv.calib.courtPose(bg, cam, struct('searchDeg', 1, 'maxMove', 1.5, 'lineOpts', po, 'fitFocal', opts.fitFocal));
+    sP = tv.calib.ridgeSupport(cP, bg);
+    if sP < best, break; end
+    cam = cP;  best = sP;  report.rmsPx = rP.rmsPx;  report.inliers = rP.inliers;
+end
 report.support = best;
 report.hfovDeg = NaN;
 if strcmp(cam.lens.type, 'rectilinear'), report.hfovDeg = 2 * atand(1 / cam.lens.F); end
@@ -269,4 +284,13 @@ function d = segDist(P, a, b)
 ab = b - a;  t = ((P - a) * ab') / max(ab * ab', eps);
 t = min(max(t, 0), 1);
 d = sqrt(sum((P - (a + t .* ab)).^2, 2));
+end
+
+function Hm = camH(cam, W, H)
+% the ground-plane homography of a pose, into the working plane (centred pixels for a
+% rectilinear lens, the ideal pinhole plane otherwise)
+f = 1;
+if strcmp(cam.lens.type, 'rectilinear'), f = cam.lens.F * W / 2; end
+R = cam.R;  t = -R * cam.pos(:);
+Hm = diag([f f 1]) * [R(:, 1), R(:, 2), t];
 end
