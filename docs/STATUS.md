@@ -67,6 +67,8 @@ Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens ca
 
 ## Next
 
+- Design v2 (VIS-09): built on the vision pages (court B, shot A, trends A; report DESIGN-V2-1). Next: rallies, 3D and health pages, then cues, racquets, sessions and library, once Chris has seen this build.
+
 - Chris tests the overnight builds (one release per phase; each report has numbered steps) and picks a strings layout (grid, hero, mixed).
 - Chris sets his birth year, and runs debug → try a day on a pre-injury tennis day; tune detection from it.
 - Chris tests update 1 (docs/reports/UPDATE-1.md).
