@@ -54,7 +54,7 @@ fun FootageTestTiles() {
     app.vision.tests.all.forEach { t ->
         Tile("footage test · ${t.date}", zpx(l.tileMedium * 2 + l.tileGap), zpx(l.tileMedium * 0.75f),
             description = "footage test ${t.title}", onClick = { nav.open(Screen.FootageTest(t.id)) }) {
-            TileLines(listOf(t.title, "${t.clips.size} rallies · ball found in ${pct(t.ball.framesWithBall, t.ball.framesInClips)} of frames"))
+            TileLines(listOf("${t.title} · ${t.clips.size} rallies", "ball found in ${pct(t.ball.framesWithBall, t.ball.framesInClips)} of frames"))
         }
         Spacer(Modifier.height(zpx(l.tileGap)))
     }

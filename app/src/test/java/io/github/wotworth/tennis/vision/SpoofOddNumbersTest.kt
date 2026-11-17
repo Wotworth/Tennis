@@ -40,7 +40,7 @@ class SpoofOddNumbersTest {
         Regex("""^\d+–\d+%$|^90%\+$"""),                   // the heart-rate zone names
         // the bundled footage tests' rows on the sessions page: real iPhone footage, not the spoof
         // session (Chris, 17 Nov)
-        Regex("""^iPhone test \d+$|^footage test · \d+ \w+ \d+$|^\d+ rallies · ball found in \d+% of frames$"""),
+        Regex("""^iPhone test \d+$|^footage test · \d+ \w+ \d+$|^iPhone test \d+ · \d+ rallies$|^ball found in \d+% of frames$"""),
     )
 
     private var current = androidx.compose.runtime.mutableStateOf<Pair<Int, Screen>?>(null)
