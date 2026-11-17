@@ -17,7 +17,13 @@ function [cam, report] = courtPose(bg, cam0, opts)
 %   RETUNE(real footage): caps (12 then 3 px) and the coarse search range.
 if nargin < 3, opts = struct(); end
 if ~isfield(opts, 'searchDeg'), opts.searchDeg = 3; end
-[mask, ~] = tv.calib.linePixels(bg);
+% the fit stays within opts.maxMove metres of the start, and above opts.minHeight: unbounded, a
+% camera far away squeezes the whole court onto a few line pixels and scores well (17 Nov, first
+% real footage)
+if ~isfield(opts, 'maxMove'), opts.maxMove = 5; end
+if ~isfield(opts, 'minHeight'), opts.minHeight = 0.3; end
+if ~isfield(opts, 'lineOpts'), opts.lineOpts = struct(); end
+[mask, ~] = tv.calib.linePixels(bg, opts.lineOpts);   % lineOpts: real-footage line settings (tv.calib.linePixels)
 D = bwdist(mask);
 M = tv.calib.modelPoints(0.05);
 % keep the model points the starting pose puts in the frame
@@ -37,8 +43,11 @@ end
 % 2. and 3. least squares, loose then tight
 % finite-difference steps of 1 mm / 0.001 deg: the distance map is flat at much finer steps
 o = optimset('Display', 'off', 'TolFun', 1e-10, 'TolX', 1e-9, 'MaxIter', 200, 'DiffMinChange', 1e-3);
-p = lsqnonlin(@(p) res(p, 12), best, [], [], o);
-p = lsqnonlin(@(p) res(p, 3), p, [], [], o);
+lb = [cam0.pos - opts.maxMove, -30 -30 -30];  ub = [cam0.pos + opts.maxMove, 30 30 30];
+lb(3) = max(lb(3), opts.minHeight);  ub(3) = max(ub(3), lb(3) + 0.1);
+best = min(max(best, lb), ub);
+p = lsqnonlin(@(p) res(p, 12), best, lb, ub, o);
+p = lsqnonlin(@(p) res(p, 3), p, lb, ub, o);
 p = p(:)';  cam = apply(p);
 r = res(p, Inf);
 in = r < 3;

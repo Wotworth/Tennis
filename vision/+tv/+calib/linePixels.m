@@ -5,23 +5,36 @@ function [mask, white] = linePixels(img, opts)
 %   above a dark fence are bright on one side only, so they drop out. Then
 %   thinned to one pixel (TV-CAL-10: threshold, thin).
 %   RETUNE(real footage): ridge contrast (opts.minContrast, 6 levels), its
-%   reach (opts.reach, 3 px) and the colour limit (opts.maxSat, 0.5) suit
+%   reach (opts.reach, 3 px; a list tries each) and the colour limit (opts.maxSat, 0.5) suit
 %   clean synthetic lines; sun, shadows and worn paint will need new values.
+%   Real footage (first test, Chris's iPhone video, 17 Nov): trees, fence mesh and
+%   the net's mesh give short ridges. opts.minLength (px, default 0 = off) keeps
+%   only thinned pieces at least that long; court lines are long and straight.
 if nargin < 2, opts = struct(); end
 if ~isfield(opts, 'minContrast'), opts.minContrast = 6; end
 if ~isfield(opts, 'reach'), opts.reach = 3; end
 if ~isfield(opts, 'maxSat'), opts.maxSat = 0.5; end
+if ~isfield(opts, 'minLength'), opts.minLength = 0; end
 img  = double(img);
 g    = mean(img, 3);
-k    = opts.reach;
-sh   = @(dy, dx) g(min(max((1:end) + dy, 1), end), min(max((1:end) + dx, 1), end));
-across = max(min(g - sh(-k, 0), g - sh(k, 0)), ...       % brighter than above and below
-             min(g - sh(0, -k), g - sh(0, k)));          % or than left and right
-across = max(across, min(g - sh(-k, -k), g - sh(k, k))); % diagonals
-across = max(across, min(g - sh(-k, k), g - sh(k, -k)));
+across = -inf(size(g));
+for k = opts.reach(:)'                                  % several reaches: near lines are wide
+    sh   = @(dy, dx) g(min(max((1:end) + dy, 1), end), min(max((1:end) + dx, 1), end));
+    across = max(across, max(min(g - sh(-k, 0), g - sh(k, 0)), ...   % brighter than above and below
+                             min(g - sh(0, -k), g - sh(0, k))));      % or than left and right
+    across = max(across, min(g - sh(-k, -k), g - sh(k, k)));         % diagonals
+    across = max(across, min(g - sh(-k, k), g - sh(k, -k)));
+end
 mx = max(img, [], 3);  mn = min(img, [], 3);
 sat = (mx - mn) ./ max(mx, 1);
 white = across > opts.minContrast & sat < opts.maxSat;
 white = bwareaopen(white, 3);                           % drop specks
 mask = bwmorph(white, 'thin', Inf);
+if opts.minLength > 0
+    % length of a thinned piece ~ its pixel count; break junctions so mesh grids fall apart
+    nb = conv2(double(mask), [1 1 1; 1 0 1; 1 1 1], 'same');
+    pieces = mask & ~(mask & nb > 2);
+    pieces = bwareaopen(pieces, opts.minLength, 8);
+    mask = mask & imdilate(pieces, true(3));
+end
 end

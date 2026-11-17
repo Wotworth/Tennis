@@ -21,7 +21,9 @@ function [kept, log] = gateTracks(tracks, cands, cams, rec, sync, box, opts)
 %      and in a kept track, a paired point that moves faster than opts.maxSpeed
 %      from the previous one is dropped ("implausible jump").
 %   3b. Where two kept tracks of one camera overlap in time, the one that matches the
-%      other camera worse there gives up those points ("overlaps a better track").
+%      other camera worse there gives up those points ("overlaps a better track"), but only
+%      when the two are the same ball: their 3D points over the overlap are within
+%      opts.sameBallM (median). Two balls in view at once are both kept.
 %   4. Candidates that are in no track are logged "isolated".
 %   The flight fit (tv.recon.segments) then drops what no physical flight
 %   explains ("implausible flight", logged by the pipeline).
@@ -32,7 +34,7 @@ function [kept, log] = gateTracks(tracks, cands, cams, rec, sync, box, opts)
 %   none), reason, errPx.
 %   RETUNE(real footage): every opts value (tv.pipeline.defaults, cfg.gate).
 if nargin < 7, opts = struct(); end
-d = struct('epipolarPx', 4, 'minInsideFrac', 0.5, 'minPairedFrac', 0.3, 'maxSpeed', 75, 'maxGapFrames', 3);
+d = struct('epipolarPx', 4, 'minInsideFrac', 0.5, 'minPairedFrac', 0.3, 'maxSpeed', 75, 'maxGapFrames', 3, 'sameBallM', 2);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 log = emptyLog();
@@ -83,7 +85,7 @@ for k = 1:2
     end
 end
 % 3: track decisions
-keptErr = {{}, {}};  keptT = {{}, {}};
+keptErr = {{}, {}};  keptT = {{}, {}};  keptX = {{}, {}};
 for k = 1:2
     for j = 1:numel(tracks{k})
         trk = tracks{k}(j);  I = info{k}{j};  t = T{k}{j};
@@ -119,6 +121,7 @@ for k = 1:2
             kept{k}(end+1) = trk; %#ok<AGROW>
             keptErr{k}{end+1} = I.err(~drop); %#ok<AGROW>
             keptT{k}{end+1} = t(~drop); %#ok<AGROW>
+            keptX{k}{end+1} = I.X(~drop, :); %#ok<AGROW>
         end
     end
 end
@@ -137,6 +140,9 @@ for k = 1:2
                 lo = max(min(ta), min(tb));  hi = min(max(ta), max(tb));
                 if lo >= hi, continue; end
                 ia = ta >= lo & ta <= hi;  ib = tb >= lo & tb <= hi;
+                % only two tracks of the same ball: over the overlap their 3D points lie
+                % within opts.sameBallM (two balls in view at once both stay; 17 Nov, AC-15)
+                if ~sameBall(ta(ia), keptX{k}{a}(ia, :), tb(ib), keptX{k}{b}(ib, :), opts.sameBallM), continue; end
                 ea = median(min(keptErr{k}{a}(ia), 1e3));  eb = median(min(keptErr{k}{b}(ib), 1e3));
                 if ea <= eb, lose = b; m = ib; else, lose = a; m = ia; end
                 if ~any(m), continue; end
@@ -144,7 +150,7 @@ for k = 1:2
                     'X', nan(numel(m), 3), 'err', keptErr{k}{lose});
                 log = addRows(log, k, trk, keptT{k}{lose}, I, find(m), '');
                 trk.frames = trk.frames(~m);  trk.uv = trk.uv(~m, :);  trk.area = trk.area(~m);
-                kept{k}(lose) = trk;  keptErr{k}{lose} = keptErr{k}{lose}(~m);  keptT{k}{lose} = keptT{k}{lose}(~m);
+                kept{k}(lose) = trk;  keptErr{k}{lose} = keptErr{k}{lose}(~m);  keptT{k}{lose} = keptT{k}{lose}(~m);  keptX{k}{lose} = keptX{k}{lose}(~m, :);
                 changed = true;  break
             end
             if changed, break; end
@@ -214,4 +220,14 @@ for m = rows(:)'
     log(end+1) = struct('cam', k, 'frame', double(trk.frames(m)), 'u', trk.uv(m, 1), 'v', trk.uv(m, 2), 't', t(m), ...
         'X', I.X(m, :), 'track', trk.id, 'reason', r, 'errPx', I.err(m)); %#ok<AGROW>
 end
+end
+
+function same = sameBall(ta, Xa, tb, Xb, lim)
+% median 3D distance between the two tracks' points, each b point against a's nearest in time
+ga = all(isfinite(Xa), 2);  gb = all(isfinite(Xb), 2);
+same = false;
+if ~any(ga) || ~any(gb), return; end
+ta = ta(ga);  Xa = Xa(ga, :);  tb = tb(gb);  Xb = Xb(gb, :);
+[~, i] = min(abs(tb(:) - ta(:)'), [], 2);
+same = median(sqrt(sum((Xb - Xa(i, :)).^2, 2))) <= lim;
 end

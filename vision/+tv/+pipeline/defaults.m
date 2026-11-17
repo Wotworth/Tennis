@@ -24,6 +24,7 @@ cfg.gate = struct('epipolarPx', 4, ...      % TV-ADJ-02: summed reprojection err
                   'minInsideFrac', 0.5, ... % TV-ADJ-04: share of a track's paired points inside
                   'minPairedFrac', 0.3, ... % share of a track seen by both cameras
                   'maxSpeed', 75, ...       % m/s between neighbouring 3D points
+                  'sameBallM', 2, ...       % two overlapping tracks in one camera are one ball only within this (m)
                   'playerInsideFrac', 0.6); % TV-ADJ-05: share of a person's time inside
 cfg.adjacentTest = struct('maxFalsePos', 0.005, 'maxFalseNeg', 0.02, 'maxSwaps', 0);   % AC-14 to AC-16
 cfg.minCrossDeg = 20;               % usable stereo crossing angle; RETUNE(real footage)

@@ -21,7 +21,8 @@ d = struct('xStep', 3, 'yStep', 2, 'maxRange', 27, 'heights', [2.5 3.5], ...
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 c = tv.court.constants();
-[mask, ~] = tv.calib.linePixels(bg);
+if ~isfield(opts, 'lineOpts'), opts.lineOpts = struct(); end
+[mask, ~] = tv.calib.linePixels(bg, opts.lineOpts);   % lineOpts: real-footage line settings (tv.calib.linePixels)
 D = bwdist(mask);
 Mc = tv.calib.modelPoints(0.25);
 [pr, pc] = find(mask);
@@ -56,7 +57,7 @@ for i = o(:)'
     if tried > 0 && any(vecnorm(starts(:, 1:3) - t(1:3), 2, 2) < 2.5 & abs(starts(:, 4) - t(4)) < 20), continue; end
     tried = tried + 1;  starts(tried, :) = t; %#ok<AGROW>
     cam0 = tv.camera.make(lens, t(1:3), t(4), t(5), t(6));
-    [camR, rep] = tv.calib.courtPose(bg, cam0, struct('searchDeg', 3));
+    [camR, rep] = tv.calib.courtPose(bg, cam0, struct('searchDeg', 3, 'lineOpts', opts.lineOpts));
     % judge refined poses by the lines they truly match: matched points,
     % less a heavy penalty for line error above 1 px (TV-CAL-13)
     cst = -rep.inliers + 2000 * max(0, rep.rmsPx - 1) + 100 * score(camR);

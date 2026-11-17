@@ -63,6 +63,16 @@ tr{1}(2) = dup;
 assert(numel(kept{1}) == 1 && numel(kept{1}.frames) >= 0.98 * numel(tr{1}(1).frames))
 assert(sum(strcmp({log.reason}, 'overlaps a better track')) == numel(sel))
 
+%% Two balls on Chris's court at once (one rolling) both keep their tracks (17 Nov, AC-15)
+% the overlap step must not treat two different balls as two tracks of one
+other = [5 + 0 * t, -2 - 3 * t, c.ballRadius + 0 * t];
+[tr, cand, rec, sync] = tv.testing.ballTracks(cams, {mine, other}, fps, 0.3);
+[kept, log] = tv.recon.gateTracks(tr, cand, cams, rec, sync, box, struct());
+for k = 1:2
+    assert(numel(kept{k}) == 2, 'camera %d kept %d tracks', k, numel(kept{k}))
+end
+assert(~any(strcmp({log.reason}, 'overlaps a better track')))
+
 %% Every rejected detection is logged with a reason, and isolated candidates too
 [tr, cand, rec, sync] = tv.testing.ballTracks(cams, {mine}, fps, 0.3);
 cand{1}(end+1, :) = [10 100 100 20 1 1];                   % a lone blob in no track
