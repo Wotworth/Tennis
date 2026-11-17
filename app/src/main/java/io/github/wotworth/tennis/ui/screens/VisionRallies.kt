@@ -87,7 +87,7 @@ private fun rallyLine(r: VisionRally) = listOf("ended ${r.ending}", "fastest ${U
 
 /**
  * A rally on the to-scale court, seen in perspective from azimuth [az] and elevation [el]: the
- * court and net, "you" and "opponent" behind their ends, and each shot's path in its hitter's
+ * court and net, "you" behind your end, and each shot's path in its hitter's
  * colour, up to the time [now] (seconds, the session's clock), or the whole rally when null.
  */
 @Composable
@@ -105,10 +105,8 @@ fun RallyView(v: VisionSession, rally: Int, answer: String?, now: Double?, az: F
         seg(cam, TennisTokens.Colors.primary, doubleArrayOf(0.0, -Court.POST_Y, Court.NET_POST), doubleArrayOf(0.0, 0.0, Court.NET_CENTRE), 2f)
         seg(cam, TennisTokens.Colors.primary, doubleArrayOf(0.0, 0.0, Court.NET_CENTRE), doubleArrayOf(0.0, Court.POST_Y, Court.NET_POST), 2f)
         for (y in listOf(-Court.POST_Y, Court.POST_Y)) seg(cam, TennisTokens.Colors.primary, doubleArrayOf(0.0, y, 0.0), doubleArrayOf(0.0, y, Court.NET_POST), 2f)
-        if (side != 0) {
-            endLabel(cam, measurer, "you", side, TennisTokens.Colors.me, label)
-            endLabel(cam, measurer, "opponent", -side, TennisTokens.Colors.opponent, label)
-        }
+        // only your end is labelled: your opponent's is the other one (Chris, 17 Nov)
+        if (side != 0) endLabel(cam, measurer, "you", side, TennisTokens.Colors.me, label)
         trajs.forEach { tr ->
             val shot = v.shot(tr.rally, tr.shot)
             val c = if (shot != null && v.who(shot.hitter, answer) == "you") TennisTokens.Colors.me else TennisTokens.Colors.opponent
