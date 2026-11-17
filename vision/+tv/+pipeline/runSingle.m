@@ -42,7 +42,7 @@ d = struct('overlayBoxes', zeros(0, 4), 'lineOpts', struct('minContrast', 20, 'm
            'playerHz', 2, 'clipOpts', struct(), 'hfovStart', 65, 'wholeFile', false, 'bounceMinPx', 1.5, ...
            'detectOpts', struct(), 'clipList', [], 'detectOnly', false, 'stillMps', 1.5, 'stillWindowS', 0.25, ...
            'bounceSkipHits', true, 'personMinArea', 1500, 'hitReach', 0.6, 'bounceMergeS', 0.3, ...
-           'steady', true, 'steadyMaxPx', 40, 'windowS', 30, 'pointGapS', 4, 'pointMinS', 1.5, 'dropPlayerTracks', true, 'playerTrackStepS', 1 / 6, ...
+           'steady', true, 'steadyMaxPx', 40, 'windowS', 30, 'maxWindows', 0, 'pointGapS', 4, 'pointMinS', 1.5, 'dropPlayerTracks', true, 'playerTrackStepS', 1 / 6, ...
            'playerTrackShare', 1, 'follow', true, 'followOpts', struct());
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(s, fn{k}), s.(fn{k}) = d.(fn{k}); end, end
@@ -53,7 +53,7 @@ k = @(varargin) [key0 '|' jsonencode(varargin)];
 
 P = tv.pipeline.stage(outDir, 'probe', k(), @() tv.media.probe(file));
 rec = P;
-C = tv.pipeline.stage(outDir, 'clips', k(s.clipOpts, s.wholeFile, s.windowS), @() findClips(rec, s));
+C = tv.pipeline.stage(outDir, 'clips', k(s.clipOpts, s.wholeFile, s.windowS, s.maxWindows), @() findClips(rec, s));
 K = tv.pipeline.stage(outDir, 'calib', k(s.overlayBoxes, s.lineOpts, s.hfovStart, s.steady, s.steadyMaxPx), @() calibrate(rec, s));
 if ~isempty(K.corners.text) && isfield(cfg, 'notify'), cfg.notify('Camera framing', K.corners.text); end
 if s.detectOnly
@@ -133,6 +133,7 @@ if s.wholeFile
     w = max(1, round(s.windowS * rec.fps));
     a = (0:w:rec.nFrames - 1)';
     C.clips = [a, min(a + w - 1, rec.nFrames - 1)];  C.cutT = zeros(0, 1);
+    if s.maxWindows > 0, C.clips = C.clips(1:min(end, s.maxWindows), :); end   % a shorter test
 else
     [C.clips, C.cutT] = tv.media.cuts(rec, s.clipOpts);
 end

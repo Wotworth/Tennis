@@ -34,25 +34,32 @@ end
 y = linspace(-c.postY, c.postY, 40)';
 [px, ok] = tv.camera.project(cam, [zeros(40, 1), y, tv.court.netHeight(y)]);
 net = rnd(px(ok, :) * sc, 1);
-% --- per clip
-nC = size(R.clips, 1);
+% --- per rally: the edit's clips, or for raw footage the points found from the tracks
+% (R.points, Chris 17 Nov); every track point and bounce counted in the rally it falls in
+if isfield(R, 'points') && ~isempty(R.points), spans = R.points; else, spans = R.clips; end
+allF = zeros(0, 1);  trkSpan = zeros(0, 2);
+for r = 1:numel(R.tracks)
+    for q = R.tracks{r}(:)', allF = [allF; double(q.frames(:))]; trkSpan(end+1, :) = double(q.frames([1 end]))'; end %#ok<AGROW>
+end
+allF = unique(allF);
+inSpan = @(f) find(f >= spans(:, 1) & f <= spans(:, 2), 1);
+nC = size(spans, 1);
 clips = struct('index', {}, 'startS', {}, 'lengthS', {}, 'frames', {}, 'framesWithBall', {}, 'tracks', {}, 'bounces', {});
 totF = 0;  totB = 0;
+bClip = arrayfun(@(b) firstOr0(inSpan(b.frame)), R.bounces);
 for r = 1:nC
-    f = R.clips(r, 1):R.clips(r, 2);
-    tr = R.tracks{r};
-    withBall = [];
-    for q = tr(:)', withBall = [withBall; double(q.frames(:))]; end %#ok<AGROW>
-    withBall = unique(withBall);
-    nb = nnz([R.bounces.clip] == r);
+    f = spans(r, 1):spans(r, 2);
+    nWith = nnz(allF >= f(1) & allF <= f(end));
+    nTr = nnz(trkSpan(:, 1) <= f(end) & trkSpan(:, 2) >= f(1));
     clips(end+1) = struct('index', r, 'startS', rnd(rec.pts(f(1) + 1), 2), 'lengthS', rnd(numel(f) / rec.fps, 1), ...
-        'frames', numel(f), 'framesWithBall', numel(withBall), 'tracks', numel(tr), 'bounces', nb); %#ok<AGROW>
-    totF = totF + numel(f);  totB = totB + numel(withBall);
+        'frames', numel(f), 'framesWithBall', nWith, 'tracks', nTr, 'bounces', nnz(bClip == r)); %#ok<AGROW>
+    totF = totF + numel(f);  totB = totB + nWith;
 end
 % --- bounces (top-down)
 b = R.bounces;
-bounces = struct('clip', {b.clip}, 't', num2cell(rnd([b.t], 2)), 'x', num2cell(rnd([b.x], 2)), ...
+bounces = struct('clip', num2cell(bClip), 't', num2cell(rnd([b.t], 2)), 'x', num2cell(rnd([b.x], 2)), ...
     'y', num2cell(rnd([b.y], 2)), 'call', {b.call}, 'marginM', num2cell(rnd([b.marginM], 2)));
+if ~isempty(bounces), bounces = bounces([bounces.clip] > 0); end
 % --- players: how often two people were placed on the court
 n2 = 0;  n1 = 0;
 for s = R.players(:)'
@@ -71,7 +78,7 @@ for i = 1:numel(opts.frames)
     img = drawBall(img, R, q, rec, opts.drawTrackS);
     name = sprintf('f_%02d.jpg', i);
     imwrite(uint8(imresize(img, sc)), fullfile(outDir, name), 'Quality', 82);
-    frames(end+1) = struct('file', name, 'clip', q.clip, 't', rnd(rec.pts(q.frame + 1), 2), ...
+    frames(end+1) = struct('file', name, 'clip', firstOr0(inSpan(q.frame)), 't', rnd(rec.pts(q.frame + 1), 2), ...
         'verdict', q.verdict, 'caption', q.caption); %#ok<AGROW>
 end
 T = struct('id', opts.id, 'title', opts.title, 'date', opts.date, 'source', opts.source, ...
@@ -163,4 +170,8 @@ end
 function y = rnd(x, n)
 % round to n decimals (Octave's round takes no digits argument)
 y = round(double(x) * 10^n) / 10^n;
+end
+
+function v = firstOr0(x)
+if isempty(x), v = 0; else, v = x(1); end
 end
