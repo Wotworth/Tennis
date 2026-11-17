@@ -20,7 +20,7 @@ function [cam, report] = courtFromLines(bg, lens, opts)
 %   hfovDeg, nLines, nHypotheses, candidates.
 if nargin < 3, opts = struct(); end
 d0 = struct('lineOpts', struct(), 'fitFocal', false, 'acrossDeg', 15, 'keepPerClass', 8, ...
-            'keepPoses', 12, 'tolPx', 3);
+            'keepPoses', 12, 'tolPx', 3, 'explainM', 0.12);
 fn = fieldnames(d0);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d0.(fn{k}); end, end
 if opts.fitFocal && ~strcmp(lens.type, 'rectilinear')
@@ -52,6 +52,14 @@ my = [c.halfDoubles, c.halfSingles, 0, -c.halfSingles, -c.halfDoubles];   % left
 [Mp, id] = tv.calib.modelPoints(0.1);
 nearPts = Mp(:, 1) < 0 & Mp(:, 3) == 0;  Mp = Mp(nearPts, 1:2);  id = id(nearPts);
 ids = unique(id);
+% samples along every detected line, for the reverse check: how much of the paint a match explains
+smp = zeros(0, 2);  wts = zeros(0, 1);
+for li = 1:numel(L)
+    tt = linspace(0, 1, 15)';
+    smp = [smp; L(li).ends(1, :) + tt .* (L(li).ends(2, :) - L(li).ends(1, :))]; %#ok<AGROW>
+    wts = [wts; repmat(L(li).len / 15, 15, 1)]; %#ok<AGROW>
+end
+CL = tv.court.lines();
 hyp = zeros(0, 10);   % score, then H(:)' (9)
 for a1 = 1:numel(across), for a2 = a1 + 1:numel(across)
 for b1 = 1:numel(along), for b2 = b1 + 1:numel(along)
@@ -67,8 +75,8 @@ for b1 = 1:numel(along), for b2 = b1 + 1:numel(along)
         [~, okc] = poseFromH(Hm, lens, fPix, opts.fitFocal, W);
         if ~okc, [~, okc] = poseFromH(Hm * diag([1 -1 1]), lens, fPix, opts.fitFocal, W); end
         if ~okc, continue; end
-        s = support(Hm);
-        if s > 0.3, hyp(end+1, :) = [s, Hm(:)']; end %#ok<AGROW>
+        s = support(Hm) * explained(Hm);
+        if s > 0.1, hyp(end+1, :) = [s, Hm(:)']; end %#ok<AGROW>
     end, end
     end, end
 end, end
@@ -92,8 +100,8 @@ for b1 = 1:numel(along), for b2 = b1 + 1:numel(along), for b3 = b2 + 1:numel(alo
         [~, okc] = poseFromH(Hm, lens, fPix, opts.fitFocal, W);
         if ~okc, [~, okc] = poseFromH(Hm * diag([1 -1 1]), lens, fPix, opts.fitFocal, W); end
         if ~okc, continue; end
-        sc = support(Hm);
-        if sc > 0.3, hyp(end+1, :) = [sc, Hm(:)']; end %#ok<AGROW>
+        sc = support(Hm) * explained(Hm);
+        if sc > 0.1, hyp(end+1, :) = [sc, Hm(:)']; end %#ok<AGROW>
     end
     end
 end, end, end
@@ -121,6 +129,19 @@ report.hfovDeg = NaN;
 if strcmp(cam.lens.type, 'rectilinear'), report.hfovDeg = 2 * atand(1 / cam.lens.F); end
 report.candidates = cands;     % [x y z support rmsPx homographyScore]
 
+    function e = explained(Hm)
+        % share of detected line length (weighted samples) lying on a court line, measured on
+        % the ground through the inverse of the match; points behind the camera don't count
+        g = [smp, ones(size(smp, 1), 1)] / Hm';
+        okg = g(:, 3) ~= 0;
+        xy = g(:, 1:2) ./ g(:, 3);
+        dmin = inf(size(xy, 1), 1);
+        for ci = 1:size(CL, 1)
+            dmin = min(dmin, segDist(xy, CL(ci, 1:2), CL(ci, 3:4)));
+        end
+        hit = okg & dmin < opts.explainM;
+        e = sum(wts(hit)) / sum(wts);
+    end
     function s = support(Hm)
         p = [Mp, ones(size(Mp, 1), 1)] * Hm';
         ok = p(:, 3) > 0;
@@ -236,4 +257,10 @@ end
 [~, S, V] = svd(A);
 if S(8, 8) < 1e-9 * S(1, 1), Hm = []; return; end
 Hm = reshape(V(:, 9), 3, 3)';
+end
+
+function d = segDist(P, a, b)
+ab = b - a;  t = ((P - a) * ab') / max(ab * ab', eps);
+t = min(max(t, 0), 1);
+d = sqrt(sum((P - (a + t .* ab)).^2, 2));
 end
