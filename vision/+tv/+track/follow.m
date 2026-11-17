@@ -123,7 +123,7 @@ trk = join(trk, opts.joinPx);
             w = dBg(idx) .* sat(idx);  w = w / sum(w);
             u = xs(1) - 1 + sum(qq .* w);  v = ys(1) - 1 + sum(rr .* w);
             dd = hypot(u - p(1), v - p(2));
-            if dd <= r && dd < best, best = dd;  q = [u v numel(idx)]; end
+            if dd <= r && dd < best, best = dd;  q = double([u v numel(idx)]); end
         end
         function z = crop(k)
             fr = F(:, :, :, k);

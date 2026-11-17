@@ -71,6 +71,7 @@ class PreviewScreenshots {
     @Test fun p13FootageCourt() = screen("13b-footage-test-court", Screen.FootageTest(footage, 1))
     @Test fun p13FootageBall() = screen("13c-footage-test-ball", Screen.FootageTest(footage, 2))
     @Test fun p13FootageBounces() = screen("13d-footage-test-bounces", Screen.FootageTest(footage, 3))
+    @Test fun p13FootageV1Ball() = screen("13e-footage-test-1-ball", Screen.FootageTest("iphone-2025-04-25", 2))
     @Test fun p09WhichOne() = screen("09-which-one-is-you", Screen.VisionIdentity(id))
     @Test fun p10Courts() = screen("10a-courts-list", Screen.Hub(LIBRARY))
     @Test fun p10AddCourt() = screen("10b-add-court", Screen.CourtEdit())

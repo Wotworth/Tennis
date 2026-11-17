@@ -80,7 +80,7 @@ if s.follow
     [D, nFollowed] = followAll(rec, C.clips, K, cfg, s, outDir, D);
     [D, n2] = dropStillTracks(D, rec, K, cfg, s);  nStill = nStill + n2;
 end
-B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS, s.bounceSkipHits, s.personMinArea, s.hitReach, s.bounceMergeS, 'clipbg', 'ownpts', s.steady, s.follow, s.followOpts, s.dropPlayerTracks, s.playerTrackStepS, s.playerTrackShare, 3), @() findBounces(rec, D, K, s, PO));
+B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS, s.bounceSkipHits, s.personMinArea, s.hitReach, s.bounceMergeS, 'clipbg', 'ownpts', 'dbl', s.steady, s.follow, s.followOpts, s.dropPlayerTracks, s.playerTrackStepS, s.playerTrackShare, 3), @() findBounces(rec, D, K, s, PO));
 Y = tv.pipeline.stage(outDir, 'players', k(s.playerHz, C.clips, K.cam.pos, s.steady), @() trackPlayers(rec, C.clips, K, s));
 R = struct('rec', rec, 'clips', C.clips, 'cutT', C.cutT, 'cam', K.cam, 'calib', K.report, 'corners', K.corners, ...
     'bg', K.bg, 'overlayBoxes', s.overlayBoxes, 'candidates', {D.candidates}, 'tracks', {D.tracks}, ...
@@ -239,7 +239,7 @@ B.bounces = struct('clip', {}, 'frame', {}, 't', {}, 'u', {}, 'v', {}, 'x', {}, 
 nHit = 0;  nNet = 0;
 for r = 1:numel(D.tracks)
     for trk = D.tracks{r}(:)'
-        f = double(trk.frames(:));  v = trk.uv(:, 2);  u = trk.uv(:, 1);
+        f = double(trk.frames(:));  v = double(trk.uv(:, 2));  u = double(trk.uv(:, 1));
         if isfield(trk, 'followed')
             % the detector's own points only: a turn needs its evidence, not the looser search's
             own = ~trk.followed;  f = f(own);  u = u(own);  v = v(own);

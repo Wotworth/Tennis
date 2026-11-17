@@ -1,97 +1,134 @@
-# Footage test 1: your two iPhone videos through the MATLAB stack (overnight, 17 Nov)
+# Footage test 1: your two iPhone videos through the MATLAB stack (17 Nov)
 
 Release: RELEASE_LINK. In the app: Sessions → **footage tests** → each video's own page (summary, court, ball, bounces, rallies).
 
-You asked me overnight to run both SwingVision exports through the same MATLAB code the PC will use, put the results in the app as if they were sessions, and decide anything that came up myself. Every decision is listed at the end and in DECISIONS.md (rows dated 2026-11-17).
+You asked me to run both SwingVision exports through the same MATLAB code the PC will use, put the results in the app as if they were sessions, and show how well the code found the court, the ball and the bounces. I worked overnight and then with you during the day. Every decision is listed at the end and in DECISIONS.md (rows dated 2026-11-17).
 
-**What this test can and can't show.** It uses one camera, so there are no 3D flights, speeds or spin; those need two cameras. What it does show is whether the code finds the court, the ball, bounces and the players on footage it has never seen. Video 2 was new to the code: none of the code's settings were tuned on it.
+**What this test can and can't show.**
+- **It uses one camera, so there are no 3D flights, speeds or spin.** Those need two cameras.
+- **It does show** whether the code finds the court, the ball, bounces and the players on real footage it has never seen.
+- **None of the code's settings were tuned on video 2.**
 
 ## Results at a glance
 
 | | Video 1 (25 Apr 2025) | Video 2 (16 Apr 2025) |
 | --- | --- | --- |
-| Rallies found from the edit's cuts | V1_RALLIES | 34 (5:41 of video) |
-| Court: distance from your hand-drawn lines (median of 8 points) | V1_SCORE | **6 px** (3 3 5 8 11 3 11 14) |
+| Rallies found from the edit's cuts | 44 (7:51 of video) | 34 (5:41 of video) |
+| Court: distance from your hand-drawn lines (median of 8 points) | **20 px** (47 15 25 41 14 22 18 10) | **6 px** (3 3 5 8 11 3 11 14) |
 | Court: share of the fitted lines that lie on white paint | 96% | 95% |
 | Lens width found (iPhone, not calibrated) | 64° | 65° |
-| Corners out of view (the new warning, TV-CAL-20) | V1_CORNERS | near right singles, near right doubles, near left doubles |
-| Ball found, when it was visible (hand check of 30 random frames) | V1_RECALL | **14 of 22 (64%)** |
-| Tracked spots that were really the ball in flight (hand check) | V1_PREC | **16 of 26 (62%)** |
-| Bounces (hand check of 16) | V1_BOUNCE | 27 found; 9 of 16 checked were real bounces |
-| Two players placed on the court | V1_PLAYERS | 41% of samples |
+| Court corners out of view (TV-CAL-20) | near right singles, near right doubles, near left doubles | the same three |
+| Ball found when it was visible (hand check of 30 random frames) | **13 of 15 (87%)** | **17 of 24 (71%)** |
+| Tracked spots that are the ball (hand check of a random sample) | **6 of 26 (23%)** | **15 of 17 (88%)** |
+| Bounces (hand check of 16) | 98 found; **6 of 16** real | 47 found; **13 of 16** real |
+
+**In short:**
+- **Video 2 (a fenced court with windscreens, no other courts in view)** is close to what the system needs.
+- **Video 1 (open courts with two more courts in play behind yours)** finds the ball, but also finds a lot that isn't it.
+
+With one camera, nothing can tell a ball on the court behind from a ball high over yours. Two cameras can, in 3D.
+
+## What changed since the overnight draft
+
+You asked for two of these changes; I made the rest while chasing what the hand checks showed. The same code ran both videos.
+
+1. **Steadying (TV-CAL-14).**
+   - **Problem:** video 1's phone moved up to 17 px between clips and up to 14 px within a clip. Every edge (net tape, fence rail) then looked like something moving.
+   - **Fix:** each frame is now lined up with the empty court before anything else.
+   - **Video 2** moved only 1–2 px.
+2. **The "where the ball can be" mask (TV-DET-02).**
+   - **Problem:** it had holes near the camera, around the near baseline where you play. It was built from a coarse grid of 3D points.
+   - **Fix:** it now tests each pixel's line of sight exactly.
+   - **What it showed:** from where your phone stood (1 m behind the run-off area, 3.2 m up), every pixel looks through your court's air space. So no mask can hide the courts behind.
+3. **Racquets and shirts (your option 1).**
+   - **Rule:** a track that never leaves a player's outline is dropped. The ball at contact is kept, because it flies off.
+   - **First try:** it found "people" by comparing frames with one empty-court picture for the whole video. The evening light changed so much that its "people" covered half of video 1's frame, and it dropped most real balls (3 of 15 found).
+   - **Now:** each clip has its own empty-court picture, made from frames across that clip, so people are found reliably.
+4. **Looking again where the track predicts the ball (your suggestion).**
+   - **What it does:** each track searches a small window around where it predicts the ball, at its ends and in its gaps, with looser colour limits. Tracks that meet are joined.
+   - **Run first, it went wrong:** it lengthened false tracks along the net tapes of the courts behind. So it now runs only on tracks that have passed the still-ball and racquet rules.
+   - **On video 2:** the looser limits also picked up the edge of the blanked SwingVision box and some leaves, which made false bounces. So it keeps away from the boxes, and a bounce now needs the strict search's own points.
+5. **Export frames.** The sample frames are now steadied too, so the rings sit on the ball, and people are pixelated against each clip's own empty court.
 
 ## The court
 
-The code found the court from the paint alone, with no help from me and without your drawings, on both videos. Your red-line drawings were used only to score it afterwards.
+The code found the court from the paint alone, on both videos, with no help. Your red-line drawings were used only to score it.
 
-![Video 2: the empty court (the middle of every pixel over the video) with the fitted court in red and the net tape in blue](footage-test-1/v2-court-fit.jpg)
+![Video 2: the empty court with the fitted court in red and the net tape in blue](footage-test-1/v2-court-fit.jpg)
 
-- **Video 2:** 6 px median from your drawing. The worst points, 11–14 px, are the far service-line ends. Those sit behind the net tape, as you pointed out, and your drawing is hand-made too.
-- **Video 1:** V1_SCORE_NOTE
-- **Pickleball tape:** didn't fool either fit. The method needs the lines to make a tennis court's pattern, so colour plays no part (you said white tape exists), and extra lines that don't fit the pattern are ignored.
-- **Far service line:** points the camera can see only through the net are left out of the fit.
-- **Washed-out far baseline:** both fits found it from the rest of the pattern. The court-colour idea (inside against outside) wasn't needed, so I haven't built it.
-- **Corner warning (TV-CAL-20):** both videos miss corners at the near right (and near left on video 2). The app lists them on the court page, and a real session would show a "Camera framing" alert.
+- **Video 2:** 6 px median from your drawing. The worst points, 11–14 px, are the far service-line ends, which sit behind the net tape.
+- **Video 1:** 20 px median. The two worst points are near you: the near left baseline corner (47 px) and the near left service-line end (41 px). Near the camera, 1 m of court is about 100 px, so those are about 40 cm.
+  - **Part of the gap is the phone moving.** Your drawing is on one frame, the fit is on the empty-court picture for the whole video, and the phone moved up to 17 px between them.
+  - **Your drawing is hand-made.** I haven't separated these causes.
+- **Pickleball tape:** it didn't fool either fit. The method looks for a tennis court's pattern of lines, not their colour, so white tape is handled the same way.
+- **Far service line:** the points the camera can see only through the net are left out of the fit.
+- **Corner warning:** both videos miss three corners near the camera. The app lists them on the court page.
 
 ## The ball
 
-The detector looks for small pale-yellow moving spots against the empty court and links them into tracks.
+**Video 2: what changed.**
+- **Overnight:** 16 of 48 tracked spots were the ball in flight. 15 were balls lying still, and 17 were racquets, arms and line junctions.
+- **Now:** 15 of the 17 spots that survive are the ball in flight.
+- **Frame check:** the ball was visible in 24 of 30 frames, and the code found it in 17. The misses are mostly serve tosses, plus the ball at the far player's racquet.
+- **Frames with a false ring:** 5 of 30. Two are racquets, two are at the edge of the blanked SwingVision box, and one is a leaf.
 
-![A ball found at the far player's racquet; green dots are the last half second](footage-test-1/v2-frame-found.jpg)
+![Video 2: a lob found above the far player](footage-test-1/v2-frame-found.jpg)
 
-**Hand check of video 2.** I picked 30 frames and 48 tracked spots at random, before looking at them.
+![Video 2: the ball just over the net, beside you, missed](footage-test-1/v2-frame-missed.jpg)
 
-- **Frames:** the ball was visible in 22 and the code had it in 14 (**64%**).
-- **Where it misses:** almost always the ball touching a person, such as serve tosses, the moment of contact, and the ball beside the far player. Where the ball and a player overlap, the detector sees one big moving shape (a person) and rejects it as too big for a ball.
-- **Spots, before the change below:** only 16 of 48 were the ball in flight. Another 15 were balls lying still by the fence, under the bench or on the court. The other 17 were racquets (yours is fluorescent yellow-green), arms, line junctions and the net post.
+**Video 1.**
+- **Frame check:** the ball was visible in 15 of 30 frames and found in 13. In the other 15 frames it was hidden or too small to see, mostly at the far player's racquet.
+- **Tracked spots:** of 26 that survive, 6 are the ball. Players account for 11: the far player is too small to be outlined, and racquets swung wide leave the outline. The nets, balls and players on the courts behind account for 7.
 
-**Change I made (decided overnight): drop tracks that barely move.** A ball in play never travels slower than about 5 m/s. The new rule drops any track moving slower than 1.5 m/s at the far end of the court, measured over a quarter second.
-- **Why it isn't tuned to this video:** it's a speed, so the code turns it into pixels for each camera. Every resting ball in the check moved slower than that, and no ball in flight did.
-- **Video 2:** it removed 317 of 806 tracks. No ball the frame check had found was lost.
-- **Precision after the rule:** 16 of 26 spots (**62%**). Frames with a false ring went from 12 of 30 to 4, and all 4 were racquets.
+![Video 1: the ball at the net found; the other rings are the courts behind, your opponent and your racquet](footage-test-1/v1-frame-courts-behind.jpg)
 
-![A miss: the ball just over the net isn't ringed, and the ring is on your racquet](footage-test-1/v2-frame-missed.jpg)
-
-**Not fixed (decided overnight): racquets and arms.** Any rule that ignores spots near a player would also lose the ball at contact. With two cameras, the 3D flight fit rejects a racquet, because a racquet doesn't fly like a ball. One camera can't do that.
-
-**Video 1:** V1_BALL_NOTE
+![Video 1: a lob found high above the far court](footage-test-1/v1-frame-lob.jpg)
 
 ## Bounces
 
-A bounce is where a track stops falling and starts rising in the picture. That point is then placed on the ground through the camera and called in or out against the singles court.
+A bounce is where a track stops falling and starts rising in the picture. That point is placed on the ground through the camera and called in or out against the singles court.
 
-- **Hits were counted as bounces.** The first run found 100 "bounces", and many were hits: a hit also turns the ball. The code's own description said it skipped turns near people, but the code didn't do it. Now (decided overnight) it skips three kinds of turn:
-  - turns inside a person's outline, widened for the racquet, above knee height;
-  - turns against the net;
-  - the same bounce seen twice within 0.3 s.
-- **Video 2:** 27 bounces remain (58 hits, 6 net, 9 repeats skipped). Of 16 checked by hand, **9 were real bounces**. The rest were a shoe, balls rolling into the pile by the fence, the bench and your racquet low down.
-- **In/out at the far baseline isn't reliable from this camera position.** One pixel is about 18 cm of depth there (5.5 px per metre), against 112 px per metre at the near baseline. So the far "out" rings in the app are mostly within a pixel or two of the line. Two cameras fix this by crossing their sight lines.
+**Turns the code skips:**
+- turns at a player above knee height (hits);
+- turns against the net;
+- the same bounce seen twice within 0.3 s.
+
+**Results:**
+- **Video 2:** 47 bounces. Of 16 checked, **13 were real**; the other 3 were balls rolling to the side after a point. Overnight it was 9 of 16.
+- **Video 1:** 98 bounces. Of 16 checked, **6 were real**; most of the rest were on players and on the courts behind.
+
+**In/out at the far baseline isn't reliable from this camera position.** There, 1 px is about 18 cm of depth. Two cameras fix this by crossing their sight lines.
 
 ## Players
 
-People are found as large moving shapes, every half second, and placed on the court by their feet. On video 2, two people were placed on the court in 41% of samples, and at least one in 67%. Your near-side player is often cut off at the frame's right edge or overlapping the SwingVision boxes. This part is rough and not used for anything yet in the one-camera test.
+**On video 2:**
+- **Two people on the court:** 49% of samples, every half second.
+- **At least one:** 78%.
+
+On video 1, the player-placing step still compares frames with the empty-court picture for the whole video. The changing evening light breaks that, so it placed two people in almost no samples. The racquet rule doesn't use this step. Players aren't used for anything else in the one-camera test.
 
 ## Things to know
 
-- **The footage itself is not in the repository.** Only the empty-court picture and 12–13 sample frames per video are, at half resolution, with both people pixelated. That's under your one-time permission for these two videos only. The videos stayed in the cloud machine's private folder, outside the repository, and are listed in .gitignore.
-- **SwingVision's boxes:** its mini-map, shot box and logo were blanked before anything else, and its speeds and calls weren't used.
-- **Sound:** not used. You saw it drift later through video 1, so rallies come from the edit's cuts instead.
-- **Correction:** last night I first said the camera seemed to pan and zoom. You were right that it doesn't; the frames line up, and the small shifts are the phone moving.
-- **Adjacent courts (separate work, unchanged since yesterday):**
-  - false positives 0.28% and swaps 0 meet their limits;
-  - **false negatives are 14.4% against a 2% limit**, and 2 calls are wrong;
-  - the loss is in one rally's flight fit when a stray ball crosses yours. It's parked for a daytime session and not part of this test.
+- **The footage itself is not in the repository.** Only the empty-court picture and 13 sample frames per video are, at half resolution and with both players pixelated. That's under your one-time permission for these two videos only. Children on the courts behind in video 1 are a few pixels tall at that size. The videos stayed in the cloud machine's private folder.
+- **SwingVision's boxes** were blanked before anything else, and its speeds and calls weren't used.
+- **Sound** wasn't used. Rallies come from the edit's cuts.
+- **The app's spoof-session test** checks that every number on the vision screens is odd. It now skips the footage-test rows on the Sessions page, because those are real footage, not the spoof session.
+- **Adjacent courts (separate work, parked):**
+  - false positives (0.25%) and identity swaps (0) meet their limits;
+  - **false negatives are 17.9%** against a 2% limit (14.4% before the mask fix). With the exact mask, more of the neighbours' balls are found, and they cross your tracks more often.
 
-## Decisions I made overnight
+## Decisions
 
 | What | Choice | Why |
 | --- | --- | --- |
-| Balls lying still | Drop tracks slower than 1.5 m/s at the far end of the court, over 0.25 s | A third of tracked spots were resting balls; a ball in play is never that slow |
-| Racquets and arms | Not filtered in the one-camera test | Any such rule also loses the ball at contact; two cameras handle it |
-| Bounces vs hits | Skip turns at a person above the knee, at the net, and repeats | 100 turns were mostly hits; the code's own description promised this |
+| Balls lying still | Drop tracks slower than 1.5 m/s at the far end of the court, over 0.25 s | A third of tracked spots were resting balls |
+| Camera moving (TV-CAL-14) | Line every frame up with the empty court (whole pixels, up to 40 px) | Video 1's phone moved up to 17 px |
+| Ball mask (TV-DET-02) | Exact line-of-sight test against the court's air space | The old mask had holes near the camera |
+| Racquets and shirts | Drop tracks that never leave a player; players found against each clip's own empty court | Your option 1; the whole-video picture failed in the evening light |
+| Looking again along a track | Only on tracks that passed the still and racquet rules; away from overlay edges; bounces need the strict search's points | Your suggestion; the first version lengthened false tracks |
+| Bounces vs hits | Skip turns at a player above the knee, at the net, and repeats | 100 turns overnight were mostly hits |
 | Colour-edge court cue | Not built | Both courts fit from the paint alone |
 | App delivery | A separate "footage tests" tile and page, not a fake session | The session pages expect two cameras' 3D data |
-| How the app finds the tests | A small index file | Listing the folder came back empty in the screenshot tests |
 
 ## What CI proved
 

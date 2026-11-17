@@ -46,10 +46,12 @@ class FootageTestAssetsTest {
         val text = context.assets.open("vision/tests/iphone-2025-04-16/test.json").bufferedReader().use { it.readText() }
         val t = FootageTestJson.read("iphone-2025-04-16", text)
         assertEquals("16 Apr 2025", t.date)
+        val v1 = context.assets.open("vision/tests/iphone-2025-04-25/test.json").bufferedReader().use { it.readText() }
+        assertEquals("25 Apr 2025", FootageTestJson.read("iphone-2025-04-25", v1).date)
     }
 
     @Test fun bundledTestsAreListed() {
         val ids = FootageTests(context).all.map { it.id }
-        assertEquals(true, "iphone-2025-04-16" in ids)
+        assertEquals(setOf("iphone-2025-04-25", "iphone-2025-04-16"), ids.toSet())
     }
 }

@@ -3,8 +3,9 @@ function T = singleTest(R, outDir, opts)
 %   R: tv.pipeline.runSingle's result. Writes outDir/test.json and images:
 %     court.jpg   the empty court (players removed by the median), with the overlay boxes
 %                 blanked; the app draws the fitted court lines over it from test.json
-%     f_NN.jpg    sample frames at opts.frameWidth px: the ball's detections ringed, the
-%                 recent track drawn, people pixelated (opts.pixelate), overlays blanked
+%     f_NN.jpg    sample frames at opts.frameWidth px, lined up with the empty court: the
+%                 ball's detections ringed, the recent track drawn, people pixelated
+%                 (opts.pixelate; found against the clip's own empty court), overlays blanked
 %   opts: id, title, date, source, frames (struct array: clip, frame, verdict, caption: the
 %   sample frames, chosen by the caller), check (struct: the hand check's counts, or []),
 %   scorecard (struct: medianPx, perPointPx, or []), notes (cellstr), frameWidth (960),
@@ -63,9 +64,10 @@ end
 frames = struct('file', {}, 'clip', {}, 't', {}, 'verdict', {}, 'caption', {});
 for i = 1:numel(opts.frames)
     q = opts.frames(i);
-    img = double(tv.media.readFrames(rec, q.frame, 1));
-    img = blank(img, R.overlayBoxes);
-    if opts.pixelate, img = pixelatePeople(img, R.bg, R.overlayBoxes); end
+    % lined up with the empty court (the tracks are in its pixels: the camera moved, TV-CAL-14);
+    % people found against the clip's own empty court (the light changes over a long video)
+    img = double(tv.calib.steady(blank(tv.media.readFrames(rec, q.frame, 1), R.overlayBoxes), R.bg));
+    if opts.pixelate, img = pixelatePeople(img, clipBackground(R, rec, q.clip), R.overlayBoxes); end
     img = drawBall(img, R, q, rec, opts.drawTrackS);
     name = sprintf('f_%02d.jpg', i);
     imwrite(uint8(imresize(img, sc)), fullfile(outDir, name), 'Quality', 82);
@@ -92,6 +94,14 @@ function img = blank(img, boxes)
 for b = 1:size(boxes, 1)
     img(max(1, boxes(b, 2)):min(end, boxes(b, 4)), max(1, boxes(b, 1)):min(end, boxes(b, 3)), :) = 128;
 end
+end
+
+function bg = clipBackground(R, rec, r)
+% the median of 15 frames across clip r, each blanked and lined up with the empty court
+f = unique(round(linspace(R.clips(r, 1), R.clips(r, 2), 15)));
+B = zeros(rec.height, rec.width, 3, numel(f), 'uint8');
+for i = 1:numel(f), B(:, :, :, i) = tv.calib.steady(blank(tv.media.readFrames(rec, f(i), 1), R.overlayBoxes), R.bg); end
+bg = double(median(B, 4));
 end
 
 function img = pixelatePeople(img, bg, boxes)
@@ -152,5 +162,5 @@ end
 
 function y = rnd(x, n)
 % round to n decimals (Octave's round takes no digits argument)
-y = round(x * 10^n) / 10^n;
+y = round(double(x) * 10^n) / 10^n;
 end
