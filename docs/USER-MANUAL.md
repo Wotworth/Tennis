@@ -638,6 +638,29 @@ The pass test is the same (≤ 0.5 px).
 
 **Avoid:** Messages, WhatsApp, Mail, any "small / medium / actual size" choice, and social apps. They all re-compress. AirDrop to a Mac also keeps the original, but only with **All Photos Data** on; it isn't needed here.
 
+### 15.2a If the video is already on the Android tablet
+
+**First, check that it wasn't re-compressed on the way.** How it reached the tablet matters:
+- **Original quality:**
+  - Quick Share or AirDrop-style transfer;
+  - a USB cable;
+  - downloaded from Google Drive, iCloud.com or Files;
+  - Google Photos with "Original quality" backup.
+- **Re-compressed** (use the iPhone's copy instead, if it still exists):
+  - WhatsApp, Messages or MMS, Facebook Messenger, email;
+  - Google Photos with "Storage saver".
+- **Size check** in **My Files** (long-press the file → **Details**). A roughly original iPhone video is at least about 60 MB per minute at 1080p and 170 MB per minute at 4K. Only a few MB per minute means it was squeezed. Note the size, and the resolution if shown.
+
+**Upload (Samsung tablet):**
+1. Open **My Files** → **Videos** (or **Internal storage → DCIM** or **Download**) and find the video.
+2. Long-press it → **Rename** → the name in 15.4, keeping the extension (`.mov` or `.mp4`). Example: `2026-11-14_1530_LOC01_IPHONE_MATCH_p01.mov`.
+3. Open **Google Drive** → make the folders `TennisVision` → `footage` (**+ → Folder**).
+4. Inside `footage`: **+ → Upload** → in the picker, tap **☰ → My Files** (or the tablet's name), not **Gallery** or **Photos**, then pick the renamed file.
+5. Keep Drive open and the tablet on Wi-Fi until the upload finishes (the progress bar disappears).
+6. In Drive, tap **⋮ → Details** on the file and check that its size matches step 1's **Details**.
+
+Then carry on from 15.5. Sharing the link and setting it back to Restricted work the same way: in Drive, **⋮ → Share → Manage access → General access**.
+
 ### 15.3 Where it lives until the closet PC arrives
 
 What my session can reach today: files you attach in our chat, and the open internet only through hosts the environment allows. Google Drive isn't connected (only Gmail and Calendar are), and Gmail can't carry videos (25 MB attachment limit).
