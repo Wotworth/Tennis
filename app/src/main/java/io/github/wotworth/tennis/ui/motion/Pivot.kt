@@ -275,6 +275,8 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.category
             val e = awaitPointerEvent(pass)
             val c = e.changes.firstOrNull { it.id == down.id } ?: return@awaitEachGesture
             if (!c.pressed) return@awaitEachGesture
+            // a second finger: a pinch (the court map zooms, Chris 17 Nov), not a swipe
+            if (e.changes.count { it.pressed } > 1) return@awaitEachGesture
             total = c.position - down.position
             if (total.getDistance() > slop) {
                 if (abs(total.x) <= abs(total.y)) return@awaitEachGesture

@@ -22,6 +22,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.remember
@@ -234,17 +244,41 @@ fun CourtMapV2(v: VisionSession, shots: List<VisionShot>, answer: String?, bySpi
     val lengthM = 2 * (Court.HALF_LENGTH + t.courtMarginM)
     val widthM = 2 * (Court.HALF_DOUBLES + t.courtMarginM)
     var mapping by remember { mutableStateOf<(Double, Double) -> Offset>({ _, _ -> Offset.Zero }) }
+    // Chris, 17 Nov: pinch to zoom (two fingers also move it), so one bounce among many can be
+    // tapped; double-tap to go back to the whole court. Dots stay the same size on screen.
+    var zoom by remember { mutableFloatStateOf(1f) }
+    var pan by remember { mutableStateOf(Offset.Zero) }
     val tap = if (onShot == null) Modifier else Modifier.pointerInput(shots) {
-        detectTapGestures { p ->
+        detectTapGestures(onDoubleTap = { zoom = 1f; pan = Offset.Zero }) { p ->
             val near = shots.minByOrNull { sh -> (mapping(sh.bounce!![0], sh.bounce[1]) - p).getDistance() }
             if (near != null && (mapping(near.bounce!![0], near.bounce[1]) - p).getDistance() < zpx(t.spotTapRadius).toPx()) onShot(near)
         }
     }
-    Canvas(Modifier.fillMaxWidth().height(zpx(heightZpx)).then(tap)) {
+    val pinch = Modifier.pointerInput(Unit) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false)
+            while (true) {
+                val e = awaitPointerEvent()
+                if (e.changes.none { it.pressed }) break
+                if (e.changes.count { it.pressed } < 2) continue
+                val z = e.calculateZoom();  val c = e.calculateCentroid(useCurrent = true);  val d = e.calculatePan()
+                val nz = (zoom * z).coerceIn(1f, t.courtMaxZoom)
+                val k = nz / zoom
+                // keep the point under the fingers where it is, then follow the fingers
+                var np = (pan - c) * k + c + d
+                if (nz == 1f) np = Offset.Zero
+                np = Offset(np.x.coerceIn(size.width * (1 - nz), 0f), np.y.coerceIn(size.height * (1 - nz), 0f))
+                zoom = nz;  pan = np
+                e.changes.forEach { it.consume() }
+            }
+        }
+    }
+    Canvas(Modifier.fillMaxWidth().height(zpx(heightZpx)).clipToBounds().testTag("courtMap").semantics { stateDescription = "zoom $zoom" }.then(pinch).then(tap)) {
         // the court runs up the screen: court x -> screen y, court y -> screen x
         val pad = zpx(t.courtSidePadding).toPx()
-        val s = minOf((size.width - 2 * pad) / widthM.toFloat(), (size.height - 2 * pad) / lengthM.toFloat())
-        val cx = size.width / 2;  val cy = size.height / 2
+        val s0 = minOf((size.width - 2 * pad) / widthM.toFloat(), (size.height - 2 * pad) / lengthM.toFloat())
+        val s = s0 * zoom
+        val cx = size.width / 2 * zoom + pan.x;  val cy = size.height / 2 * zoom + pan.y
         val map = { x: Double, y: Double -> Offset(cx + (y * s).toFloat(), cy - (x * s).toFloat()) }
         mapping = map
         drawCourtTopDown(map, s)
@@ -609,7 +643,7 @@ fun CourtB(v: VisionSession, answer: String?, f: VisionFilter, onShot: (VisionSh
     CourtMapV2(v, shots, answer, f.colour == "spin", CourtStyle.Scale, TennisTokens.Vision.courtMapHeight + 110f, onShot)
     Spacer(Modifier.height(zpx(6f)))
     CourtLegends(f.colour == "spin", CourtStyle.Scale, players(v, shots, answer))
-    TennisText("${shots.size} bounces. Tap one for that shot.", TennisTokens.Type.listSecondary)
+    TennisText("${shots.size} bounces. Tap one for that shot; pinch to zoom, double-tap for the whole court.", TennisTokens.Type.listSecondary)
 }
 
 /** Shot A on a real shot: swatch and line, the side view in the hitter's colour, the two-column grid. */
