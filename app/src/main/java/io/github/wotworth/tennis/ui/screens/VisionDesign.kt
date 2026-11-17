@@ -501,7 +501,7 @@ fun ShotVariantB(v: VisionSession, s: VisionShot, answer: String?) {
         Spacer(Modifier.height(zpx(10f)))
         val all = shotStats(s).associate { it.second to it.first }
         Group("flight"); StatGrid(listOfNotNull(pick(all, "launch angle"), pick(all, "net clearance"), pick(all, "highest point"), pick(all, "at the bounce")), 2)
-        Group("bounce"); StatGrid(listOfNotNull(pick(all, "inside the baseline"), pick(all, "bounce ±"), pick(all, "kick off the court"), pick(all, "call")), 2)
+        Group("bounce"); StatGrid(listOfNotNull(pick(all, "short of the baseline"), pick(all, "bounce ±"), pick(all, "kick off the court"), pick(all, "call")), 2)
         Group("spin"); StatGrid(listOfNotNull(pick(all, "spin effect on the bounce"), pick(all, "spin"), pick(all, "topspin / sidespin"), pick(all, "spin rate")), 2)
         TennisText("measurement confidence ${s.confidence?.let { "${(it * 100).roundToInt()}%" } ?: "–"}", TennisTokens.Type.listSecondary)
     }
@@ -530,7 +530,7 @@ fun shotStats(s: VisionShot): List<Pair<String, String>> = listOfNotNull(
     Units.inches(s.netClearance) to "net clearance",
     Units.ft(s.apex) to "highest point",
     s.call to "call",
-    Units.ft(s.depth) to "inside the baseline",
+    Units.ft(s.depth) to "short of the baseline",
     "± ${Units.inches(s.bounceSd)}" to "bounce ±",
     (s.spinEffect?.let { "${Units.ft(abs(it))} ${if (it < 0) "shorter" else "longer"}" } ?: "–") to "spin effect on the bounce",
     (s.spinLabel.ifBlank { "–" }) to "spin",
@@ -583,7 +583,7 @@ private fun TrendCharts() {
     val jobs = d.jobs.filter { it.racquetId == racquet?.id }
     TrendChart("spin effect, ft shorter", pts.map { it.epochDay to -it.forehandSpinEffect * Units.FT_PER_M }, jobs)
     Spacer(Modifier.height(zpx(10f)))
-    TrendChart("depth, ft inside the baseline", pts.map { it.epochDay to it.forehandDepth * Units.FT_PER_M }, jobs)
+    TrendChart("depth, ft short of the baseline", pts.map { it.epochDay to it.forehandDepth * Units.FT_PER_M }, jobs)
 }
 
 @Composable

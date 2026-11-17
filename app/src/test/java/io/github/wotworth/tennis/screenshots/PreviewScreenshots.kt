@@ -56,6 +56,7 @@ class PreviewScreenshots {
     @Test fun p01SessionsList() = screen("01-sessions-list", Screen.Hub(SESSIONS))
     @Test fun p02SummaryBefore() = screen("02a-summary-before-identified", Screen.Vision(id, 0))
     @Test fun p02SummaryAfter() = screen("02b-summary-after-identified", Screen.Vision(id, 0), identified())
+    @Test @Config(qualifiers = "w360dp-h1700dp-port-xxhdpi") fun p02SummaryWhole() = screen("02c-summary-whole-page", Screen.Vision(id, 0), identified())
     @Test fun p03CourtSpeed() { VisionDefaults.courtType = "forehand"; VisionDefaults.courtColour = "speed"; screen("03a-court-map-forehands-speed", Screen.Vision(id, 1), identified()) }
     @Test fun p03CourtSpin() { VisionDefaults.courtType = "forehand"; VisionDefaults.courtColour = "spin"; screen("03b-court-map-forehands-spin", Screen.Vision(id, 1), identified()) }
     @Test fun p03CourtServes() { VisionDefaults.courtType = "serve"; VisionDefaults.courtColour = "speed"; screen("03c-court-map-serves-speed", Screen.Vision(id, 1), identified()) }

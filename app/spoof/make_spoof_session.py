@@ -48,9 +48,13 @@ def ft_value(lo_tenths_or_ft, hi, tenths):
 N_RALLIES = 31
 lengths = [rng.choice([1, 3, 3, 5, 5, 5, 7, 7, 9, 11]) for _ in range(N_RALLIES)]
 lengths[12] = 17                                           # the longest rally
+# Chris, 17 Nov: first and second serves. A faulted first serve is a rally of its own (one shot);
+# the same server's next rally starts with his second serve (slower, more spin)
+for k in (2, 6, 9, 17, 22, 26): lengths[k] = 1
 rallies, shots, trajs = [], [], []
 t = 31.0
 server = 'Player A'
+faulted = None                                             # the server whose first serve just faulted
 for k, n in enumerate(lengths):
     ridx = 2 * k + 1
     if k == 15: server = 'Player B'                        # second set: the other one serves
@@ -64,6 +68,8 @@ for k, n in enumerate(lengths):
     sides = {'Player A': -1, 'Player B': 1}
     if k % 2: sides = {'Player A': 1, 'Player B': -1}       # ends change
     fast = 0
+    second = faulted == server
+    faulted = server if (n == 1 and not second) else None
     for i in range(n):
         si = 2 * i + 1                                     # shots numbered 1, 3, 5, ...
         serve = i == 0
@@ -73,11 +79,11 @@ for k, n in enumerate(lengths):
         call = 'in'
         if last and end in ('out', 'net'): call = end
         # speeds (mph), all 1 mod 4
-        sp = odd4(97, 121) if serve else (odd4(57, 85) if typ == 'forehand' else odd4(49, 73))
+        sp = (odd4(73, 93) if second else odd4(97, 121)) if serve else (odd4(57, 85) if typ == 'forehand' else odd4(49, 73))
         spb = odd4(int(sp * 0.67), int(sp * 0.77))
         spin = 'topspin'
         if typ == 'backhand' and rng.random() < 0.35: spin = 'slice'
-        if serve: spin = rng.choice(['topspin', 'flat / low spin'])
+        if serve: spin = rng.choice(['topspin', 'slice']) if second else rng.choice(['topspin', 'flat / low spin'])
         # where it bounces: depth inside the baseline, in ft (whole, 1 mod 4) or out long (tenths)
         if call == 'in':
             # under 10 ft the app shows one decimal: tenths 1 mod 4; from 10 ft whole feet 1 mod 4
@@ -164,7 +170,8 @@ def odd_counts():
     cnt = lambda xs: len(xs)
     groups = {'total': shots}
     groups.update({'hitter ' + k: v for k, v in by(lambda s: s['hitter']).items()})
-    bounced = [s for s in shots if s['bounce']]
+    # the court map shows one player at a time (Chris, 17 Nov), starting with Player A (you)
+    bounced = [s for s in shots if s['bounce'] and s['hitter'] == 'Player A']
     groups['bounces all'] = bounced
     for ty in ['serve', 'forehand', 'backhand']:
         groups['bounces ' + ty] = [s for s in bounced if s['type'] == ty]
@@ -187,11 +194,11 @@ for _ in range(400):
         grp[-1]['rpm'] = None; grp[-1]['rpmSd'] = None
     elif name.startswith('bounces'):
         ty = name.split()[1]
-        cands = [s for s in shots if s['bounce'] and (ty == 'all' or s['type'] == ty) and s['call'] == 'in' and s['index'] > 1
-                 and s is not shots[-1]]
+        cands = [s for s in shots if s['bounce'] and s['hitter'] == 'Player A' and (ty == 'all' or s['type'] == ty) and s['call'] == 'in'
+                 and s['index'] > 1 and s is not shots[-1]]
         if not cands:   # serves: an ace-less one-shot rally whose serve went out becomes a serve into the net
             one = {r['index'] for r in rallies if r['shots'] == 1}
-            cands = [s for s in shots if s['bounce'] and s['type'] == ty and s['rally'] in one]
+            cands = [s for s in shots if s['bounce'] and s['hitter'] == 'Player A' and s['type'] == ty and s['rally'] in one]
             for c in cands:
                 for r in rallies:
                     if r['index'] == c['rally']: r['ending'] = 'net'
@@ -234,6 +241,15 @@ def ft_s(m):
     v = m * FT
     return str(Decimal(repr(v)).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)) if abs(v) < 10 else str(rhu(v))
 def odd_s(t): return int(t[-1]) % 2 == 1
+def near_tie(x):
+    # within a hair of a rounding tie: Kotlin and Python may round it differently, so avoid it
+    return abs((x % 1.0) - 0.5) < 0.02
+def tie_of(kind, v):
+    if v is None: return False
+    if kind == 'mph': return near_tie(v * MPH)
+    if kind == 'ft':
+        x = abs(v * FT); return near_tie(x * 10) if x < 10 else near_tie(x)
+    return False
 def mean(xs): return sum(xs) / len(xs) if xs else None
 def median(xs):
     xs = sorted(xs); n = len(xs)
@@ -244,23 +260,46 @@ def pct(xs):
     return rhu(100.0 * sum(s['call'] == 'in' for s in c) / len(c)) if c else None
 
 
+def second_serves():
+    # as the app's SessionMetrics.secondServes
+    out, faulted = set(), None
+    for r in sorted(rallies, key=lambda r: r['start']):
+        sh = sorted([s for s in shots if s['rally'] == r['index']], key=lambda s: s['index'])
+        if not sh or not sh[0]['isServe']: faulted = None; continue
+        sv = sh[0]; is2 = faulted == sv['hitter']
+        if is2: out.add(id(sv))
+        fault = len(sh) == 1 and sv['call'] in ('out', 'net')
+        faulted = sv['hitter'] if fault and not is2 else None
+    return out
+
+
+def serves_of(no):
+    sec = second_serves()
+    return [s for s in shots if s['hitter'] == 'Player A' and s['isServe'] and ((id(s) in sec) == (no == 2))]
+
+
 def figures():
     a = [s for s in shots if s['hitter'] == 'Player A']
-    rally = [s for s in a if not s['isServe']]; serves = [s for s in a if s['isServe']]
+    rally = [s for s in a if not s['isServe']]; s1 = serves_of(1); s2 = serves_of(2)
     top = lambda ty: mean([-s['spinEffect'] for s in rally if s['type'] == ty and s['spinEffect'] is not None])
     spd = lambda ty: mean([s['speedContact'] for s in rally if s['type'] == ty and s['speedContact'] is not None])
     return {'topspinForehand': top('forehand'), 'topspinBackhand': top('backhand'), 'speedForehand': spd('forehand'),
-            'speedBackhand': spd('backhand'), 'serveInPct': pct(serves), 'serveSpeed': mean([s['speedContact'] for s in serves]),
-            'serveSpin': mean([-s['spinEffect'] for s in serves if s['spinEffect'] is not None]), 'inPct': pct(rally),
+            'speedBackhand': spd('backhand'),
+            'serve1InPct': pct(s1), 'serve1Speed': mean([s['speedContact'] for s in s1]),
+            'serve1Spin': mean([-s['spinEffect'] for s in s1 if s['spinEffect'] is not None]),
+            'serve2InPct': pct(s2), 'serve2Speed': mean([s['speedContact'] for s in s2]),
+            'serve2Spin': mean([-s['spinEffect'] for s in s2 if s['spinEffect'] is not None]), 'inPct': pct(rally),
             'depth': mean([s['depth'] for s in rally if s['call'] == 'in' and s['depth'] is not None])}
 
 
-SHOW = {'topspinForehand': ft_s, 'topspinBackhand': ft_s, 'speedForehand': mph_s, 'speedBackhand': mph_s, 'serveInPct': str,
-        'serveSpeed': mph_s, 'serveSpin': ft_s, 'inPct': str, 'depth': ft_s}
+SHOW = {'topspinForehand': ft_s, 'topspinBackhand': ft_s, 'speedForehand': mph_s, 'speedBackhand': mph_s,
+        'serve1InPct': str, 'serve1Speed': mph_s, 'serve1Spin': ft_s, 'serve2InPct': str, 'serve2Speed': mph_s, 'serve2Spin': ft_s,
+        'inPct': str, 'depth': ft_s}
 
 
 def shown_ok():
-    bad = [k for k, v in figures().items() if v is not None and not odd_s(SHOW[k](v))]
+    KIND = {ft_s: 'ft', mph_s: 'mph', str: 'pct'}
+    bad = [k for k, v in figures().items() if v is not None and (not odd_s(SHOW[k](v)) or tie_of(KIND[SHOW[k]], v))]
     for p in ['Player A', 'Player B', 'unknown']:        # the summary's other per-player numbers
         xs = [s for s in shots if s['hitter'] == p]
         m = median([s['speedContact'] for s in xs if s['type'] == 'forehand' and s['speedContact'] is not None])
@@ -276,26 +315,28 @@ def shown_ok():
 fastest = {r['index']: r['fastest'] for r in rallies}
 def nudge(key):
     a = [s for s in shots if s['hitter'] == 'Player A']
-    rally = [s for s in a if not s['isServe']]; serves = [s for s in a if s['isServe']]
+    rally = [s for s in a if not s['isServe']]
+    serves = serves_of(2) if key.startswith('serve2') else serves_of(1)
     d = rng.choice([-1, 1])
-    if key in ('topspinForehand', 'topspinBackhand', 'serveSpin', 'median forehand spin'):
+    if key in ('topspinForehand', 'topspinBackhand', 'serve1Spin', 'serve2Spin', 'median forehand spin'):
         ty = {'topspinForehand': 'forehand', 'topspinBackhand': 'backhand', 'median forehand spin': 'forehand'}.get(key)
-        pool = [s for s in (serves if key == 'serveSpin' else rally) if (ty is None or s['type'] == ty)
+        pool = [s for s in (serves if key.startswith('serve') else rally) if (ty is None or s['type'] == ty)
                 and s['spinEffect'] is not None and 1.0 < abs(s['spinEffect'] * FT) < 9.0]
         s = rng.choice(pool); s['spinEffect'] -= d * m_from_ft(0.2)
-    elif key in ('speedForehand', 'speedBackhand', 'serveSpeed') or key.startswith('median forehand '):
+    elif key in ('speedForehand', 'speedBackhand', 'serve1Speed', 'serve2Speed') or key.startswith('median forehand '):
         ty = {'speedForehand': 'forehand', 'speedBackhand': 'backhand'}.get(key, 'forehand')
         hitter = key.replace('median forehand ', '') if key.startswith('median forehand ') else 'Player A'
-        pool = [s for s in shots if s['hitter'] == hitter and (s['isServe'] if key == 'serveSpeed' else (not s['isServe'] and s['type'] == ty))
-                and s['speedContact'] is not None and abs(s['speedContact'] - fastest[s['rally']]) > 1e-6]
+        src = serves if key.startswith('serve') else shots
+        pool = [s for s in src if s['hitter'] == hitter and (s['isServe'] if key.startswith('serve') else (not s['isServe'] and s['type'] == ty))
+                and s['speedContact'] is not None and (key.startswith('serve2') or abs(s['speedContact'] - fastest[s['rally']]) > 1e-6)]
         s = rng.choice(pool); s['speedContact'] += d * ms_from_mph(2)
     elif key == 'depth':
         pool = [s for s in rally if s['call'] == 'in' and s['depth'] is not None and 1.0 < s['depth'] * FT < 9.0]
         s = rng.choice(pool); s['depth'] += d * m_from_ft(0.2)
-    elif key in ('serveInPct', 'inPct') or key.startswith('pct '):
+    elif key in ('serve1InPct', 'serve2InPct', 'inPct') or key.startswith('pct '):
         hitter = key[4:] if key.startswith('pct ') else 'Player A'
-        pool = [s for s in shots if s['hitter'] == hitter and s['call'] == 'in' and s['bounce']
-                and (s['isServe'] if key == 'serveInPct' else not s['isServe'])]
+        src = serves if key.startswith('serve') else [s for s in shots if not s['isServe']]
+        pool = [s for s in src if s['hitter'] == hitter and s['call'] == 'in' and s['bounce']]
         rng.choice(pool)['call'] = 'too close'
     else:
         raise SystemExit('no nudge for ' + key)
@@ -419,8 +460,9 @@ for i in range(N_TREND):
 # key figures of the earlier sessions (every trend point before this session's day): each
 # value shown odd, and their averages (what the summary compares with) odd too
 RANGES = {'topspinForehand': ('ft', 33, 77), 'topspinBackhand': ('ft', 13, 49), 'speedForehand': ('mph', 53, 77),
-          'speedBackhand': ('mph', 45, 69), 'serveInPct': ('pct', 49, 77), 'serveSpeed': ('mph', 81, 109),
-          'serveSpin': ('ft', 9, 41), 'inPct': ('pct', 61, 89), 'depth': ('ft', 45, 89)}
+          'speedBackhand': ('mph', 45, 69), 'serve1InPct': ('pct', 49, 77), 'serve1Speed': ('mph', 97, 117),
+          'serve1Spin': ('ft', 9, 41), 'serve2InPct': ('pct', 77, 97), 'serve2Speed': ('mph', 73, 89),
+          'serve2Spin': ('ft', 29, 65), 'inPct': ('pct', 61, 89), 'depth': ('ft', 45, 89)}
 def hist_value(kind, lo, hi):
     v = odd4(lo, hi)
     return m_from_ft(v / 10.0) if kind == 'ft' else ms_from_mph(v) if kind == 'mph' else v
@@ -430,6 +472,7 @@ for p in earlier:
 def avg_shown(k, last=None):
     vals = [p['metrics'][k] for p in (earlier[-last:] if last else earlier)]
     kind = RANGES[k][0]
+    if tie_of(kind, sum(vals) / len(vals)): return '0'
     if kind == 'pct': return str(rhu(sum(vals) / len(vals)))
     return ft_s(sum(vals) / len(vals)) if kind == 'ft' else mph_s(sum(vals) / len(vals))
 # both averages the summary shows (Chris, 17 Nov): all earlier sessions, and the last ten

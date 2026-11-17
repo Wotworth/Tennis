@@ -1,9 +1,12 @@
 package io.github.wotworth.tennis.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
+import io.github.wotworth.tennis.ui.components.FitText
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -22,9 +25,9 @@ import java.time.ZoneOffset
 import kotlin.math.roundToInt
 
 /*
- * Chris, 17 Nov: the summary opens with the session's key figures (topspin, speed, serves,
- * accuracy), each against the average of his earlier sessions, so a good day stands out; the
- * session's trends tab shows each figure over time, this session marked.
+ * Chris, 17 Nov: the summary opens with the session's key figures (accuracy, first and second
+ * serves, topspin, speed), each against the average of his earlier sessions and of the last
+ * ten, so a good day stands out; the session's trends tab shows each figure over time.
  */
 
 /** The session's day (UTC date of its start), to tell earlier sessions from later ones. */
@@ -32,7 +35,8 @@ fun sessionDay(v: VisionSession): Long = runCatching { Instant.parse(v.startUtc)
 
 /** One figure: its group and label, how to read it, and its unit on screen. */
 private enum class Unit { FT, MPH, PCT }
-private class Figure(val group: String, val label: String, val unit: Unit, val get: (SessionMetrics) -> Double?) {
+private class Figure(val group: String, val label: String, val unit: Unit, val higherIsBetter: Boolean = true,
+                     val spinKind: ((SessionMetrics) -> String?)? = null, val get: (SessionMetrics) -> Double?) {
     /** The value in the units shown (ft, mph or %), for the trend charts. */
     fun shown(v: Double) = when (unit) { Unit.FT -> v * Units.FT_PER_M; Unit.MPH -> v * Units.MPH_PER_MS; Unit.PCT -> v }
     fun show(v: Double): String = when (unit) { Unit.FT -> Units.ft(v); Unit.MPH -> Units.mph(v); Unit.PCT -> "${v.roundToInt()}%" }
@@ -40,15 +44,19 @@ private class Figure(val group: String, val label: String, val unit: Unit, val g
     fun axis(x: Double): String = if (unit == Unit.FT && kotlin.math.abs(x) < 10) "%.1f".format(java.util.Locale.US, x) else "${x.roundToInt()}"
 }
 
-// Chris, 17 Nov: in this order
+// Chris, 17 Nov: in this order; serves first and second apart. Depth is how far short of the
+// baseline the ball landed, so smaller is deeper (better).
 private val FIGURES = listOf(
     Figure("accuracy", "shots in, not serves", Unit.PCT) { it.inPct?.toDouble() },
-    Figure("accuracy", "depth inside the baseline", Unit.FT) { it.depth },
-    Figure("serves", "in", Unit.PCT) { it.serveInPct?.toDouble() },
-    Figure("serves", "speed", Unit.MPH) { it.serveSpeed },
-    Figure("serves", "spin, ft shorter", Unit.FT) { it.serveSpin },
-    Figure("topspin", "forehand, ft shorter", Unit.FT) { it.topspinForehand },
-    Figure("topspin", "backhand, ft shorter", Unit.FT) { it.topspinBackhand },
+    Figure("accuracy", "short of the baseline", Unit.FT, higherIsBetter = false) { it.depth },
+    Figure("first serves", "in", Unit.PCT) { it.serve1InPct?.toDouble() },
+    Figure("first serves", "speed", Unit.MPH) { it.serve1Speed },
+    Figure("first serves", "spin, shorter", Unit.FT, spinKind = { it.serve1SpinKind }) { it.serve1Spin },
+    Figure("second serves", "in", Unit.PCT) { it.serve2InPct?.toDouble() },
+    Figure("second serves", "speed", Unit.MPH) { it.serve2Speed },
+    Figure("second serves", "spin, shorter", Unit.FT, spinKind = { it.serve2SpinKind }) { it.serve2Spin },
+    Figure("topspin", "forehand, shorter", Unit.FT) { it.topspinForehand },
+    Figure("topspin", "backhand, shorter", Unit.FT) { it.topspinBackhand },
     Figure("speed", "forehand", Unit.MPH) { it.speedForehand },
     Figure("speed", "backhand", Unit.MPH) { it.speedBackhand },
 )
@@ -68,39 +76,53 @@ private fun history(v: VisionSession, me: String): History {
         earlier.takeIf { it.size > RECENT }?.let { SessionMetrics.average(it.takeLast(RECENT).map { e -> e.second }) }, earlier)
 }
 
-/** The summary's key figures: this session's, against the average of the earlier ones. */
+/**
+ * The summary's key figures as tiles (Chris, 17 Nov: less text): the figure, what it is, and
+ * one short line with both averages (all earlier sessions; the last ten). A tile is tile green
+ * when the session beat the average of all earlier sessions, dark grey otherwise; the arrow says
+ * which way the number moved (for depth, down is deeper).
+ */
 @Composable
 fun KeyFigures(v: VisionSession, me: String) {
     val zpx = LocalZpx.current
     val h = history(v, me)
     TennisText(if (h.avg == null) "Your first session: from the next one on, each figure is compared with your average."
-        else "This session against the average of all your earlier sessions" + (if (h.recent != null) ", and of the last ten." else "."),
+        else "Green: better than your average. avg: all earlier sessions" + (if (h.recent != null) "; ten: the last ten." else "."),
         TennisTokens.Type.listSecondary)
     FIGURES.groupBy { it.group }.forEach { (group, figs) ->
-        SectionHeader(group)
-        figs.chunked(2).forEach { row ->
-            Row(Modifier.fillMaxWidth().padding(bottom = zpx(9f))) {
-                row.forEach { f ->
-                    val now = f.get(h.now)
-                    val avg = h.avg?.let { f.get(it) }
-                    Column(Modifier.weight(1f).padding(end = zpx(8f))) {
-                        TennisText(now?.let { f.show(it) } ?: "–", TennisTokens.Type.statNumber, maxLines = 1)
-                        val label = if (group == "serves" && f.label.startsWith("spin") && h.now.serveSpinKind != null) "${h.now.serveSpinKind} spin, ft shorter" else f.label
-                        TennisText(label, TennisTokens.Type.statLabel, maxLines = 2)
-                        if (now != null && avg != null) {
-                            val a = f.show(avg);  val n = f.show(now)
-                            val word = when {
-                                a == n -> "same as"
-                                now > avg -> "above"
-                                else -> "below"
-                            }
-                            TennisText("$word your average, $a", TennisTokens.Type.listSecondary, maxLines = 2)
-                            h.recent?.let { f.get(it) }?.let { r -> TennisText("last ten: ${f.show(r)}", TennisTokens.Type.listSecondary, maxLines = 1) }
-                        }
-                    }
-                }
-                if (row.size == 1) Spacer(Modifier.weight(1f))
+        Spacer(Modifier.height(zpx(10f)))
+        TennisText(group, TennisTokens.Type.sectionHeader)
+        Spacer(Modifier.height(zpx(4f)))
+        val cols = if (figs.size == 3) 3 else 2
+        Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+            figs.forEachIndexed { k, f ->
+                if (k > 0) Spacer(Modifier.width(zpx(TennisTokens.Layout.tileGap)))
+                FigureTile(f, h, Modifier.weight(1f).fillMaxHeight(), small = cols == 3)
             }
+        }
+    }
+}
+
+@Composable
+private fun FigureTile(f: Figure, h: History, modifier: Modifier, small: Boolean) {
+    val zpx = LocalZpx.current
+    val now = f.get(h.now)
+    val avg = h.avg?.let { f.get(it) }
+    val better = now != null && avg != null && f.show(now) != f.show(avg) && ((now > avg) == f.higherIsBetter)
+    Column(modifier.background(if (better) TennisTokens.Colors.tile else TennisTokens.Colors.segmentOff).padding(zpx(8f))) {
+        // spin that makes a serve land longer (slice, flat) shows as "longer", not a negative "shorter"
+        val longer = f.spinKind != null && now != null && now < 0
+        val role = if (small) TennisTokens.Type.tileNumberSmall else TennisTokens.Type.statNumber
+        // a fixed height: FitText measures its width first, which the row's equal heights can't ask it
+        FitText((now?.let { if (longer) f.show(-it) else f.show(it) }) ?: "–", role, Modifier.fillMaxWidth().height(zpx(role.sizeZpx * 1.35f)))
+        val kind = f.spinKind?.invoke(h.now)?.let { if (it.startsWith("flat")) "flat" else it }
+        TennisText(if (kind != null) "$kind, ${if (longer) "longer" else "shorter"}" else f.label, TennisTokens.Type.tileFigureLabel, maxLines = 2)
+        if (now != null && avg != null) {
+            val arrow = when { f.show(now) == f.show(avg) -> "="; now > avg -> "▲"; else -> "▼" }
+            Spacer(Modifier.weight(1f))
+            val line = Modifier.fillMaxWidth().height(zpx(TennisTokens.Type.tileFigureLabel.sizeZpx * 1.4f))
+            FitText("$arrow avg ${f.show(avg)}", TennisTokens.Type.tileFigureLabel, line)
+            h.recent?.let { f.get(it) }?.let { r -> FitText("ten ${f.show(r)}", TennisTokens.Type.tileFigureLabel, line) }
         }
     }
 }

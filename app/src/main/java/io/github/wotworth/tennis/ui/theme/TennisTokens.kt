@@ -140,6 +140,8 @@ object TennisTokens {
         val filterBar = Role(15f, Weight.Regular, 0f, Case.Lowercase, Tone.Primary)
         val statNumber = Role(26f, Weight.Light, -0.01f, Case.AsTagged, Tone.Primary)
         val statLabel = Role(12f, Weight.Regular, 0f, Case.AsTagged, Tone.Secondary)
+        /** Chris, 17 Nov: the label and averages on a key-figure tile (white on the tile). */
+        val tileFigureLabel = Role(12f, Weight.Regular, 0f, Case.AsTagged, Tone.Primary)
         val menuItem = Role(22f, Weight.Light, 0f, Case.Lowercase, Tone.Primary)
         val button = Role(15f, Weight.Semibold, 0f, Case.Lowercase, Tone.Primary)
         val input = Role(16f, Weight.Regular, 0f, Case.AsTagged, Tone.Primary)

@@ -6,6 +6,9 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -142,6 +145,23 @@ fun VisionSessionScreen(id: String, initial: Int) {
     }
 }
 
+/** The session at a glance: shots, rallies, minutes, longest rally, as small dark tiles. */
+@Composable
+private fun SessionTiles(v: VisionSession) {
+    val zpx = LocalZpx.current
+    SectionHeader("session")
+    Row(Modifier.fillMaxWidth()) {
+        listOf("${v.shots.size}" to "shots", "${v.rallies.size}" to "rallies", "${(v.durationS / 60).roundToInt()}" to "min",
+            "${v.rallies.maxOfOrNull { it.shots } ?: 0}" to "longest rally").forEachIndexed { k, (n, label) ->
+            if (k > 0) Spacer(Modifier.width(zpx(TennisTokens.Layout.tileGap)))
+            Column(Modifier.weight(1f).background(TennisTokens.Colors.segmentOff).padding(zpx(8f))) {
+                TennisText(n, TennisTokens.Type.tileNumberSmall, maxLines = 1)
+                TennisText(label, TennisTokens.Type.tileFigureLabel, maxLines = 2)
+            }
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------------------------
 @Composable
 private fun VisionSummary(v: VisionSession) {
@@ -177,20 +197,9 @@ private fun VisionSummary(v: VisionSession) {
         }
         // Chris, 17 Nov: the key figures first, against his average
         if (me != null) { KeyFigures(v, me); Spacer(Modifier.height(zpx(16f))) }
-        val mine = v.shots.filter { me != null && it.hitter == me }
-        val serves = (if (me != null) mine else v.shots).filter { it.isServe }
-        Row {
-            NumberTile("${v.shots.size}", "shots", w, w)
-            Spacer(Modifier.width(zpx(l.tileGap)))
-            NumberTile("${v.rallies.size}", "rallies, ${(v.durationS / 60).roundToInt()} min", w, w)
-        }
-        Spacer(Modifier.height(zpx(l.tileGap)))
-        Row {
-            NumberTile(Units.mph(serves.mapNotNull { it.speedContact }.maxOrNull()), if (me != null) "your top serve" else "top serve", w, w)
-            Spacer(Modifier.width(zpx(l.tileGap)))
-            NumberTile("${v.rallies.maxOfOrNull { it.shots } ?: 0}", "longest rally", w, w)
-        }
-        Spacer(Modifier.height(zpx(16f)))
+        // Chris, 17 Nov (less text): the session in four small tiles, then the details in short rows
+        SessionTiles(v)
+        Spacer(Modifier.height(zpx(6f)))
         SectionHeader("players")
         val showOpp = pending || v.id in app.prefs.opponentStatsOn
         val oppName = opp.of(v.id)?.name
@@ -214,12 +223,6 @@ private fun VisionSummary(v: VisionSession) {
             // the full report (rejects/rejects.html) opens from here once the app reads from the cloud (TV-PH-4)
             TextRow("${r.total} detections left out", r.counts.take(3).joinToString(" · ") { "${it.first} ${it.second}" })
         }
-        SectionHeader("spin" + if (me != null) "" else " · ${players.firstOrNull() ?: ""}")
-        val fh = (if (me != null) mine else v.shots.filter { it.hitter == players.firstOrNull() }).filter { it.type == "forehand" || it.type == "groundstroke" }
-        val fx = median(fh.mapNotNull { it.spinEffect })
-        TextRow(if (fx == null) "–" else "${Units.ft(abs(fx))} ${if (fx < 0) "shorter" else "longer"}", "how much spin moved the forehands' bounce (median)")
-        spinRows(if (me != null) mine else v.shots.filter { it.hitter == players.firstOrNull() }).forEach { (a, b) -> TextRow(a, b) }
-        TextRow(Units.inches(median(fh.mapNotNull { it.netClearance })), "forehand net clearance (median)")
         SectionHeader("air")
         TextRow(listOfNotNull(v.tempC?.let { "${(it * 9 / 5 + 32).roundToInt()} °F" }, v.wind.takeIf { it.size >= 2 }?.let { "wind ${Units.mph(hypot(it[0], it[1]))}" }).joinToString(" · ").ifBlank { "–" },
             v.sessionCD?.let { "ball drag %.3f (falls as balls wear)".format(Locale.US, it) })
@@ -455,7 +458,7 @@ fun VisionTrends() {
     Spacer(Modifier.height(zpx(6f)))
     if (measure != "depth") TrendChart("spin effect, ft shorter", pts.map { it.epochDay to -it.forehandSpinEffect * Units.FT_PER_M }, shownJobs)
     if (measure == "both") Spacer(Modifier.height(zpx(10f)))
-    if (measure != "spin") TrendChart("depth, ft inside the baseline", pts.map { it.epochDay to it.forehandDepth * Units.FT_PER_M }, shownJobs)
+    if (measure != "spin") TrendChart("depth, ft short of the baseline", pts.map { it.epochDay to it.forehandDepth * Units.FT_PER_M }, shownJobs)
 }
 
 @Composable
