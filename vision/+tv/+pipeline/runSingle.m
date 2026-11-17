@@ -5,7 +5,9 @@ function R = runSingle(file, outDir, cfg)
 %   unchanged, tv.pipeline.stage):
 %     probe     frame times (TV-ING-10)
 %     clips     the clips of an edited "included rallies" export (tv.media.cuts); a whole
-%               recording is one clip
+%               recording (wholeFile) is cut into windows of windowS seconds for processing
+%     points    raw footage only: where the ball is in play, from the tracks (pointGapS joins
+%               tracks closer than that, pointMinS drops shorter spans)
 %     calib     the empty court (background), its lines, and the camera's pose and, for an
 %               uncalibrated lens, focal length, from the court's line pattern alone
 %               (tv.calib.courtFromLines); court corners out of view (TV-CAL-20)
@@ -40,7 +42,7 @@ d = struct('overlayBoxes', zeros(0, 4), 'lineOpts', struct('minContrast', 20, 'm
            'playerHz', 2, 'clipOpts', struct(), 'hfovStart', 65, 'wholeFile', false, 'bounceMinPx', 1.5, ...
            'detectOpts', struct(), 'clipList', [], 'detectOnly', false, 'stillMps', 1.5, 'stillWindowS', 0.25, ...
            'bounceSkipHits', true, 'personMinArea', 1500, 'hitReach', 0.6, 'bounceMergeS', 0.3, ...
-           'steady', true, 'steadyMaxPx', 40, 'dropPlayerTracks', true, 'playerTrackStepS', 1 / 6, ...
+           'steady', true, 'steadyMaxPx', 40, 'windowS', 30, 'pointGapS', 4, 'pointMinS', 1.5, 'dropPlayerTracks', true, 'playerTrackStepS', 1 / 6, ...
            'playerTrackShare', 1, 'follow', true, 'followOpts', struct());
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(s, fn{k}), s.(fn{k}) = d.(fn{k}); end, end
@@ -51,7 +53,7 @@ k = @(varargin) [key0 '|' jsonencode(varargin)];
 
 P = tv.pipeline.stage(outDir, 'probe', k(), @() tv.media.probe(file));
 rec = P;
-C = tv.pipeline.stage(outDir, 'clips', k(s.clipOpts, s.wholeFile), @() findClips(rec, s));
+C = tv.pipeline.stage(outDir, 'clips', k(s.clipOpts, s.wholeFile, s.windowS), @() findClips(rec, s));
 K = tv.pipeline.stage(outDir, 'calib', k(s.overlayBoxes, s.lineOpts, s.hfovStart), @() calibrate(rec, s));
 if ~isempty(K.corners.text) && isfield(cfg, 'notify'), cfg.notify('Camera framing', K.corners.text); end
 if s.detectOnly
@@ -81,10 +83,14 @@ if s.follow
     [D, n2] = dropStillTracks(D, rec, K, cfg, s);  nStill = nStill + n2;
 end
 B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS, s.bounceSkipHits, s.personMinArea, s.hitReach, s.bounceMergeS, 'clipbg', 'ownpts', 'dbl', s.steady, s.follow, s.followOpts, s.dropPlayerTracks, s.playerTrackStepS, s.playerTrackShare, 3), @() findBounces(rec, D, K, s, PO));
+PT = struct('points', zeros(0, 2));
+if s.wholeFile
+    PT = tv.pipeline.stage(outDir, 'points', k(B.bounces, s.pointGapS, s.pointMinS, numel(D.tracks), cellfun(@numel, D.tracks)), @() findPoints(rec, D, s));
+end
 Y = tv.pipeline.stage(outDir, 'players', k(s.playerHz, C.clips, K.cam.pos, s.steady), @() trackPlayers(rec, C.clips, K, s));
 R = struct('rec', rec, 'clips', C.clips, 'cutT', C.cutT, 'cam', K.cam, 'calib', K.report, 'corners', K.corners, ...
     'bg', K.bg, 'overlayBoxes', s.overlayBoxes, 'candidates', {D.candidates}, 'tracks', {D.tracks}, ...
-    'bounces', B.bounces, 'bounceSkips', struct('hits', B.hitsSkipped, 'net', B.netSkipped, 'duplicates', B.duplicates), 'players', Y.samples, 'stillTracks', nStill, 'stillMps', s.stillMps, 'playerTracks', nAtPlayer, 'followedPoints', nFollowed);
+    'bounces', B.bounces, 'bounceSkips', struct('hits', B.hitsSkipped, 'net', B.netSkipped, 'duplicates', B.duplicates), 'players', Y.samples, 'stillTracks', nStill, 'stillMps', s.stillMps, 'playerTracks', nAtPlayer, 'followedPoints', nFollowed, 'points', PT.points);
 save(fullfile(outDir, 'single.mat'), '-struct', 'R');
 end
 
@@ -101,9 +107,32 @@ for r = 1:numel(D.tracks)
 end
 end
 
+function P = findPoints(rec, D, s)
+% raw footage: a point is where the ball is in play: the tracks' time spans (after every rule),
+% joined when less than s.pointGapS apart, kept when at least s.pointMinS long. Rows: first and
+% last frame (0-based).
+sp = zeros(0, 2);
+for r = 1:numel(D.tracks)
+    for t = D.tracks{r}(:)', sp(end+1, :) = double(t.frames([1 end]))'; end %#ok<AGROW>
+end
+P.points = zeros(0, 2);
+if isempty(sp), return; end
+sp = sortrows(sp);  gap = s.pointGapS * rec.fps;
+cur = sp(1, :);
+for i = 2:size(sp, 1)
+    if sp(i, 1) - cur(2) <= gap, cur(2) = max(cur(2), sp(i, 2)); else, P.points(end+1, :) = cur; cur = sp(i, :); end %#ok<AGROW>
+end
+P.points(end+1, :) = cur;
+P.points = P.points(diff(P.points, 1, 2) >= s.pointMinS * rec.fps, :);
+end
+
 function C = findClips(rec, s)
 if s.wholeFile
-    C.clips = [0, rec.nFrames - 1];  C.cutT = zeros(0, 1);
+    % raw footage (Chris, 17 Nov): processed in windows of s.windowS seconds (so workers can
+    % share it); the points are found afterwards from the tracks (findPoints)
+    w = max(1, round(s.windowS * rec.fps));
+    a = (0:w:rec.nFrames - 1)';
+    C.clips = [a, min(a + w - 1, rec.nFrames - 1)];  C.cutT = zeros(0, 1);
 else
     [C.clips, C.cutT] = tv.media.cuts(rec, s.clipOpts);
 end
