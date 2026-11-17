@@ -27,12 +27,12 @@ for i = 1:size(L, 1)
     t = linspace(0, 1, 40)';
     P = [L(i, 1:2) + t .* (L(i, 3:4) - L(i, 1:2)), zeros(40, 1)];
     [px, ok] = tv.camera.project(cam, P);
-    if nnz(ok) >= 2, lines{end+1} = round(px(ok, :) * sc, 1); end %#ok<AGROW>
+    if nnz(ok) >= 2, lines{end+1} = rnd(px(ok, :) * sc, 1); end %#ok<AGROW>
 end
 % the net tape, for reference only (never used to fit: Chris, 16 Nov)
 y = linspace(-c.postY, c.postY, 40)';
 [px, ok] = tv.camera.project(cam, [zeros(40, 1), y, tv.court.netHeight(y)]);
-net = round(px(ok, :) * sc, 1);
+net = rnd(px(ok, :) * sc, 1);
 % --- per clip
 nC = size(R.clips, 1);
 clips = struct('index', {}, 'startS', {}, 'lengthS', {}, 'frames', {}, 'framesWithBall', {}, 'tracks', {}, 'bounces', {});
@@ -44,14 +44,14 @@ for r = 1:nC
     for q = tr(:)', withBall = [withBall; double(q.frames(:))]; end %#ok<AGROW>
     withBall = unique(withBall);
     nb = nnz([R.bounces.clip] == r);
-    clips(end+1) = struct('index', r, 'startS', round(rec.pts(f(1) + 1), 2), 'lengthS', round(numel(f) / rec.fps, 1), ...
+    clips(end+1) = struct('index', r, 'startS', rnd(rec.pts(f(1) + 1), 2), 'lengthS', rnd(numel(f) / rec.fps, 1), ...
         'frames', numel(f), 'framesWithBall', numel(withBall), 'tracks', numel(tr), 'bounces', nb); %#ok<AGROW>
     totF = totF + numel(f);  totB = totB + numel(withBall);
 end
 % --- bounces (top-down)
 b = R.bounces;
-bounces = struct('clip', {b.clip}, 't', num2cell(round([b.t], 2)), 'x', num2cell(round([b.x], 2)), ...
-    'y', num2cell(round([b.y], 2)), 'call', {b.call}, 'marginM', num2cell(round([b.marginM], 2)));
+bounces = struct('clip', {b.clip}, 't', num2cell(rnd([b.t], 2)), 'x', num2cell(rnd([b.x], 2)), ...
+    'y', num2cell(rnd([b.y], 2)), 'call', {b.call}, 'marginM', num2cell(rnd([b.marginM], 2)));
 % --- players: how often two people were placed on the court
 n2 = 0;  n1 = 0;
 for s = R.players(:)'
@@ -69,14 +69,14 @@ for i = 1:numel(opts.frames)
     img = drawBall(img, R, q, rec, opts.drawTrackS);
     name = sprintf('f_%02d.jpg', i);
     imwrite(uint8(imresize(img, sc)), fullfile(outDir, name), 'Quality', 82);
-    frames(end+1) = struct('file', name, 'clip', q.clip, 't', round(rec.pts(q.frame + 1), 2), ...
+    frames(end+1) = struct('file', name, 'clip', q.clip, 't', rnd(rec.pts(q.frame + 1), 2), ...
         'verdict', q.verdict, 'caption', q.caption); %#ok<AGROW>
 end
 T = struct('id', opts.id, 'title', opts.title, 'date', opts.date, 'source', opts.source, ...
-    'video', struct('lengthS', round(rec.pts(end), 1), 'fps', round(rec.fps, 2), 'width', rec.width, 'height', rec.height), ...
+    'video', struct('lengthS', rnd(rec.pts(end), 1), 'fps', rnd(rec.fps, 2), 'width', rec.width, 'height', rec.height), ...
     'court', struct('image', 'court.jpg', 'imageWidth', opts.frameWidth, 'imageHeight', round(rec.height * sc), ...
-        'lines', {lines}, 'net', net, 'hfovDeg', round(2 * atand(1 / cam.lens.F), 1), ...
-        'camera', round(cam.pos, 2), 'lineRmsPx', round(R.calib.rmsPx, 2), 'paintShare', round(R.calib.support, 2), ...
+        'lines', {lines}, 'net', net, 'hfovDeg', rnd(2 * atand(1 / cam.lens.F), 1), ...
+        'camera', rnd(cam.pos, 2), 'lineRmsPx', rnd(R.calib.rmsPx, 2), 'paintShare', rnd(R.calib.support, 2), ...
         'cornersOutOfView', {R.corners.missing(:)'}, 'scorecard', opts.scorecard), ...
     'clips', clips, ...
     'ball', struct('framesInClips', totF, 'framesWithBall', totB, ...
@@ -148,4 +148,9 @@ for a = linspace(0, 2 * pi, 200)
         if x >= 1 && y >= 1 && x <= size(img, 2) && y <= size(img, 1), img(y, x, :) = reshape(rgb, 1, 1, 3); end
     end
 end
+end
+
+function y = rnd(x, n)
+% round to n decimals (Octave's round takes no digits argument)
+y = round(x * 10^n) / 10^n;
 end

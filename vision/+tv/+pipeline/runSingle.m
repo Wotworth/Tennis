@@ -11,7 +11,11 @@ function R = runSingle(file, outDir, cfg)
 %               (tv.calib.courtFromLines); court corners out of view (TV-CAL-20)
 %     detect    ball candidates and 2D tracks in every clip (TV-DET, TV-TRK)
 %     bounces   where a 2D track turns from falling to rising away from any player: a bounce,
-%               placed on the ground through the camera; in or out of the singles court
+%               placed on the ground through the camera; in or out of the singles court.
+%               A turn inside a person's outline (widened by hitReach for the racquet) above
+%               knee height is a hit, and one against the net hit the net: both skipped
+%               (bounceSkipHits; personMinArea px). One bounce seen twice within bounceMergeS
+%               counts once
 %     players   people every 1/cfg.single.playerHz s, placed on the court (TV-PLY-01)
 %   cfg.single: overlayBoxes ([x0 y0 x1 y1] per row, pixels): burned-in graphics to blank
 %   (e.g. SwingVision's mini-map, shot box and logo); lens (an uncalibrated rectilinear lens,
@@ -25,7 +29,8 @@ if ~isfield(cfg, 'single'), cfg.single = struct(); end
 s = cfg.single;
 d = struct('overlayBoxes', zeros(0, 4), 'lineOpts', struct('minContrast', 20, 'minLength', 40, 'reach', [3 7]), ...
            'playerHz', 2, 'clipOpts', struct(), 'hfovStart', 65, 'wholeFile', false, 'bounceMinPx', 1.5, ...
-           'detectOpts', struct(), 'clipList', [], 'detectOnly', false, 'stillMps', 1.5, 'stillWindowS', 0.25);
+           'detectOpts', struct(), 'clipList', [], 'detectOnly', false, 'stillMps', 1.5, 'stillWindowS', 0.25, ...
+           'bounceSkipHits', true, 'personMinArea', 1500, 'hitReach', 0.6, 'bounceMergeS', 0.3);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(s, fn{k}), s.(fn{k}) = d.(fn{k}); end, end
 if ~exist(outDir, 'dir'), mkdir(outDir); end
@@ -45,11 +50,11 @@ end
 s.clipList = [];
 D = tv.pipeline.stage(outDir, 'detect', k(C.clips, s.overlayBoxes, cfg.court, K.cam.pos, s.detectOpts), @() detectAll(rec, C.clips, K, cfg, s, outDir));
 [D, nStill] = dropStillTracks(D, rec, K, cfg, s);
-B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS), @() findBounces(rec, D, K, s));
+B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS, s.bounceSkipHits, s.personMinArea, s.hitReach, s.bounceMergeS, 3), @() findBounces(rec, D, K, s));
 Y = tv.pipeline.stage(outDir, 'players', k(s.playerHz, C.clips, K.cam.pos), @() trackPlayers(rec, C.clips, K, s));
 R = struct('rec', rec, 'clips', C.clips, 'cutT', C.cutT, 'cam', K.cam, 'calib', K.report, 'corners', K.corners, ...
     'bg', K.bg, 'overlayBoxes', s.overlayBoxes, 'candidates', {D.candidates}, 'tracks', {D.tracks}, ...
-    'bounces', B.bounces, 'players', Y.samples, 'stillTracks', nStill, 'stillMps', s.stillMps);
+    'bounces', B.bounces, 'bounceSkips', struct('hits', B.hitsSkipped, 'net', B.netSkipped, 'duplicates', B.duplicates), 'players', Y.samples, 'stillTracks', nStill, 'stillMps', s.stillMps);
 save(fullfile(outDir, 'single.mat'), '-struct', 'R');
 end
 
@@ -137,6 +142,7 @@ function B = findBounces(rec, D, K, s)
 % a bounce: the track falls (image row increasing) then rises, with the turn away from people
 c = tv.court.constants();
 B.bounces = struct('clip', {}, 'frame', {}, 't', {}, 'u', {}, 'v', {}, 'x', {}, 'y', {}, 'call', {}, 'marginM', {});
+nHit = 0;  nNet = 0;
 for r = 1:numel(D.tracks)
     for trk = D.tracks{r}(:)'
         f = double(trk.frames(:));  v = trk.uv(:, 2);  u = trk.uv(:, 1);
@@ -150,12 +156,64 @@ for r = 1:numel(D.tracks)
                 if ray(3) >= 0, continue; end
                 sc = (c.ballRadius - K.cam.pos(3)) / ray(3);
                 g = K.cam.pos + sc * ray;
+                if inNetBand(K.cam, [u(j), v(j)]), nNet = nNet + 1; continue; end
+                if s.bounceSkipHits && atPlayer(rec, K, s, f(j), [u(j), v(j)])
+                    nHit = nHit + 1;  continue
+                end
                 [call, m] = callSingles(g(1:2), c);
                 B.bounces(end+1) = struct('clip', r, 'frame', f(j), 't', rec.pts(f(j) + 1), 'u', u(j), 'v', v(j), ...
                     'x', g(1), 'y', g(2), 'call', call, 'marginM', m); %#ok<AGROW>
             end
         end
     end
+end
+% one bounce seen twice (two tracks, or two turns of one) within s.bounceMergeS: keep the first
+keep = true(1, numel(B.bounces));
+for a = 1:numel(B.bounces)
+    for b = 1:a - 1
+        if keep(b) && B.bounces(a).clip == B.bounces(b).clip && abs(B.bounces(a).t - B.bounces(b).t) < s.bounceMergeS ...
+                && hypot(B.bounces(a).u - B.bounces(b).u, B.bounces(a).v - B.bounces(b).v) < 40
+            keep(a) = false;  break
+        end
+    end
+end
+B.duplicates = nnz(~keep);
+B.bounces = B.bounces(keep);
+B.hitsSkipped = nHit;  B.netSkipped = nNet;
+end
+
+function in = inNetBand(cam, p)
+% the ball turning against the net (between the tape and the ground under it, posts included)
+% hit the net; it is not a bounce
+c = tv.court.constants();
+y = linspace(-c.postY, c.postY, 60)';
+[top, ok1] = tv.camera.project(cam, [zeros(60, 1), y, tv.court.netHeight(y)]);
+[bot, ok2] = tv.camera.project(cam, [zeros(60, 1), y, zeros(60, 1)]);
+in = false;
+if nnz(ok1 & ok2) < 2, return; end
+top = top(ok1 & ok2, :);  bot = bot(ok1 & ok2, :);
+if p(1) < min(top(:, 1)) || p(1) > max(top(:, 1)), return; end
+vt = interp1(top(:, 1), top(:, 2), p(1));  vb = interp1(bot(:, 1), bot(:, 2), p(1));
+in = p(2) >= vt - 3 && p(2) <= vb;
+end
+
+function hit = atPlayer(rec, K, s, frame, p)
+% a turn of the ball at a person, above knee height, is a hit (racquet), not a bounce: the
+% ball is inside the person's outline (the frame against the empty court), widened by
+% s.hitReach of its width each side (arm and racquet) and 10% of its height, and higher than
+% the bottom quarter of it (the feet, where a ball can bounce beside them)
+img = blank(double(tv.media.readFrames(rec, frame, 1)), s.overlayBoxes);
+fg = sum(abs(img - K.bg), 3) > 60;
+fg = imclose(imopen(fg, true(3)), true(15));
+L = bwlabel(fg, 8);
+st = regionprops(L, 'BoundingBox', 'Area');
+hit = false;
+for i = 1:numel(st)
+    if st(i).Area < s.personMinArea, continue; end
+    bb = st(i).BoundingBox;  pad = [s.hitReach * bb(3), 0.1 * bb(4)];
+    inX = p(1) >= bb(1) - pad(1) && p(1) <= bb(1) + bb(3) + pad(1);
+    inY = p(2) >= bb(2) - pad(2) && p(2) <= bb(2) + 0.75 * bb(4);
+    if inX && inY, hit = true; return; end
 end
 end
 

@@ -36,3 +36,20 @@ class FootageTestJsonTest {
         assertEquals(listOf("one note"), t.notes)
     }
 }
+
+/** The bundled footage tests load from the app's assets (17 Nov: the first export showed "not on the phone"). */
+@RunWith(AndroidJUnit4::class)
+class FootageTestAssetsTest {
+    private val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+
+    @Test fun bundledTestParses() {
+        val text = context.assets.open("vision/tests/iphone-2025-04-16/test.json").bufferedReader().use { it.readText() }
+        val t = FootageTestJson.read("iphone-2025-04-16", text)
+        assertEquals("16 Apr 2025", t.date)
+    }
+
+    @Test fun bundledTestsAreListed() {
+        val ids = FootageTests(context).all.map { it.id }
+        assertEquals(true, "iphone-2025-04-16" in ids)
+    }
+}

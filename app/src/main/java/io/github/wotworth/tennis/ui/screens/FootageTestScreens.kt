@@ -96,12 +96,12 @@ private fun TestSummary(t: FootageTest) {
         Row {
             NumberTile("${t.clips.size}", "rallies, ${mmss(t.lengthS)}", w, w)
             Spacer(Modifier.width(zpx(l.tileGap)))
-            NumberTile(pct(t.ball.framesWithBall, t.ball.framesInClips), "of rally frames with the ball tracked", w, w)
+            NumberTile(pct(t.ball.framesWithBall, t.ball.framesInClips), "frames tracked", w, w)
         }
         Spacer(Modifier.height(zpx(l.tileGap)))
         Row {
             NumberTile(t.court.scorecardMedianPx?.let { "${it.roundToInt()} px" } ?: "${(t.court.paintShare * 100).roundToInt()}%",
-                if (t.court.scorecardMedianPx != null) "court lines from your drawing" else "court lines on paint", w, w)
+                if (t.court.scorecardMedianPx != null) "off your lines" else "lines on paint", w, w)
             Spacer(Modifier.width(zpx(l.tileGap)))
             NumberTile("${t.bounces.size}", "bounces found", w, w)
         }

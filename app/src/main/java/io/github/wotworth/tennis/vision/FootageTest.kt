@@ -101,10 +101,17 @@ object FootageTestJson {
     }
 }
 
-/** The bundled footage tests (assets/vision/tests/<id>/test.json). */
+/**
+ * The bundled footage tests (assets/vision/tests/<id>/test.json), named one per line in
+ * assets/vision/tests/index.txt (listing an asset folder is not reliable on every runtime).
+ */
 class FootageTests(private val context: Context) {
+    private fun ids(): List<String> = runCatching {
+        context.assets.open("vision/tests/index.txt").bufferedReader().use { r -> r.readLines().map { it.trim() }.filter { it.isNotEmpty() } }
+    }.getOrDefault(emptyList())
+
     val all: List<FootageTest> by lazy {
-        runCatching { context.assets.list("vision/tests")?.toList().orEmpty() }.getOrDefault(emptyList()).sorted().mapNotNull { id ->
+        ids().sorted().mapNotNull { id ->
             runCatching {
                 FootageTestJson.read(id, context.assets.open("vision/tests/$id/test.json").bufferedReader().use { it.readText() })
             }.getOrNull()
