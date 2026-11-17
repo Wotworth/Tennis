@@ -1,4 +1,4 @@
-function G = ballGroups(tracks, partners)
+function G = ballGroups(tracks, partners, overlapFrames)
 %BALLGROUPS  Kept tracks grouped by ball, from their stereo partners (TV-ADJ-04, 17 Nov).
 %   tracks: 1-by-2 cell of each camera's kept tracks (tv.recon.gateTracks); partners: their
 %   partner ids in the other camera (0 = none). Tracks linked by partnership, directly or
@@ -6,6 +6,7 @@ function G = ballGroups(tracks, partners)
 %   tv.recon.pieces and tv.recon.segments, which assume one ball at a time: two balls in
 %   view at once (a stray rolling across while the rally goes on) are then fitted apart.
 %   Without partners (older stage files), everything is one group.
+if nargin < 3, overlapFrames = 12; end    % tracks can overlap a few frames at a hit
 if nargin < 2 || isempty(partners) || all(cellfun(@isempty, partners))
     G = {tracks};  return
 end
@@ -43,6 +44,26 @@ if any(both) && ~all(both)
         for k = 1:2, G{j}{k} = [G{j}{k}(:); G{i}{k}(:)]'; end
     end
     G = G(both);
+end
+% chain groups that follow one another in time (the ball in play, its tracks broken at hits
+% and bounces) back into one group, as before grouping: only a group that overlaps the chain
+% in time (a second ball in view at once) starts another (CI 17 Nov: splitting every group
+% broke two calls)
+if numel(G) > 1
+    span = cellfun(@(g) spanOf(g), G, 'UniformOutput', false);
+    sp = vertcat(span{:});
+    [~, o] = sort(sp(:, 1));
+    chains = {};  chainEnd = [];
+    for i = o(:)'
+        c = find(chainEnd < sp(i, 1) + overlapFrames, 1);
+        if isempty(c)
+            chains{end+1} = G{i};  chainEnd(end+1) = sp(i, 2); %#ok<AGROW>
+        else
+            for k = 1:2, chains{c}{k} = [chains{c}{k}(:); G{i}{k}(:)]'; end
+            chainEnd(c) = max(chainEnd(c), sp(i, 2));
+        end
+    end
+    G = chains;
 end
     function i = node(k, j)
         i = j + (k == 2) * n1;

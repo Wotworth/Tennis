@@ -20,6 +20,7 @@ if opts.nearHalf
     M = M(keep, :);  id = id(keep);
 end
 [px, ok] = tv.camera.project(cam, M);
+ok = ok & ~tv.calib.hiddenByNet(cam, M);
 D = bwdist(lineMask);
 d = inf(size(M, 1), 1);
 d(ok) = interp2(D, px(ok, 1), px(ok, 2), 'linear', Inf);

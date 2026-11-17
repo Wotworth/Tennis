@@ -18,9 +18,10 @@ function [cam, report] = courtFromLines(bg, lens, opts)
 %   opts.lineOpts: tv.calib.linePixels settings; opts.fitFocal: the lens's focal length is
 %   unknown (a phone); lens must then be rectilinear. report: rmsPx, inliers, support,
 %   hfovDeg, nLines, nHypotheses, candidates.
+%   RETUNE(real footage): acrossDeg, keepPerClass, keepPoses, hypTolPx, tolPx, explainM.
 if nargin < 3, opts = struct(); end
 d0 = struct('lineOpts', struct(), 'fitFocal', false, 'acrossDeg', 15, 'keepPerClass', 8, ...
-            'keepPoses', 12, 'tolPx', 3, 'explainM', 0.12);
+            'keepPoses', 12, 'tolPx', 3, 'explainM', 0.12, 'hypTolPx', 8);
 fn = fieldnames(d0);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d0.(fn{k}); end, end
 if opts.fitFocal && ~strcmp(lens.type, 'rectilinear')
@@ -76,7 +77,7 @@ for b1 = 1:numel(along), for b2 = b1 + 1:numel(along)
         if ~okc, [~, okc] = poseFromH(Hm * diag([1 -1 1]), lens, fPix, opts.fitFocal, W); end
         if ~okc, continue; end
         s = support(Hm) * explained(Hm);
-        if s > 0.1, hyp(end+1, :) = [s, Hm(:)']; end %#ok<AGROW>
+        if s > 0.02, hyp(end+1, :) = [s, Hm(:)']; end %#ok<AGROW>
     end, end
     end, end
 end, end
@@ -101,16 +102,24 @@ for b1 = 1:numel(along), for b2 = b1 + 1:numel(along), for b3 = b2 + 1:numel(alo
         if ~okc, [~, okc] = poseFromH(Hm * diag([1 -1 1]), lens, fPix, opts.fitFocal, W); end
         if ~okc, continue; end
         sc = support(Hm) * explained(Hm);
-        if sc > 0.1, hyp(end+1, :) = [sc, Hm(:)']; end %#ok<AGROW>
+        if sc > 0.02, hyp(end+1, :) = [sc, Hm(:)']; end %#ok<AGROW>
     end
     end
 end, end, end
+end
+if isfield(opts, 'scoreCam')       % diagnosis: how a known pose scores here
+    cc = opts.scoreCam;  Kc = diag([cc.lens.F * W / 2, cc.lens.F * W / 2, 1]);
+    Rc = cc.R;  tc = -Rc * cc.pos(:);
+    Hc = Kc * [Rc(:, 1), Rc(:, 2), tc];
+    report.camScore = [support(Hc), explained(Hc)];
+    if ~isempty(hyp), [~, ib] = max(hyp(:, 1)); Hb = reshape(hyp(ib, 2:10), 3, 3); report.bestScore = [support(Hb), explained(Hb)]; end
 end
 report.nLines = numel(L);  report.nAcross = numel(across);  report.nAlong = numel(along);  report.nHypotheses = size(hyp, 1);
 report.lines = L;
 if isempty(hyp), error('tv:calib:noCourt', 'No court line pattern found.'); end
 [~, o] = sort(hyp(:, 1), 'descend');
 best = -Inf;  cam = [];  cands = zeros(0, 6);  report.rejected = {};
+if isfield(opts, 'scoreCam'), printf('known pose: support %.2f explained %.2f; best match: support %.2f explained %.2f\n', report.camScore, report.bestScore); end
 for i = o(1:min(end, opts.keepPoses))'
     Hm = reshape(hyp(i, 2:10), 3, 3);
     % the court is the same mirrored left to right, so a mirrored match is the same court
@@ -143,6 +152,9 @@ report.candidates = cands;     % [x y z support rmsPx homographyScore]
         e = sum(wts(hit)) / sum(wts);
     end
     function s = support(Hm)
+        % near-half court line points that land on paint (within opts.hypTolPx), as a share
+        % of all the near half's points: lines out of view or faded simply add nothing, and a
+        % match that keeps most of the court out of view cannot score high
         p = [Mp, ones(size(Mp, 1), 1)] * Hm';
         ok = p(:, 3) > 0;
         q = p(:, 1:2) ./ p(:, 3);
@@ -154,13 +166,7 @@ report.candidates = cands;     % [x y z support rmsPx homographyScore]
         ok = ok & px(:, 1) >= 1 & px(:, 1) <= W & px(:, 2) >= 1 & px(:, 2) <= H;
         dd = inf(size(ok));
         dd(ok) = interp2(D, px(ok, 1), px(ok, 2), 'linear', Inf);
-        sh = [];
-        for kk = ids'
-            m = id == kk & ok;
-            if nnz(m) >= 10, sh(end+1) = mean(dd(m) <= opts.tolPx); end %#ok<AGROW>
-        end
-        s = 0;
-        if numel(sh) >= 3, s = mean(sh); end
+        s = mean(dd <= opts.hypTolPx);
     end
 end
 

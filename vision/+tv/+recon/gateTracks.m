@@ -36,7 +36,7 @@ function [kept, log, partners] = gateTracks(tracks, cands, cams, rec, sync, box,
 %   none), reason, errPx.
 %   RETUNE(real footage): every opts value (tv.pipeline.defaults, cfg.gate).
 if nargin < 7, opts = struct(); end
-d = struct('epipolarPx', 4, 'minInsideFrac', 0.5, 'minPairedFrac', 0.3, 'maxSpeed', 75, 'maxGapFrames', 3, 'sameBallM', 2);
+d = struct('epipolarPx', 4, 'minInsideFrac', 0.5, 'minPairedFrac', 0.3, 'maxSpeed', 75, 'maxGapFrames', 3, 'sameBallM', 2, 'rollMaxZ', 0.3, 'rollMinS', 0.3);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 log = emptyLog();
@@ -99,6 +99,15 @@ for k = 1:2
             reason = 'no stereo partner';
         elseif nnz(inside) < opts.minInsideFrac * nnz(paired)
             reason = 'mostly outside';
+        end
+        % a ball rolling on the ground (a stray from the next court, or a dead ball) is not a
+        % shot: all its 3D points low for at least opts.rollMinS (CI 17 Nov: a stray rolling
+        % across Chris's court was accepted once flights were fitted per ball)
+        if isempty(reason) && nnz(inside) >= 5
+            zi = I.X(inside, 3);  ti = t(inside);
+            if max(zi) < opts.rollMaxZ && max(ti) - min(ti) >= opts.rollMinS
+                reason = 'rolling on the ground';
+            end
         end
         if ~isempty(reason)
             log = addRows(log, k, trk, t, I, 1:numel(t), reason);

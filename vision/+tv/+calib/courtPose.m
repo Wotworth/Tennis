@@ -31,6 +31,7 @@ D = bwdist(mask);
 M = tv.calib.modelPoints(0.05);
 % keep the model points the starting pose puts in the frame
 [~, ok0] = tv.camera.project(cam0, M);
+ok0 = ok0 & ~tv.calib.hiddenByNet(cam0, M);    % behind the net from here: the tape would pass for it
 M = M(ok0, :);
 p0 = [cam0.pos, 0, 0, 0];                      % position + small rotation (deg)
 if opts.fitFocal, p0(7) = 0; end               % log focal scale
