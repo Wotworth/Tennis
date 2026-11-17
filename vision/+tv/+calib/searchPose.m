@@ -17,7 +17,10 @@ function [cam, report] = searchPose(bg, lens, opts)
 %   RETUNE(real footage): search ranges, steps and the line caps.
 if nargin < 3, opts = struct(); end
 d = struct('xStep', 3, 'yStep', 2, 'maxRange', 27, 'heights', [2.5 3.5], ...
-           'yawFan', -45:15:45, 'pitchFan', -12:6:12, 'cap', 12, 'keep', 24, 'nPixels', 250);
+           'yawFan', -45:15:45, 'pitchFan', -12:6:12, 'rollFan', 0, 'cap', 12, 'keep', 24, 'nPixels', 250, ...
+           'xGrid', -24:3:24, 'yGrid', -18:2:0);
+% rollFan: a hand-mounted phone is not level (first real footage, 17 Nov); xGrid/yGrid narrow
+% or refine the positions tried (defaults: xStep/yStep over the whole surround)
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 c = tv.court.constants();
@@ -30,7 +33,9 @@ tv.util.seed(1);
 pick = randperm(numel(pr), min(opts.nPixels, numel(pr)));
 pix = [pc(pick), pr(pick)];
 % candidate positions
-[gx, gy] = meshgrid(-24:opts.xStep:24, -18:opts.yStep:0);
+if isequal(opts.xGrid, -24:3:24) && opts.xStep ~= 3, opts.xGrid = -24:opts.xStep:24; end
+if isequal(opts.yGrid, -18:2:0) && opts.yStep ~= 2, opts.yGrid = -18:opts.yStep:0; end
+[gx, gy] = meshgrid(opts.xGrid, opts.yGrid);
 pos2 = [gx(:), gy(:)];
 outside = abs(pos2(:, 1)) > c.halfLength + 1 | abs(pos2(:, 2)) > c.halfDoubles + 1;
 pos2 = pos2(outside & hypot(pos2(:, 1), pos2(:, 2)) <= opts.maxRange, :);
@@ -42,8 +47,10 @@ for i = 1:size(pos2, 1)
         pitch0 = -atand(h / hypot(p(1), p(2)));
         for dy = opts.yawFan
             for dp = opts.pitchFan
-                cam = tv.camera.make(lens, p, yaw0 + dy, pitch0 + dp, 0);
-                trials(end+1, :) = [p, yaw0 + dy, pitch0 + dp, 0, score(cam)]; %#ok<AGROW>
+                for dr = opts.rollFan
+                    cam = tv.camera.make(lens, p, yaw0 + dy, pitch0 + dp, dr);
+                    trials(end+1, :) = [p, yaw0 + dy, pitch0 + dp, dr, score(cam)]; %#ok<AGROW>
+                end
             end
         end
     end
