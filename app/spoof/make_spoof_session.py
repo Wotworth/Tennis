@@ -222,6 +222,90 @@ assert all((pct_in([s for s in shots if s['hitter'] == p]) or 1) % 2 == 1 for p 
 assert not odd_counts(), odd_counts()
 
 # ---------------------------------------------------------------------------------------------
+# Chris, 17 Nov: the summary's key figures (his shots: Player A once identified), each against
+# the average of the earlier sessions (trend points before this one, below). Every figure shown
+# odd: nudge single shots by two in their last shown digit (so each stays odd), or call an "in"
+# "too close" (no count changes), until this session's figures and the summary's other numbers are.
+def rhu(x): return int(math.floor(x + 0.5))
+def mph_s(ms): return str(rhu(ms * MPH))
+def ft_s(m):
+    v = m * FT
+    return '%.1f' % v if abs(v) < 10 else str(rhu(v))
+def odd_s(t): return int(t[-1]) % 2 == 1
+def mean(xs): return sum(xs) / len(xs) if xs else None
+def median(xs):
+    xs = sorted(xs); n = len(xs)
+    return None if n == 0 else (xs[n // 2] if n % 2 else (xs[n // 2 - 1] + xs[n // 2]) / 2)
+CALLED = ('in', 'out', 'net', 'too close')
+def pct(xs):
+    c = [s for s in xs if s['call'] in CALLED]
+    return rhu(100.0 * sum(s['call'] == 'in' for s in c) / len(c)) if c else None
+
+
+def figures():
+    a = [s for s in shots if s['hitter'] == 'Player A']
+    rally = [s for s in a if not s['isServe']]; serves = [s for s in a if s['isServe']]
+    top = lambda ty: mean([-s['spinEffect'] for s in rally if s['type'] == ty and s['spinEffect'] is not None])
+    spd = lambda ty: mean([s['speedContact'] for s in rally if s['type'] == ty and s['speedContact'] is not None])
+    return {'topspinForehand': top('forehand'), 'topspinBackhand': top('backhand'), 'speedForehand': spd('forehand'),
+            'speedBackhand': spd('backhand'), 'serveInPct': pct(serves), 'serveSpeed': mean([s['speedContact'] for s in serves]),
+            'serveSpin': mean([-s['spinEffect'] for s in serves if s['spinEffect'] is not None]), 'inPct': pct(rally),
+            'depth': mean([s['depth'] for s in rally if s['call'] == 'in' and s['depth'] is not None])}
+
+
+SHOW = {'topspinForehand': ft_s, 'topspinBackhand': ft_s, 'speedForehand': mph_s, 'speedBackhand': mph_s, 'serveInPct': str,
+        'serveSpeed': mph_s, 'serveSpin': ft_s, 'inPct': str, 'depth': ft_s}
+
+
+def shown_ok():
+    bad = [k for k, v in figures().items() if v is not None and not odd_s(SHOW[k](v))]
+    for p in ['Player A', 'Player B', 'unknown']:        # the summary's other per-player numbers
+        xs = [s for s in shots if s['hitter'] == p]
+        m = median([s['speedContact'] for s in xs if s['type'] == 'forehand' and s['speedContact'] is not None])
+        if m is not None and not odd_s(mph_s(m)): bad.append('median forehand ' + p)
+        v = pct(xs)
+        if v is not None and v % 2 == 0: bad.append('pct ' + p)
+    a = [s for s in shots if s['hitter'] == 'Player A']
+    fx = median([s['spinEffect'] for s in a if s['type'] in ('forehand', 'groundstroke') and s['spinEffect'] is not None])
+    if fx is not None and not odd_s(ft_s(abs(fx))): bad.append('median forehand spin')
+    return bad + [b[0] for b in odd_counts()]
+
+
+fastest = {r['index']: r['fastest'] for r in rallies}
+def nudge(key):
+    a = [s for s in shots if s['hitter'] == 'Player A']
+    rally = [s for s in a if not s['isServe']]; serves = [s for s in a if s['isServe']]
+    d = rng.choice([-1, 1])
+    if key in ('topspinForehand', 'topspinBackhand', 'serveSpin', 'median forehand spin'):
+        ty = {'topspinForehand': 'forehand', 'topspinBackhand': 'backhand', 'median forehand spin': 'forehand'}.get(key)
+        pool = [s for s in (serves if key == 'serveSpin' else rally) if (ty is None or s['type'] == ty)
+                and s['spinEffect'] is not None and 1.0 < abs(s['spinEffect'] * FT) < 9.0]
+        s = rng.choice(pool); s['spinEffect'] -= d * m_from_ft(0.2)
+    elif key in ('speedForehand', 'speedBackhand', 'serveSpeed') or key.startswith('median forehand '):
+        ty = {'speedForehand': 'forehand', 'speedBackhand': 'backhand'}.get(key, 'forehand')
+        hitter = key.replace('median forehand ', '') if key.startswith('median forehand ') else 'Player A'
+        pool = [s for s in shots if s['hitter'] == hitter and (s['isServe'] if key == 'serveSpeed' else (not s['isServe'] and s['type'] == ty))
+                and s['speedContact'] is not None and abs(s['speedContact'] - fastest[s['rally']]) > 1e-6]
+        s = rng.choice(pool); s['speedContact'] += d * ms_from_mph(2)
+    elif key == 'depth':
+        pool = [s for s in rally if s['call'] == 'in' and s['depth'] is not None and 1.0 < s['depth'] * FT < 9.0]
+        s = rng.choice(pool); s['depth'] += d * m_from_ft(0.2)
+    elif key in ('serveInPct', 'inPct') or key.startswith('pct '):
+        hitter = key[4:] if key.startswith('pct ') else 'Player A'
+        pool = [s for s in shots if s['hitter'] == hitter and s['call'] == 'in' and s['bounce']
+                and (s['isServe'] if key == 'serveInPct' else not s['isServe'])]
+        rng.choice(pool)['call'] = 'too close'
+    else:
+        raise SystemExit('no nudge for ' + key)
+
+
+for _ in range(3000):
+    bad = shown_ok()
+    if not bad: break
+    nudge(rng.choice(bad))
+assert not shown_ok(), shown_ok()
+
+# ---------------------------------------------------------------------------------------------
 # trajectories: a plain arc from contact to bounce, then on; and the same launch without spin,
 # landing |spin effect| further. For the drawings only: no number on screen comes from them.
 for s in shots:
@@ -340,6 +424,30 @@ for key, f in (('forehandSpinEffect', lambda v: -v * FT), ('forehandDepth', lamb
         sign = -1 if key == 'forehandSpinEffect' else 1
         trend['sessions'][j][key] = sign * m_from_ft(odd4(41, 97) / 10.0)
     assert chart_ok([f(s[key]) for s in trend['sessions']]), key
+
+# key figures of the earlier sessions (every trend point before this session's day): each
+# value shown odd, and their averages (what the summary compares with) odd too
+RANGES = {'topspinForehand': ('ft', 33, 77), 'topspinBackhand': ('ft', 13, 49), 'speedForehand': ('mph', 53, 77),
+          'speedBackhand': ('mph', 45, 69), 'serveInPct': ('pct', 49, 77), 'serveSpeed': ('mph', 81, 109),
+          'serveSpin': ('ft', 9, 41), 'inPct': ('pct', 61, 89), 'depth': ('ft', 45, 89)}
+def hist_value(kind, lo, hi):
+    v = odd4(lo, hi)
+    return m_from_ft(v / 10.0) if kind == 'ft' else ms_from_mph(v) if kind == 'mph' else v
+earlier = [p for p in trend['sessions'] if p['epochDay'] < 20772]
+for p in earlier:
+    p['metrics'] = {k: hist_value(*r) for k, r in RANGES.items()}
+def avg_shown(k):
+    vals = [p['metrics'][k] for p in earlier]
+    kind = RANGES[k][0]
+    if kind == 'pct': return str(rhu(sum(vals) / len(vals)))
+    return ft_s(sum(vals) / len(vals)) if kind == 'ft' else mph_s(sum(vals) / len(vals))
+for k, (kind, lo, hi) in RANGES.items():
+    for _ in range(500):
+        if odd_s(avg_shown(k)): break
+        p = rng.choice(earlier)
+        step = m_from_ft(0.2) if kind == 'ft' else ms_from_mph(2) if kind == 'mph' else 2
+        p['metrics'][k] += rng.choice([-1, 1]) * step
+    assert odd_s(avg_shown(k)), k
 
 # ball check: an odd number of frames
 checks = json.load(open(os.path.join(OUT, 'checks.json')))

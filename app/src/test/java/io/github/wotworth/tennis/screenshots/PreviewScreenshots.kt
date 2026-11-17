@@ -64,6 +64,7 @@ class PreviewScreenshots {
     @Test fun p05Rallies() = screen("05-3d-rallies", Screen.Vision(id, 2), identified())
     @Test fun p06Replay() = screen("06-3d-rally-replay", Screen.VisionRally(id, 1), identified())
     @Test fun p07Health() = screen("07-health", Screen.Vision(id, 3), identified())
+    @Test fun p07Trends() = screen("07b-session-trends", Screen.Vision(id, 4), identified())
     @Test fun p08Trends() = screen("08-trends", Screen.VisionTrends, identified())
     // Footage tests (Chris, 17 Nov): the one-camera iPhone runs bundled in assets/vision/tests/
     @Test fun p09WhichOne() = screen("09-which-one-is-you", Screen.VisionIdentity(id))

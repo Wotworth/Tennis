@@ -73,7 +73,7 @@ class SpoofOddNumbersTest {
         val v = app.vision.session(VisionStore.SAMPLE_ID)!!
         val screens = mutableListOf<Pair<String, Screen>>("sessions" to Screen.Hub(SESSIONS))
         fun all(tag: String) {
-            (0..3).forEach { screens += "$tag pivot $it" to Screen.Vision(v.id, it) }
+            (0..4).forEach { screens += "$tag pivot $it" to Screen.Vision(v.id, it) }
             v.rallies.forEach { screens += "$tag rally ${it.index}" to Screen.VisionRally(v.id, it.index) }
             v.shots.forEach { screens += "$tag shot ${it.rally}.${it.index}" to Screen.VisionShot(v.id, it.rally, it.index) }
             screens += "$tag trends" to Screen.VisionTrends

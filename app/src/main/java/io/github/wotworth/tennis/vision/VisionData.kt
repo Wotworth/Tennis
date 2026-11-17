@@ -157,13 +157,13 @@ object VisionJson {
 }
 
 /** TV-APP-06: one session's figures for the trends (the PC computes them; the app only draws). */
-data class TrendPoint(val epochDay: Long, val forehandSpinEffect: Double, val forehandDepth: Double, val shots: Int)
+data class TrendPoint(val epochDay: Long, val forehandSpinEffect: Double, val forehandDepth: Double, val shots: Int, val metrics: SessionMetrics? = null)
 
 object TrendJson {
     fun read(text: String): List<TrendPoint> {
         val a = JSONObject(text).getJSONArray("sessions")
         return (0 until a.length()).map { a.getJSONObject(it) }.map {
-            TrendPoint(it.getLong("epochDay"), it.getDouble("forehandSpinEffect"), it.getDouble("forehandDepth"), it.optInt("shots"))
+            TrendPoint(it.getLong("epochDay"), it.getDouble("forehandSpinEffect"), it.getDouble("forehandDepth"), it.optInt("shots"), SessionMetrics.read(it.optJSONObject("metrics")))
         }
     }
 }

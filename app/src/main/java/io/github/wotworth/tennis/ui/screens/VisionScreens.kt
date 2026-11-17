@@ -59,11 +59,12 @@ import kotlin.math.sin
 
 /** TV-APP-02: the session detail pivots. */
 /** Chris, 17 Nov: shots and rallies fold into 3D (each rally opens its replay, its shots and heart rate). */
-val VISION_PIVOTS = listOf("summary", "court", "3D", "health")
+val VISION_PIVOTS = listOf("summary", "court", "3D", "health", "trends")
 private const val V_SUMMARY = 0
 private const val V_COURT = 1
 const val V_3D = 2
 private const val V_HEALTH = 3
+private const val V_TRENDS = 4
 
 private val dayFormat = DateTimeFormatter.ofPattern("EEE d MMM", Locale.US)
 
@@ -136,6 +137,7 @@ fun VisionSessionScreen(id: String, initial: Int) {
             V_COURT -> VisionCourt(v, filter)
             V_3D -> VisionRallyList(v)
             V_HEALTH -> VisionHealth(v)
+            V_TRENDS -> SessionTrends(v, v.shots.map { it.hitter }.distinct().firstOrNull { v.who(it, answer) == "you" })
         }
     }
 }
@@ -173,6 +175,8 @@ private fun VisionSummary(v: VisionSession) {
             }
             Spacer(Modifier.height(zpx(l.tileGap)))
         }
+        // Chris, 17 Nov: the key figures first, against his average
+        if (me != null) { KeyFigures(v, me); Spacer(Modifier.height(zpx(16f))) }
         val mine = v.shots.filter { me != null && it.hitter == me }
         val serves = (if (me != null) mine else v.shots).filter { it.isServe }
         Row {
@@ -216,7 +220,6 @@ private fun VisionSummary(v: VisionSession) {
         TextRow(if (fx == null) "–" else "${Units.ft(abs(fx))} ${if (fx < 0) "shorter" else "longer"}", "how much spin moved the forehands' bounce (median)")
         spinRows(if (me != null) mine else v.shots.filter { it.hitter == players.firstOrNull() }).forEach { (a, b) -> TextRow(a, b) }
         TextRow(Units.inches(median(fh.mapNotNull { it.netClearance })), "forehand net clearance (median)")
-        TextRow("trends", "forehand spin and depth, session by session") { nav.open(Screen.VisionTrends) }
         SectionHeader("air")
         TextRow(listOfNotNull(v.tempC?.let { "${(it * 9 / 5 + 32).roundToInt()} °F" }, v.wind.takeIf { it.size >= 2 }?.let { "wind ${Units.mph(hypot(it[0], it[1]))}" }).joinToString(" · ").ifBlank { "–" },
             v.sessionCD?.let { "ball drag %.3f (falls as balls wear)".format(Locale.US, it) })
@@ -456,14 +459,18 @@ fun VisionTrends() {
 }
 
 @Composable
-internal fun TrendChart(title: String, pts: List<Pair<Long, Double>>, jobs: List<io.github.wotworth.tennis.data.StringJob>) {
+internal fun TrendChart(title: String, pts: List<Pair<Long, Double>>, jobs: List<io.github.wotworth.tennis.data.StringJob>,
+                        highlight: Long? = null, format: (Double) -> String = { "%.1f".format(Locale.US, it) }, caption: Boolean = true) {
     val zpx = LocalZpx.current
     val measurer = androidx.compose.ui.text.rememberTextMeasurer()
     val small = io.github.wotworth.tennis.ui.theme.textStyleFor(TennisTokens.Type.listSecondary)
     TennisText(title, TennisTokens.Type.body)
     val d0 = minOf(pts.minOf { it.first }, jobs.minOfOrNull { it.date } ?: Long.MAX_VALUE) - 2
     val d1 = pts.maxOf { it.first } + 2
-    val lo = pts.minOf { it.second } * 0.85; val hi = pts.maxOf { it.second } * 1.1
+    // the axis shows the lowest and highest values (Chris, 17 Nov: as they appear elsewhere)
+    val vMin = pts.minOf { it.second };  val vMax = pts.maxOf { it.second }
+    val span = (vMax - vMin).takeIf { it > 0 } ?: maxOf(kotlin.math.abs(vMax), 1.0)
+    val lo = vMin - 0.15 * span;  val hi = vMax + 0.1 * span
     Canvas(Modifier.fillMaxWidth().height(zpx(TennisTokens.Vision.trendHeight))) {
         val left = zpx(26f).toPx(); val bottom = size.height - zpx(14f).toPx(); val top = zpx(14f).toPx()
         fun x(day: Long) = left + ((day - d0).toFloat() / (d1 - d0)) * (size.width - left)
@@ -479,11 +486,14 @@ internal fun TrendChart(title: String, pts: List<Pair<Long, Double>>, jobs: List
         val path = Path()
         pts.forEachIndexed { i, (day, v) -> if (i == 0) path.moveTo(x(day), y(v)) else path.lineTo(x(day), y(v)) }
         drawPath(path, TennisTokens.Colors.primary, style = Stroke(2f * density))
-        pts.forEach { (day, v) -> drawCircle(TennisTokens.Colors.primary, 3f * density, Offset(x(day), y(v))) }
-        drawText(measurer, io.github.wotworth.tennis.vision.CanvasText.log("%.1f".format(Locale.US, hi)), Offset(0f, top - 8 * density), small)
-        drawText(measurer, io.github.wotworth.tennis.vision.CanvasText.log("%.1f".format(Locale.US, lo)), Offset(0f, bottom - 10 * density), small)
+        pts.forEach { (day, v) ->
+            if (day == highlight) drawCircle(TennisTokens.Colors.me, 6f * density, Offset(x(day), y(v)))
+            else drawCircle(TennisTokens.Colors.primary, 3f * density, Offset(x(day), y(v)))
+        }
+        drawText(measurer, io.github.wotworth.tennis.vision.CanvasText.log(format(vMax)), Offset(0f, y(vMax) - 8 * density), small)
+        drawText(measurer, io.github.wotworth.tennis.vision.CanvasText.log(format(vMin)), Offset(0f, y(vMin) - 8 * density), small)
     }
-    TennisText("dashed: restrings, with the tension", TennisTokens.Type.listSecondary)
+    if (caption) TennisText("dashed: restrings, with the tension", TennisTokens.Type.listSecondary)
 }
 
 // ---------------------------------------------------------------------------------------------
