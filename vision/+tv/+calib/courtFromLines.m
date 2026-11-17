@@ -63,13 +63,43 @@ for b1 = 1:numel(along), for b2 = b1 + 1:numel(along)
         X = [mx(i1) my(j1); mx(i1) my(j2); mx(i2) my(j1); mx(i2) my(j2)];
         Hm = homography(X, U);
         if isempty(Hm), continue; end
+        % only patterns a real camera could see (a focal length in range, camera above ground)
+        [~, okc] = poseFromH(Hm, lens, fPix, opts.fitFocal, W);
+        if ~okc, [~, okc] = poseFromH(Hm * diag([1 -1 1]), lens, fPix, opts.fitFocal, W); end
+        if ~okc, continue; end
         s = support(Hm);
         if s > 0.3, hyp(end+1, :) = [s, Hm(:)']; end %#ok<AGROW>
     end, end
     end, end
 end, end
 end, end
-report.nLines = numel(L);  report.nHypotheses = size(hyp, 1);
+% one line across with three along (sidelines, centre line): the along lines meet at the
+% vanishing point of the court's length, the fourth match (17 Nov: on Chris's court the
+% service line is faded and the far baseline washed out, so the near baseline is the only
+% clear line across)
+for a1 = 1:numel(across)
+for b1 = 1:numel(along), for b2 = b1 + 1:numel(along), for b3 = b2 + 1:numel(along)
+    [vp, okv] = meetPoint(along([b1 b2 b3]));
+    if ~okv, continue; end
+    U = [cross2(across(a1), along(b1)); cross2(across(a1), along(b2)); cross2(across(a1), along(b3))];
+    if any(~isfinite(U(:))), continue; end
+    for i1 = 1:4
+    for j = nchoosek(1:5, 3)'
+        Xh = [mx(i1) my(j(1)) 1; mx(i1) my(j(2)) 1; mx(i1) my(j(3)) 1; 1 0 0];
+        Uh = [U, ones(3, 1); vp];
+        Hm = homographyH(Xh, Uh);
+        if isempty(Hm), continue; end
+        [~, okc] = poseFromH(Hm, lens, fPix, opts.fitFocal, W);
+        if ~okc, [~, okc] = poseFromH(Hm * diag([1 -1 1]), lens, fPix, opts.fitFocal, W); end
+        if ~okc, continue; end
+        sc = support(Hm);
+        if sc > 0.3, hyp(end+1, :) = [sc, Hm(:)']; end %#ok<AGROW>
+    end
+    end
+end, end, end
+end
+report.nLines = numel(L);  report.nAcross = numel(across);  report.nAlong = numel(along);  report.nHypotheses = size(hyp, 1);
+report.lines = L;
 if isempty(hyp), error('tv:calib:noCourt', 'No court line pattern found.'); end
 [~, o] = sort(hyp(:, 1), 'descend');
 best = -Inf;  cam = [];  cands = zeros(0, 6);  report.rejected = {};
@@ -182,4 +212,28 @@ end
 function px = redistort(lens, q, W, H)
 [u, v] = tv.lens.toPixels(lens, q(:, 1), q(:, 2), ones(size(q, 1), 1));
 px = [u + (W + 1) / 2, v + (H + 1) / 2];
+end
+
+function [vp, ok] = meetPoint(Ls)
+% least-squares common point of three lines (homogeneous, may be at infinity); ok when they
+% truly meet (each line's normal residual small against the spread)
+A = [vertcat(Ls.n), -vertcat(Ls.c)];
+A = A ./ vecnorm(A(:, 1:2), 2, 2);
+[~, S, V] = svd(A);
+vp = V(:, 3)';
+ok = S(3, 3) < 1e-3 * S(1, 1) || S(3, 3) < 2e-3;
+if abs(vp(3)) > 1e-12, vp = vp / vp(3); end
+end
+
+function Hm = homographyH(X, U)
+% DLT from homogeneous correspondences X (plane) -> U (working plane), rows [x y w]
+A = zeros(2 * size(X, 1), 9);
+for i = 1:size(X, 1)
+    x = X(i, :);  u = U(i, :);
+    A(2 * i - 1, :) = [zeros(1, 3), -u(3) * x, u(2) * x];
+    A(2 * i, :)     = [u(3) * x, zeros(1, 3), -u(1) * x];
+end
+[~, S, V] = svd(A);
+if S(8, 8) < 1e-9 * S(1, 1), Hm = []; return; end
+Hm = reshape(V(:, 9), 3, 3)';
 end
