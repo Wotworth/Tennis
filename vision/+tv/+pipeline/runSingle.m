@@ -80,7 +80,7 @@ if s.follow
     [D, nFollowed] = followAll(rec, C.clips, K, cfg, s, outDir, D);
     [D, n2] = dropStillTracks(D, rec, K, cfg, s);  nStill = nStill + n2;
 end
-B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS, s.bounceSkipHits, s.personMinArea, s.hitReach, s.bounceMergeS, 'clipbg', s.steady, s.follow, s.followOpts, s.dropPlayerTracks, s.playerTrackStepS, s.playerTrackShare, 3), @() findBounces(rec, D, K, s, PO));
+B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS, s.bounceSkipHits, s.personMinArea, s.hitReach, s.bounceMergeS, 'clipbg', 'ownpts', s.steady, s.follow, s.followOpts, s.dropPlayerTracks, s.playerTrackStepS, s.playerTrackShare, 3), @() findBounces(rec, D, K, s, PO));
 Y = tv.pipeline.stage(outDir, 'players', k(s.playerHz, C.clips, K.cam.pos, s.steady), @() trackPlayers(rec, C.clips, K, s));
 R = struct('rec', rec, 'clips', C.clips, 'cutT', C.cutT, 'cam', K.cam, 'calib', K.report, 'corners', K.corners, ...
     'bg', K.bg, 'overlayBoxes', s.overlayBoxes, 'candidates', {D.candidates}, 'tracks', {D.tracks}, ...
@@ -156,6 +156,10 @@ end
 function [D, total] = followAll(rec, clips, K, cfg, s, outDir, D)
 % look again where each track predicts the ball (tv.track.follow); one file per clip, as detect
 [mask, opts] = detectSetup(rec, K, cfg, s);
+% not within s.steadyMaxPx of an overlay: shifting a frame onto the empty court moves the
+% blanked boxes' edges, which the looser search took for balls (video 2)
+ov = blank(ones(rec.height, rec.width), s.overlayBoxes) ~= 1;
+mask = mask & ~imdilate(ov, true(2 * s.steadyMaxPx + 1));
 fo = s.followOpts;  fn = fieldnames(opts);
 for i = 1:numel(fn), if ~isfield(fo, fn{i}), fo.(fn{i}) = opts.(fn{i}); end, end
 readF = @(a, n) cachedFrames(rec, K, s, a, n);
@@ -164,7 +168,7 @@ total = 0;
 for r = 1:size(clips, 1)
     cf = fullfile(cd0, sprintf('clip_%03d.mat', r));
     key = jsonencode({clips(r, :), numel(D.tracks{r}), arrayfun(@(t) double(t.frames(1)), D.tracks{r}), fo, ...
-        s.steady, s.steadyMaxPx, s.dropPlayerTracks, s.playerTrackShare, s.stillMps, 'mask2'});
+        s.steady, s.steadyMaxPx, s.dropPlayerTracks, s.playerTrackShare, s.stillMps, 'mask2', 'ovpad', 'flags'});
     if exist(cf, 'file')
         S = load(cf);
         if isfield(S, 'key') && strcmp(S.key, key), D.tracks{r} = S.trk; total = total + S.added; continue; end
@@ -236,6 +240,10 @@ nHit = 0;  nNet = 0;
 for r = 1:numel(D.tracks)
     for trk = D.tracks{r}(:)'
         f = double(trk.frames(:));  v = trk.uv(:, 2);  u = trk.uv(:, 1);
+        if isfield(trk, 'followed')
+            % the detector's own points only: a turn needs its evidence, not the looser search's
+            own = ~trk.followed;  f = f(own);  u = u(own);  v = v(own);
+        end
         if numel(f) < 7, continue; end
         vs = smoothdata1(v, 3);
         dv = diff(vs) ./ diff(f);

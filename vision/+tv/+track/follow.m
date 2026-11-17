@@ -18,7 +18,9 @@ function [trk, added] = follow(trk, readF, bg, mask, span, opts)
 %     maxSteps   furthest a track is extended at each end, frames (30)
 %     history    points the prediction is fitted to (6; a parabola from 5 points)
 %     joinPx     two tracks whose points in shared frames are this close are one (4)
-%   added: the number of points found this way.
+%   added: the number of points found this way. Each track gains `followed` (logical, one per
+%   point): true where the point was found here, so later steps can ask for the detector's
+%   own points (bounces do: a turn needs the strict detector's evidence).
 %   RETUNE(real footage): every value in opts.
 if nargin < 6, opts = struct(); end
 d = struct('hue', [40 95], 'minSat', 0.35, 'minVal', 0.35, 'diffThr', 30, 'motionThr', 18, 'maxArea', 400, ...
@@ -31,6 +33,9 @@ L = struct('hue', opts.hue + [-1 1] * opts.hueWiden, 'minSat', opts.minSat * opt
 bg = single(bg);
 ref = mean(bg(:));
 added = 0;
+if ~isempty(trk) && ~isfield(trk, 'followed')
+    for i = 1:numel(trk), trk(i).followed = false(numel(trk(i).frames), 1); end
+end
 for i = 1:numel(trk)
     for dirn = [1 -1]
         [trk(i), a] = extend(trk(i), dirn);  added = added + a;
@@ -127,10 +132,11 @@ trk = join(trk, opts.joinPx);
     end
 end
 
-function t = addPoint(t, g, q)
+function t = addPoint(t, g, q, fl)
+if nargin < 4, fl = true; end
 [f, o] = sort([double(t.frames(:)); g]);
-uv = [t.uv; q(1:2)];  ar = [t.area(:); q(3)];
-t.frames = cast(f, class(t.frames));  t.uv = uv(o, :);  t.area = ar(o);
+uv = [t.uv; q(1:2)];  ar = [t.area(:); q(3)];  fo = [t.followed(:); fl];
+t.frames = cast(f, class(t.frames));  t.uv = uv(o, :);  t.area = ar(o);  t.followed = fo(o);
 end
 
 function T = join(T, px)
@@ -143,7 +149,7 @@ while k <= numel(T)
         if isempty(sf), continue; end
         if median(hypot(T(k).uv(ia, 1) - T(j).uv(ib, 1), T(k).uv(ia, 2) - T(j).uv(ib, 2))) > px, continue; end
         [f, ix] = setdiff(double(T(j).frames), sf);
-        for m = 1:numel(f), T(k) = addPoint(T(k), f(m), [T(j).uv(ix(m), :), T(j).area(ix(m))]); end
+        for m = 1:numel(f), T(k) = addPoint(T(k), f(m), [T(j).uv(ix(m), :), T(j).area(ix(m))], T(j).followed(ix(m))); end
         T(j) = [];  merged = true;  break
     end
     if ~merged, k = k + 1; end

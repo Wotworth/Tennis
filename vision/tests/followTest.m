@@ -29,6 +29,7 @@ assert(all(ismember(20:27, got)), mat2str(got'));
 [~, ia] = ismember(20:27, got);
 e = hypot(S.uv(ia, 1) - truth(20:27, 1), S.uv(ia, 2) - truth(20:27, 2));
 assert(max(e) < 1, sprintf('off by %.2f px', max(e)));
+assert(all(S.followed(ia)) && ~any(S.followed(1:19)));    % the points found here are marked
 
 %% where there is no ball, nothing is added, and a still patch near the path is not taken
 G = repmat(bg, 1, 1, 1, N);
