@@ -9,7 +9,9 @@ function R = runSingle(file, outDir, cfg)
 %     calib     the empty court (background), its lines, and the camera's pose and, for an
 %               uncalibrated lens, focal length, from the court's line pattern alone
 %               (tv.calib.courtFromLines); court corners out of view (TV-CAL-20)
-%     detect    ball candidates and 2D tracks in every clip (TV-DET, TV-TRK)
+%     detect    ball candidates and 2D tracks in every clip (TV-DET, TV-TRK); each frame is
+%               first lined up with the empty court when the camera moved (steady,
+%               tv.calib.steady, TV-CAL-14), as are the frames the hit and player checks use
 %     bounces   where a 2D track turns from falling to rising away from any player: a bounce,
 %               placed on the ground through the camera; in or out of the singles court.
 %               A turn inside a person's outline (widened by hitReach for the racquet) above
@@ -30,7 +32,8 @@ s = cfg.single;
 d = struct('overlayBoxes', zeros(0, 4), 'lineOpts', struct('minContrast', 20, 'minLength', 40, 'reach', [3 7]), ...
            'playerHz', 2, 'clipOpts', struct(), 'hfovStart', 65, 'wholeFile', false, 'bounceMinPx', 1.5, ...
            'detectOpts', struct(), 'clipList', [], 'detectOnly', false, 'stillMps', 1.5, 'stillWindowS', 0.25, ...
-           'bounceSkipHits', true, 'personMinArea', 1500, 'hitReach', 0.6, 'bounceMergeS', 0.3);
+           'bounceSkipHits', true, 'personMinArea', 1500, 'hitReach', 0.6, 'bounceMergeS', 0.3, ...
+           'steady', true, 'steadyMaxPx', 40);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(s, fn{k}), s.(fn{k}) = d.(fn{k}); end, end
 if ~exist(outDir, 'dir'), mkdir(outDir); end
@@ -48,10 +51,10 @@ if s.detectOnly
     detectAll(rec, C.clips, K, cfg, s, outDir);  R = [];  return
 end
 s.clipList = [];
-D = tv.pipeline.stage(outDir, 'detect', k(C.clips, s.overlayBoxes, cfg.court, K.cam.pos, s.detectOpts), @() detectAll(rec, C.clips, K, cfg, s, outDir));
+D = tv.pipeline.stage(outDir, 'detect', k(C.clips, s.overlayBoxes, cfg.court, K.cam.pos, s.detectOpts, s.steady, s.steadyMaxPx), @() detectAll(rec, C.clips, K, cfg, s, outDir));
 [D, nStill] = dropStillTracks(D, rec, K, cfg, s);
-B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS, s.bounceSkipHits, s.personMinArea, s.hitReach, s.bounceMergeS, 3), @() findBounces(rec, D, K, s));
-Y = tv.pipeline.stage(outDir, 'players', k(s.playerHz, C.clips, K.cam.pos), @() trackPlayers(rec, C.clips, K, s));
+B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS, s.bounceSkipHits, s.personMinArea, s.hitReach, s.bounceMergeS, s.steady, 3), @() findBounces(rec, D, K, s));
+Y = tv.pipeline.stage(outDir, 'players', k(s.playerHz, C.clips, K.cam.pos, s.steady), @() trackPlayers(rec, C.clips, K, s));
 R = struct('rec', rec, 'clips', C.clips, 'cutT', C.cutT, 'cam', K.cam, 'calib', K.report, 'corners', K.corners, ...
     'bg', K.bg, 'overlayBoxes', s.overlayBoxes, 'candidates', {D.candidates}, 'tracks', {D.tracks}, ...
     'bounces', B.bounces, 'bounceSkips', struct('hits', B.hitsSkipped, 'net', B.netSkipped, 'duplicates', B.duplicates), 'players', Y.samples, 'stillTracks', nStill, 'stillMps', s.stillMps);
@@ -87,6 +90,12 @@ for b = 1:size(boxes, 1)
 end
 end
 
+function F = steadied(F, K, s)
+% overlays blanked (they don't move with the camera), then lined up with the empty court
+F = blank(F, s.overlayBoxes);
+if s.steady, F = tv.calib.steady(F, K.bg, s.steadyMaxPx); end
+end
+
 function K = calibrate(rec, s)
 % the empty court: median over the whole file (players move between clips)
 bg = tv.calib.background(rec, 61);
@@ -119,22 +128,28 @@ cd0 = fullfile(outDir, 'clips');  if ~exist(cd0, 'dir'), mkdir(cd0); end
 D.candidates = cell(size(clips, 1), 1);  D.tracks = cell(size(clips, 1), 1);
 for r = list(:)'
     % each clip is saved as it finishes, so parallel workers and restarts share the work
+    % (a clip file is reused only when it was made with the same settings)
     cf = fullfile(cd0, sprintf('clip_%03d.mat', r));
-    if exist(cf, 'file'), S = load(cf); D.candidates{r} = S.cand; D.tracks{r} = S.trk; continue; end
     f0 = clips(r, 1);  f1 = clips(r, 2);
+    key = jsonencode({f0, f1, s.overlayBoxes, cfg.court, K.cam.pos, opts, s.steady, s.steadyMaxPx, cfg.chunk});
+    if exist(cf, 'file')
+        S = load(cf);
+        if isfield(S, 'key') && strcmp(S.key, key), D.candidates{r} = S.cand; D.tracks{r} = S.trk; continue; end
+    end
     cand = zeros(0, 6);
     for a = f0:cfg.chunk:f1
         first = max(f0, a - 1);
         n = min(cfg.chunk + 2, f1 - first + 1);
         F = tv.media.readFrames(rec, first, n);
         if size(F, 4) < 3, continue; end
+        F = steadied(F, K, s);
         Ck = tv.detect.ballCandidates(F, K.bg, mask, opts);
         Ck(:, 1) = Ck(:, 1) + first - 1;
         cand = [cand; Ck(Ck(:, 1) >= a & Ck(:, 1) < a + cfg.chunk, :)]; %#ok<AGROW>
     end
     trk = tv.track.ball2d(cand);
     D.candidates{r} = cand;  D.tracks{r} = trk;
-    save(cf, 'cand', 'trk');
+    save(cf, 'cand', 'trk', 'key');
 end
 end
 
@@ -202,7 +217,7 @@ function hit = atPlayer(rec, K, s, frame, p)
 % ball is inside the person's outline (the frame against the empty court), widened by
 % s.hitReach of its width each side (arm and racquet) and 10% of its height, and higher than
 % the bottom quarter of it (the feet, where a ball can bounce beside them)
-img = blank(double(tv.media.readFrames(rec, frame, 1)), s.overlayBoxes);
+img = double(steadied(tv.media.readFrames(rec, frame, 1), K, s));
 fg = sum(abs(img - K.bg), 3) > 60;
 fg = imclose(imopen(fg, true(3)), true(15));
 L = bwlabel(fg, 8);
@@ -233,8 +248,7 @@ function Y = trackPlayers(rec, clips, K, s)
 Y.samples = struct('clip', {}, 't', {}, 'dets', {});
 for r = 1:size(clips, 1)
     for f = clips(r, 1):round(rec.fps / s.playerHz):clips(r, 2)
-        img = tv.media.readFrames(rec, f, 1);
-        img = blank(img, s.overlayBoxes);
+        img = steadied(tv.media.readFrames(rec, f, 1), K, s);
         dets = tv.players.detect(img, K.bg, K.cam, struct('heightRange', [1.2 2.4]));
         Y.samples(end+1) = struct('clip', r, 't', rec.pts(f + 1), 'dets', dets); %#ok<AGROW>
     end
