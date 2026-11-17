@@ -15,14 +15,15 @@ function R = runSingle(file, outDir, cfg)
 %     follow    each track looks again where it predicts the ball, with looser limits in a
 %               small window, and tracks that meet are joined (tv.track.follow, Chris 17 Nov;
 %               follow, followOpts)
-%     outlines  the players' outlines every playerTrackStepS (1/12 s); tracks that never leave
+%     outlines  people every playerTrackStepS (1/6 s): large upright shapes against the clip's own
+%               empty court (personMinArea px); tracks that never leave
 %               a player are racquets or shirts and are dropped (tv.track.dropAtPlayer, Chris
 %               17 Nov; dropPlayerTracks, playerTrackShare)
 %     bounces   where a 2D track turns from falling to rising away from any player: a bounce,
 %               placed on the ground through the camera; in or out of the singles court.
 %               A turn inside a person's outline (widened by hitReach for the racquet) above
 %               knee height is a hit, and one against the net hit the net: both skipped
-%               (bounceSkipHits; personMinArea px). One bounce seen twice within bounceMergeS
+%               (bounceSkipHits; people as in the outlines stage). One bounce seen twice within bounceMergeS
 %               counts once
 %     players   people every 1/cfg.single.playerHz s, placed on the court (TV-PLY-01)
 %   cfg.single: overlayBoxes ([x0 y0 x1 y1] per row, pixels): burned-in graphics to blank
@@ -39,7 +40,7 @@ d = struct('overlayBoxes', zeros(0, 4), 'lineOpts', struct('minContrast', 20, 'm
            'playerHz', 2, 'clipOpts', struct(), 'hfovStart', 65, 'wholeFile', false, 'bounceMinPx', 1.5, ...
            'detectOpts', struct(), 'clipList', [], 'detectOnly', false, 'stillMps', 1.5, 'stillWindowS', 0.25, ...
            'bounceSkipHits', true, 'personMinArea', 1500, 'hitReach', 0.6, 'bounceMergeS', 0.3, ...
-           'steady', true, 'steadyMaxPx', 40, 'dropPlayerTracks', true, 'playerTrackStepS', 1 / 12, ...
+           'steady', true, 'steadyMaxPx', 40, 'dropPlayerTracks', true, 'playerTrackStepS', 1 / 6, ...
            'playerTrackShare', 1, 'follow', true, 'followOpts', struct());
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(s, fn{k}), s.(fn{k}) = d.(fn{k}); end, end
@@ -60,10 +61,13 @@ end
 s.clipList = [];
 D = tv.pipeline.stage(outDir, 'detect', k(C.clips, s.overlayBoxes, cfg.court, K.cam.pos, s.detectOpts, s.steady, s.steadyMaxPx), @() detectAll(rec, C.clips, K, cfg, s, outDir));
 [D, nStill] = dropStillTracks(D, rec, K, cfg, s);
-nAtPlayer = 0;
-if s.dropPlayerTracks
-    PO = tv.pipeline.stage(outDir, 'outlines', k(C.clips, K.cam.pos, s.steady, s.steadyMaxPx, s.personMinArea, s.hitReach, s.playerTrackStepS), ...
+nAtPlayer = 0;  PO = struct('frames', zeros(0, 1), 'raw', {{}});
+if s.dropPlayerTracks || s.bounceSkipHits
+    PO = tv.pipeline.stage(outDir, 'outlines', k(C.clips, K.cam.pos, s.steady, s.steadyMaxPx, s.personMinArea, s.playerTrackStepS, 'clipbg'), ...
         @() playerOutlines(rec, C.clips, K, s));
+end
+if s.dropPlayerTracks
+    PO.boxes = cellfun(@(b) widen(b, s, 1), PO.raw, 'UniformOutput', false);
     for r = 1:numel(D.tracks)
         [D.tracks{r}, g] = tv.track.dropAtPlayer(D.tracks{r}, PO, s.playerTrackShare);
         nAtPlayer = nAtPlayer + nnz(g);
@@ -76,7 +80,7 @@ if s.follow
     [D, nFollowed] = followAll(rec, C.clips, K, cfg, s, outDir, D);
     [D, n2] = dropStillTracks(D, rec, K, cfg, s);  nStill = nStill + n2;
 end
-B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS, s.bounceSkipHits, s.personMinArea, s.hitReach, s.bounceMergeS, s.steady, s.follow, s.followOpts, s.dropPlayerTracks, s.playerTrackStepS, s.playerTrackShare, 3), @() findBounces(rec, D, K, s));
+B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS, s.bounceSkipHits, s.personMinArea, s.hitReach, s.bounceMergeS, 'clipbg', s.steady, s.follow, s.followOpts, s.dropPlayerTracks, s.playerTrackStepS, s.playerTrackShare, 3), @() findBounces(rec, D, K, s, PO));
 Y = tv.pipeline.stage(outDir, 'players', k(s.playerHz, C.clips, K.cam.pos, s.steady), @() trackPlayers(rec, C.clips, K, s));
 R = struct('rec', rec, 'clips', C.clips, 'cutT', C.cutT, 'cam', K.cam, 'calib', K.report, 'corners', K.corners, ...
     'bg', K.bg, 'overlayBoxes', s.overlayBoxes, 'candidates', {D.candidates}, 'tracks', {D.tracks}, ...
@@ -224,7 +228,7 @@ for r = list(:)'
 end
 end
 
-function B = findBounces(rec, D, K, s)
+function B = findBounces(rec, D, K, s, PO)
 % a bounce: the track falls (image row increasing) then rises, with the turn away from people
 c = tv.court.constants();
 B.bounces = struct('clip', {}, 'frame', {}, 't', {}, 'u', {}, 'v', {}, 'x', {}, 'y', {}, 'call', {}, 'marginM', {});
@@ -243,7 +247,7 @@ for r = 1:numel(D.tracks)
                 sc = (c.ballRadius - K.cam.pos(3)) / ray(3);
                 g = K.cam.pos + sc * ray;
                 if inNetBand(K.cam, [u(j), v(j)]), nNet = nNet + 1; continue; end
-                if s.bounceSkipHits && atPlayer(rec, K, s, f(j), [u(j), v(j)])
+                if s.bounceSkipHits && atPlayer(PO, s, f(j), [u(j), v(j)])
                     nHit = nHit + 1;  continue
                 end
                 [call, m] = callSingles(g(1:2), c);
@@ -283,36 +287,49 @@ vt = interp1(top(:, 1), top(:, 2), p(1));  vb = interp1(bot(:, 1), bot(:, 2), p(
 in = p(2) >= vt - 3 && p(2) <= vb;
 end
 
-function hit = atPlayer(rec, K, s, frame, p)
+function hit = atPlayer(PO, s, frame, p)
 % a turn of the ball at a person, above knee height, is a hit (racquet), not a bounce: the
-% ball is inside the person's outline (the frame against the empty court), widened by
+% ball is inside the person's outline (the nearest sample of the outlines stage), widened by
 % s.hitReach of its width each side (arm and racquet) and 10% of its height, and higher than
 % the bottom quarter of it (the feet, where a ball can bounce beside them)
-b = outlines(steadied(tv.media.readFrames(rec, frame, 1), K, s), K, s, 0.75);
+[d, j] = min(abs(PO.frames - frame));
+hit = false;
+if isempty(j) || d > max(diff(PO.frames(1:min(2, end)))), return; end
+b = widen(PO.raw{j}, s, 0.75);
 hit = ~isempty(b) && any(p(1) >= b(:, 1) & p(1) <= b(:, 3) & p(2) >= b(:, 2) & p(2) <= b(:, 4));
 end
 
-function b = outlines(img, K, s, below)
-% people: large shapes against the empty court, as [u0 v0 u1 v1] rows, widened by s.hitReach
-% of their width each side (arm and racquet) and 10% of their height above, down to the
-% fraction `below` of their height. A shape over a quarter of the frame is the camera moving,
-% not a person, and is ignored.
-fg = sum(abs(double(img) - K.bg), 3) > 60;
+function b = widen(raw, s, below)
+% person boxes [u0 v0 u1 v1] widened by s.hitReach of their width each side and 10% of their
+% height above, cut at the fraction `below` of their height
+w = raw(:, 3) - raw(:, 1);  h = raw(:, 4) - raw(:, 2);
+b = [raw(:, 1) - s.hitReach * w, raw(:, 2) - 0.1 * h, raw(:, 3) + s.hitReach * w, raw(:, 2) + below * h];
+end
+
+function b = people(img, bgc, s)
+% people: large upright shapes against the clip's own empty court (bgc), as [u0 v0 u1 v1].
+% Each clip has its own empty court (the median of frames across it) because on video 1 the
+% evening light changed whole areas against the file's: the "people" covered half the frame.
+fg = sum(abs(double(img) - double(bgc)), 3) > 60;
 fg = imclose(imopen(fg, true(3)), true(15));
 st = regionprops(bwlabel(fg, 8), 'BoundingBox', 'Area');
 b = zeros(0, 4);
 for i = 1:numel(st)
-    if st(i).Area < s.personMinArea || st(i).Area > numel(fg) / 4, continue; end
-    bb = st(i).BoundingBox;  pad = [s.hitReach * bb(3), 0.1 * bb(4)];
-    b(end+1, :) = [bb(1) - pad(1), bb(2) - pad(2), bb(1) + bb(3) + pad(1), bb(2) + below * bb(4)]; %#ok<AGROW>
+    bb = st(i).BoundingBox;
+    if st(i).Area < s.personMinArea || bb(4) < 0.8 * bb(3) || bb(3) * bb(4) > numel(fg) / 8, continue; end
+    b(end+1, :) = [bb(1), bb(2), bb(1) + bb(3), bb(2) + bb(4)]; %#ok<AGROW>
 end
 end
 
 function P = playerOutlines(rec, clips, K, s)
-% the players' outlines (full height) every s.playerTrackStepS in every clip, for tv.track.dropAtPlayer
+% the people every s.playerTrackStepS in every clip (raw boxes; widened where used)
 step = max(1, round(s.playerTrackStepS * rec.fps));
-P.frames = zeros(0, 1);  P.boxes = {};
+P.frames = zeros(0, 1);  P.raw = {};
 for r = 1:size(clips, 1)
+    sample = unique(round(linspace(clips(r, 1), clips(r, 2), 15)));
+    B = zeros(rec.height, rec.width, 3, numel(sample), 'uint8');
+    for q = 1:numel(sample), B(:, :, :, q) = steadied(tv.media.readFrames(rec, sample(q), 1), K, s); end
+    bgc = median(B, 4);
     want = clips(r, 1):step:clips(r, 2);
     for a = clips(r, 1):30:clips(r, 2)
         n = min(30, clips(r, 2) - a + 1);
@@ -321,7 +338,7 @@ for r = 1:size(clips, 1)
         F = tv.media.readFrames(rec, a, n);
         for f = fs
             P.frames(end+1, 1) = f;
-            P.boxes{end+1, 1} = outlines(steadied(F(:, :, :, f - a + 1), K, s), K, s, 1);
+            P.raw{end+1, 1} = people(steadied(F(:, :, :, f - a + 1), K, s), bgc, s);
         end
     end
 end
