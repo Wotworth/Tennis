@@ -191,6 +191,7 @@ segs = cell(size(D.tracks, 1), 1);  X.dropped = cell(size(segs));
 for r = 1:size(D.tracks, 1)
     % one ball at a time: two balls in view at once are fitted apart (tv.recon.ballGroups)
     pr = {};  if isfield(D, 'partners'), pr = D.partners(r, :); end
+    if ~isfield(cfg.gate, 'perBall') || ~cfg.gate.perBall, pr = {}; end              % off: one fit per rally, as before 17 Nov
     groups = tv.recon.ballGroups(D.tracks(r, :), pr);
     for g = 1:numel(groups)
         P = tv.recon.pieces(groups{g}, rec, sync);

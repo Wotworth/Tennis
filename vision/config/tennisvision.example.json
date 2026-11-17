@@ -17,7 +17,7 @@
   "alerts": {"ntfyServer": "https://ntfy.sh"},
   "statusLight": {"tool": "C:\\TennisVision\\tools\\blink1-tool.exe"},
   "court": {"behindBaseline": 5, "beyondSideline": 2, "maxHeight": 12},
-  "gate": {"epipolarPx": 4, "minInsideFrac": 0.5, "minPairedFrac": 0.3, "maxSpeed": 75, "sameBallM": 2, "rollMaxZ": 0.3, "rollMinS": 0.3, "playerInsideFrac": 0.6},
+  "gate": {"epipolarPx": 4, "minInsideFrac": 0.5, "minPairedFrac": 0.3, "maxSpeed": 75, "sameBallM": 2, "rollMaxZ": 0.3, "rollMinS": 0.3, "perBall": false, "playerInsideFrac": 0.6},
   "thresholds": {"freeSpaceMinFraction": 0.15, "archiveCleanupFraction": 0.85},
   "pc": {
     "about": "Lenovo Legion Tower 5i Gen 10 (Legion T5 30IAX10): Core Ultra 7 255HX, RTX 5070 Ti 16 GB, 32 GB RAM, 1 TB NVMe (C:), 12 TB archive as D: (3.5-inch bay or USB). Chris, 16 Nov.",
