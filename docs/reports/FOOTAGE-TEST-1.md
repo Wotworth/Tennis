@@ -1,6 +1,6 @@
 # Footage test 1: your two iPhone videos through the MATLAB stack (17 Nov)
 
-Release: RELEASE_LINK. In the app: Sessions → **footage tests** → each video's own page (summary, court, ball, bounces, rallies).
+Release: [v0.6.25](https://github.com/Wotworth/Tennis/releases/tag/v0.6.25). In the app: Sessions → **footage tests** → each video's own page (summary, court, ball, bounces, rallies).
 
 You asked me to run both SwingVision exports through the same MATLAB code the PC will use, put the results in the app as if they were sessions, and show how well the code found the court, the ball and the bounces. I worked overnight and then with you during the day. Every decision is listed at the end and in DECISIONS.md (rows dated 2026-11-17).
 
@@ -132,8 +132,19 @@ On video 1, the player-placing step still compares frames with the empty-court p
 
 ## What CI proved
 
-CI_PROVED
+- **Build and release (run 44143001135): passed.** The app built, its unit and screenshot tests passed, the APK is signed, and the release is published.
+- **The tests cover:**
+  - both bundled footage tests load;
+  - the spoof session shows only odd numbers;
+  - every vision page renders on the sample session, including the new court, shots, shot card and trends pages.
+- **Vision tests (MATLAB) on the footage-test code:** still running at the time of writing. The run before it passed 106 of 108; the 2 failures are the parked adjacent-courts test. The new steadying, still-ball, racquet and steered-search rules pass their unit tests in this session.
 
 ## On your phone
 
-PHONE_STEPS
+1. Install the APK from the release above.
+2. Open **Sessions → footage tests**. There are two tiles: **iPhone test 1** (25 Apr) and **iPhone test 2** (16 Apr).
+3. Open each one. On **summary**, check the four tiles and the corner warning.
+4. Swipe to **court**. The fitted lines should sit on the court's paint.
+5. Swipe to **ball**. Swipe through the 13 frames: the rings and green dots should match each caption, and the players should be pixelated.
+6. Swipe to **bounces** and **rallies** and check they open.
+7. Tell me anything that looks wrong, with a screenshot if you can.

@@ -1,6 +1,6 @@
 # Design v2, first build: the vision pages (VIS-09, 17 Nov)
 
-Release: RELEASE_LINK
+Release: [v0.6.25](https://github.com/Wotworth/Tennis/releases/tag/v0.6.25)
 
 You asked for the app UI update we had discussed. I built your design v2 with my recommended picks from the [preview page](../preview/v2/README.md): **court B, shot A, trends A**. The look stays Metro (black, square, flat, no ripples or shadows). It is now easier to see what is chosen and to change it. This build covers the vision pages only; the rest of the app (cues, racquets, sessions, library) comes next.
 
@@ -31,8 +31,19 @@ You asked for the app UI update we had discussed. I built your design v2 with my
 
 ## What CI proved
 
-CI_PROVED
+- **Build and release (run 44143001135): passed.** The app built, its unit and screenshot tests passed, the APK is signed, and the release is published.
+- **The tests cover:**
+  - both bundled footage tests load;
+  - the spoof session shows only odd numbers;
+  - every vision page renders on the sample session, including the new court, shots, shot card and trends pages.
+- **Vision tests (MATLAB) on the footage-test code:** still running at the time of writing. The run before it passed 106 of 108; the 2 failures are the parked adjacent-courts test. The new steadying, still-ball, racquet and steered-search rules pass their unit tests in this session.
 
 ## On your phone
 
-PHONE_STEPS
+1. Install the APK from the release above.
+2. Open the sample session, then the **court** page. Tap the grey bar at the top.
+3. In the panel, change the shot type, colour and player, then tap **done**. The map, legends and bar should follow your choices.
+4. Swipe to **shots**. The same choices should apply, with a green or blue square before each row.
+5. Tap a shot. Check the two-column figures, then tap **previous**, **next** and **looks wrong** at the bottom.
+6. Open **trends** on the stats page. Tap the racquet and the measures, and check the charts change.
+7. Tell me whether it looks right and is easier to use, and what to change before I do the rest of the app.
