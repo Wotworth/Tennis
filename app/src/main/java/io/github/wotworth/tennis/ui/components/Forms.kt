@@ -29,6 +29,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import io.github.wotworth.tennis.ui.theme.LocalZpx
 import io.github.wotworth.tennis.ui.theme.TennisText
+import io.github.wotworth.tennis.ui.theme.applyCase
 import io.github.wotworth.tennis.ui.theme.TennisTokens
 import io.github.wotworth.tennis.ui.theme.textStyleFor
 
@@ -109,12 +110,18 @@ fun ToggleSwitch(label: String, on: Boolean, onChange: (Boolean) -> Unit) {
 @Composable
 fun <T> ChoiceRow(label: String?, options: List<Pair<T, String>>, chosen: Set<T>, onPick: (T) -> Unit, wrap: Boolean = true) {
     val zpx = LocalZpx.current
+    // Design v2 across the app (Chris, 17 Nov): compact square segments, the chosen one in tile
+    // green, instead of a row of large words
+    val t = TennisTokens.Vision
     Column(Modifier.fillMaxWidth().padding(bottom = zpx(12f))) {
         if (label != null) FieldLabel(label)
-        FlowRowSimple(gap = zpx(16f)) {
+        FlowRowSimple(gap = zpx(6f)) {
             options.forEach { (v, text) ->
-                val style = textStyleFor(TennisTokens.Type.choice).let { if (v in chosen) it.copy(color = TennisTokens.Colors.primary) else it.copy(color = TennisTokens.Colors.disabled) }
-                BasicText(text, style = style, modifier = Modifier.press(description = text) { onPick(v) }.padding(vertical = zpx(4f)))
+                Box(
+                    Modifier.height(zpx(t.segmentHeight)).background(if (v in chosen) TennisTokens.Colors.tile else TennisTokens.Colors.segmentOff)
+                        .press(description = text) { onPick(v) }.padding(horizontal = zpx(t.segmentPadX)),
+                    contentAlignment = androidx.compose.ui.Alignment.Center,
+                ) { TennisText(text, TennisTokens.Type.segment, maxLines = 1) }
             }
         }
     }
@@ -145,7 +152,7 @@ fun DateField(label: String, epochDay: Long, onChange: (Long) -> Unit, today: Lo
         FieldLabel(label)
         TennisText(io.github.wotworth.tennis.domain.Strings.dayText(epochDay), TennisTokens.Type.listPrimary)
         Spacer(Modifier.height(zpx(4f)))
-        Row(horizontalArrangement = Arrangement.spacedBy(zpx(20f))) {
+        FlowRowSimple(gap = zpx(6f)) {
             SmallAction("earlier") { onChange(epochDay - 1) }
             SmallAction("later", enabled = epochDay < today) { onChange(epochDay + 1) }
             SmallAction("today", enabled = epochDay != today) { onChange(today) }
@@ -155,12 +162,16 @@ fun DateField(label: String, epochDay: Long, onChange: (Long) -> Unit, today: Lo
 
 @Composable
 fun SmallAction(label: String, enabled: Boolean = true, onClick: () -> Unit) {
-    val style = textStyleFor(TennisTokens.Type.listSecondary)
-    BasicText(
-        label,
-        style = style.copy(color = if (enabled) TennisTokens.Colors.primary else TennisTokens.Colors.disabled),
-        modifier = (if (enabled) Modifier.press(description = label, onClick = onClick) else Modifier).padding(vertical = LocalZpx.current(4f)),
-    )
+    // Design v2 across the app (Chris, 17 Nov): a small flat square button, not bare text
+    val zpx = LocalZpx.current
+    val style = textStyleFor(TennisTokens.Type.segment)
+    Box(
+        Modifier.padding(vertical = zpx(3f)).height(zpx(TennisTokens.Vision.segmentHeight)).background(TennisTokens.Colors.segmentOff)
+            .then(if (enabled) Modifier.press(description = label, onClick = onClick) else Modifier).padding(horizontal = zpx(TennisTokens.Vision.segmentPadX)),
+        contentAlignment = androidx.compose.ui.Alignment.Center,
+    ) {
+        BasicText(applyCase(label, TennisTokens.Type.segment.case), style = style.copy(color = if (enabled) TennisTokens.Colors.primary else TennisTokens.Colors.disabled), maxLines = 1)
+    }
 }
 
 @Composable

@@ -147,7 +147,7 @@ fun DetectionDebugScreen() {
         }
         TennisText(io.github.wotworth.tennis.domain.Strings.dayText(day), TennisTokens.Type.listPrimary)
         Spacer(Modifier.height(zpx(4f)))
-        Row(horizontalArrangement = Arrangement.spacedBy(zpx(18f))) {
+        io.github.wotworth.tennis.ui.components.FlowRowSimple(gap = zpx(6f)) {
             SmallAction("month earlier") { day -= 30 }
             SmallAction("week earlier") { day -= 7 }
             SmallAction("earlier") { day -= 1 }

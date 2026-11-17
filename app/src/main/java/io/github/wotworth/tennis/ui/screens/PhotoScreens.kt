@@ -123,7 +123,7 @@ fun PackagePhoto(
         val b = photoBitmap(photo, 360)
         if (b != null) Image(b.asImageBitmap(), "package photo", contentScale = ContentScale.Crop, modifier = Modifier.size(zpx(TennisTokens.Layout.tileSmall * 1.4f)))
         Column {
-            FlowRowSimple(gap = zpx(16f)) {
+            FlowRowSimple(gap = zpx(6f)) {
                 SmallAction(if (photo == null) "take photo" else "retake") { takePhoto() }
                 SmallAction("choose photo") { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
                 if (photo != null) {

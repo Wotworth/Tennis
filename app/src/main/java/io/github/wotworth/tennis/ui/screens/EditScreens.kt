@@ -209,7 +209,7 @@ fun SessionEditScreen(id: Long?, proposalId: Long?, racquetId: Long? = null) {
         FieldLabel("how long")
         TennisText(Strings.minutesText(s.minutes), TennisTokens.Type.listPrimary)
         Spacer(Modifier.height(zpx(4f)))
-        Row(horizontalArrangement = Arrangement.spacedBy(zpx(18f))) {
+        io.github.wotworth.tennis.ui.components.FlowRowSimple(gap = zpx(6f)) {
             TennisTokens.Sessions.presets.forEach { m -> SmallAction(Strings.minutesText(m)) { s = s.copy(minutes = m) } }
             SmallAction("−15") { s = s.copy(minutes = (s.minutes - 15).coerceAtLeast(15)) }
             SmallAction("+15") { s = s.copy(minutes = s.minutes + 15) }

@@ -139,7 +139,7 @@ fun CourtEditScreen(id: Long?) {
             Image(b.asImageBitmap(), "camera mounts", contentScale = ContentScale.FillWidth, modifier = Modifier.fillMaxWidth())
             Spacer(Modifier.height(zpx(8f)))
         }
-        FlowRowSimple(gap = zpx(16f)) {
+        FlowRowSimple(gap = zpx(6f)) {
             SmallAction(if (photo == null) "take photo" else "retake") { val (n, uri) = Photos.newCapture(ctx); pending = n; camera.launch(uri) }
             SmallAction("choose photo") { gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
             if (photo != null) SmallAction("remove photo") { photo = null }

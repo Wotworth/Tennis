@@ -21,6 +21,7 @@ import androidx.compose.ui.res.painterResource
 import io.github.wotworth.tennis.R
 import io.github.wotworth.tennis.ui.theme.LocalZpx
 import io.github.wotworth.tennis.ui.theme.TennisTokens
+import io.github.wotworth.tennis.ui.theme.TennisText
 
 data class BarButton(@DrawableRes val glyph: Int, val label: String, val enabled: Boolean = true, val onClick: () -> Unit)
 
@@ -34,7 +35,13 @@ fun AppBar(buttons: List<BarButton>, modifier: Modifier = Modifier, onMore: (() 
     val l = TennisTokens.Layout
     Box(modifier.fillMaxWidth().background(TennisTokens.Colors.appBar).navigationBarsPadding().height(zpx(l.appBarHeight))) {
         Row(Modifier.align(Alignment.Center), horizontalArrangement = Arrangement.spacedBy(zpx(22f)), verticalAlignment = Alignment.CenterVertically) {
-            buttons.forEach { RoundButton(it) }
+            // Design v2 across the app (Chris, 17 Nov): each round button carries its label
+            buttons.forEach { b ->
+                androidx.compose.foundation.layout.Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    RoundButton(b)
+                    TennisText(b.label, TennisTokens.Type.tileLabelSmall, maxLines = 1)
+                }
+            }
         }
         if (onMore != null) {
             Box(

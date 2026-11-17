@@ -25,7 +25,15 @@ What changed, by your numbers:
    - Speed or spin runs from deep green through yellow to red, with one legend.
    - The map shows **one player at a time** (your choice), picked in the filter bar's panel, starting with you.
 8. **Heart rate per rally:** each rally's page shows the highest heart rate during the rally, and the lowest before the next point. The health tab stays.
-9. **The rest of the app:** next build. The cues, racquets, sessions, stats and library pages get the same treatment: filter bars and panels instead of rows of large words, compact strips, labelled buttons.
+9. **The rest of the app, first part:** the parts shared by every page now use the same look.
+   - **Choices** (racquet, string feel, tile layout, camera layout, lens mode) are compact square segments, with the chosen one in tile green, instead of rows of large words.
+   - **Small buttons** ("earlier · later · today", the duration presets, "take photo · choose photo") are flat square buttons, and their rows wrap.
+   - **Bottom bar:** each round button now has its label underneath (save, cancel, add racquet, and so on).
+   - **Next:** the hub pages (cues, racquets, sessions, stats, library) get filter bars where they list things.
+
+| New session | Restrung |
+| --- | --- |
+| ![new session](design-v2-2/new-session.png) | ![restrung](design-v2-2/restrung.png) |
 10. **Older releases:** no change (your choice). If a release is worse, tell me and I'll fix it in a new one.
 
 The spoof session's heart-rate readings were all made odd, so the per-rally figures also pass the odd-numbers check.

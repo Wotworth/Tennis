@@ -176,7 +176,7 @@ object TennisTokens {
         var listBottomPadding by mutableFloatStateOf(80f)
         var logRowGap by mutableFloatStateOf(12f)
         // New: the app bar's "…" (NAV-08), bottom right.
-        var appBarHeight by mutableFloatStateOf(44f)
+        var appBarHeight by mutableFloatStateOf(56f)   // 44 until 17 Nov; now with a label under each button
         var appBarDotsSize by mutableFloatStateOf(36f)
         // VIS-04, NAV-02: tiles. Widths in zpx; the page is 240 zpx wide inside its margins.
         var tileGap by mutableFloatStateOf(8f)
