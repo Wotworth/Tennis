@@ -64,7 +64,7 @@ class SpoofOddNumbersTest {
         // time in each heart-rate zone: worked out on the phone from the birth year set there (the
         // max heart rate), so not something the session file can fix; the chart's own length is
         // checked by the spoof generator instead
-        if (screen.endsWith("pivot 5") && Regex("""^\d+ min$""").matches(text)) return emptyList()
+        if (screen.endsWith("pivot 3") && Regex("""^\d+ min$""").matches(text)) return emptyList()
         var t = text
         allowed.forEach { t = it.replace(t, "") }
         return Regex("""\d+(?:\.\d+)?""").findAll(t).map { it.value }.filter { (it.last() - '0') % 2 == 0 }.toList()
@@ -76,7 +76,8 @@ class SpoofOddNumbersTest {
         val v = app.vision.session(VisionStore.SAMPLE_ID)!!
         val screens = mutableListOf<Pair<String, Screen>>("sessions" to Screen.Hub(SESSIONS))
         fun all(tag: String) {
-            (0..5).forEach { screens += "$tag pivot $it" to Screen.Vision(v.id, it) }
+            (0..3).forEach { screens += "$tag pivot $it" to Screen.Vision(v.id, it) }
+            v.rallies.forEach { screens += "$tag rally ${it.index}" to Screen.VisionRally(v.id, it.index) }
             v.shots.forEach { screens += "$tag shot ${it.rally}.${it.index}" to Screen.VisionShot(v.id, it.rally, it.index) }
             screens += "$tag trends" to Screen.VisionTrends
         }

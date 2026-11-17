@@ -166,7 +166,8 @@ fun PagerCategoryBar(state: CategoryPagerState, labels: List<String>) {
     val sel = state.selected
     // The previous label sits just off the left edge, so a swipe back can bring it in.
     val order = (-1 until n).map { state.next(sel, it) }
-    Box(Modifier.fillMaxWidth().clipToBounds()) {
+    // Chris, 17 Nov: the headers swipe too, like the content under them
+    Box(Modifier.fillMaxWidth().clipToBounds().pointerInput(state) { categorySwipes(state) }) {
         Row(
             Modifier
                 // Measured as wide as it likes, laid out within the screen width, clipped by the Box.

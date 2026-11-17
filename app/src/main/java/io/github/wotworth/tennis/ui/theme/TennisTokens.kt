@@ -44,6 +44,13 @@ object TennisTokens {
         var opponent by mutableStateOf(Color(0xFF4F7DFF))
         var opponentLow by mutableStateOf(Color(0xFF2A47A8))
         var opponentHigh by mutableStateOf(Color(0xFFB8CBFF))
+        /**
+         * Chris, 17 Nov (amends VIS-04 to VIS-08): the court map's speed and spin scale runs
+         * deep green, yellow, red, so the range jumps out; the map shows one player at a time.
+         */
+        var scaleLow by mutableStateOf(Color(0xFF1E8A3C))
+        var scaleMid by mutableStateOf(Color(0xFFF2D21B))
+        var scaleHigh by mutableStateOf(Color(0xFFE5392B))
         /** Design v2: an unselected segment, and the filter bar and flyout panel. */
         var segmentOff by mutableStateOf(Color(0xFF333333))
         /** Context menus and prompts (Windows Phone's dark chrome color). */
@@ -205,6 +212,12 @@ object TennisTokens {
         var view3dStartAzimuthDeg by mutableFloatStateOf(-60f)
         var view3dStartElevationDeg by mutableFloatStateOf(28f)
         var scrubberHeight by mutableFloatStateOf(26f)       // zpx
+        // Chris, 17 Nov: the 3D tab's rally pictures and the rally replay
+        var rallyThumbHeight by mutableFloatStateOf(150f)    // zpx, each rally on the 3D tab
+        var rallyViewDistanceM by mutableFloatStateOf(15f)   // closest camera for the rally pictures and replay (it backs off until the court fits)
+        var rallyViewSideDeg by mutableFloatStateOf(25f)     // camera this far round from behind your end
+        var endLabelM by mutableFloatStateOf(4f)             // "you" / "opponent" this far behind each baseline
+        var recoveryWindowS by mutableFloatStateOf(60f)      // after the last rally: how long to look for the lowest heart rate
         var hrBarHeight by mutableFloatStateOf(10f)          // zpx
         var lineAlpha by mutableFloatStateOf(0.55f)          // court lines on black
         /** A picked court labels the next vision session that ends after the pick and starts within this many hours of it. */

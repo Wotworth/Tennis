@@ -138,7 +138,7 @@ fun FlatToggle(label: String, on: Boolean, onChange: (Boolean) -> Unit = {}) {
 
 /** Design v2, item 5: a thin gradient bar with its two ends in mph or ft. */
 @Composable
-fun GradientLegend(label: String, low: Color, high: Color, lowText: String, highText: String) {
+fun GradientLegend(label: String, low: Color, high: Color, lowText: String, highText: String, mid: Color? = null) {
     val zpx = LocalZpx.current
     val t = TennisTokens.Vision
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -146,7 +146,7 @@ fun GradientLegend(label: String, low: Color, high: Color, lowText: String, high
         TennisText(lowText, TennisTokens.Type.listSecondary, maxLines = 1)
         Spacer(Modifier.width(zpx(6f)))
         Canvas(Modifier.weight(1f).height(zpx(t.legendBarHeight))) {
-            drawRect(Brush.horizontalGradient(listOf(low, high)))
+            drawRect(Brush.horizontalGradient(listOfNotNull(low, mid, high)))
         }
         Spacer(Modifier.width(zpx(6f)))
         TennisText(highText, TennisTokens.Type.listSecondary, maxLines = 1)
@@ -215,12 +215,15 @@ object PlayerColour {
         val t = TennisTokens.Vision
         return (((ms ?: 0.0) * Units.MPH_PER_MS - t.speedLowMph) / (t.speedHighMph - t.speedLowMph)).toFloat().coerceIn(0f, 1f)
     }
+    /** Chris, 17 Nov: speed or spin on one wide scale, deep green to yellow to red. */
+    fun scale(f: Float): Color = if (f < 0.5f) lerp(TennisTokens.Colors.scaleLow, TennisTokens.Colors.scaleMid, f * 2)
+        else lerp(TennisTokens.Colors.scaleMid, TennisTokens.Colors.scaleHigh, (f - 0.5f) * 2)
     fun spinF(effectM: Double?): Float =
         ((-(effectM ?: 0.0)) * Units.FT_PER_M / TennisTokens.Vision.spinEffectHighFt).toFloat().coerceIn(0f, 1f)
 }
 
 /** How the court map shows speed or spin on top of the player colours. */
-enum class CourtStyle { Shades, Size }
+enum class CourtStyle { Shades, Size, Scale }
 
 /** The court seen from above with each bounce: player colour, shaded or sized by speed or spin. */
 @Composable
@@ -251,6 +254,7 @@ fun CourtMapV2(v: VisionSession, shots: List<VisionShot>, answer: String?, bySpi
             val p = map(sh.bounce!![0], sh.bounce[1])
             when (style) {
                 CourtStyle.Shades -> drawCircle(PlayerColour.shade(me, f), zpx(t.spotRadius).toPx(), p)
+                CourtStyle.Scale -> drawCircle(PlayerColour.scale(f), zpx(t.spotRadius).toPx(), p)
                 CourtStyle.Size -> drawCircle(PlayerColour.base(me), zpx(t.spotMinRadius + f * (t.spotMaxRadius - t.spotMinRadius)).toPx(), p)
             }
         }
@@ -265,6 +269,8 @@ fun CourtLegends(bySpin: Boolean, style: CourtStyle, players: List<Boolean>) {
     val lo = if (bySpin) "no spin" else "${t.speedLowMph.roundToInt()} mph"
     val hi = if (bySpin) "${t.spinEffectHighFt.roundToInt()} ft shorter" else "${t.speedHighMph.roundToInt()} mph"
     when (style) {
+        CourtStyle.Scale -> GradientLegend(if (bySpin) "spin" else "speed", PlayerColour.scale(0f), PlayerColour.scale(1f), lo, hi,
+            mid = PlayerColour.scale(0.5f))
         CourtStyle.Shades -> players.forEach { me ->
             GradientLegend(if (me) "you" else "opponent", PlayerColour.shade(me, 0f), PlayerColour.shade(me, 1f), lo, hi)
             Spacer(Modifier.height(zpx(4f)))
@@ -559,24 +565,35 @@ private fun TrendsFlyout(racquet: String?) {
 // ---- built in (Chris, 17 Nov: court B, shot A, trends A) ---------------------------------------------
 
 /** The data pages' shared choices (court, shots): kept while the session is open. */
-class VisionFilter {
+class VisionFilter(private val firstWho: String) {
     var type by mutableStateOf(VisionDefaults.courtType)
     var colour by mutableStateOf(VisionDefaults.courtColour)
-    var who by mutableStateOf("all")
-    fun reset() { type = VisionDefaults.courtType;  colour = VisionDefaults.courtColour;  who = "all" }
-    fun keep(s: VisionShot) = (type == "all" || s.type == type) && (who == "all" || s.hitter == who)
+    /** One player at a time (Chris, 17 Nov): colour shows speed or spin, so it can't also show who. */
+    var who by mutableStateOf(firstWho)
+    fun reset() { type = VisionDefaults.courtType;  colour = VisionDefaults.courtColour;  who = firstWho }
+    fun keep(s: VisionShot) = (type == "all" || s.type == type) && s.hitter == who
 }
+
+/** The court's first player: you, once "which one is you?" is answered; else the first hitter. */
+fun firstPlayer(v: VisionSession, answer: String?): String {
+    val hitters = v.shots.map { it.hitter }.distinct().sorted()
+    return hitters.firstOrNull { v.who(it, answer) == "you" } ?: hitters.firstOrNull() ?: ""
+}
+
+private fun playerOptions(v: VisionSession, answer: String?): List<Pair<String, String>> =
+    v.shots.map { it.hitter }.distinct().sortedBy { if (v.who(it, answer) == "you") 0 else 1 }.map { it to v.who(it, answer) }
 
 /** Court B's filter bar: one line of the current choices; tap for the flyout with every option. */
 @Composable
 fun VisionFilterBar(v: VisionSession, answer: String?, f: VisionFilter) {
     val app = LocalApp.current
     val o = io.github.wotworth.tennis.ui.components.LocalOverlays.current
-    FilterBar(summaryOf(f.type, f.colour, f.who, v, answer)) {
-        o.panel("filters · kept across court and shots", onReset = { f.reset() }) {
+    FilterBar(listOf(v.who(f.who, answer), TYPE_OPTIONS.first { it.first == f.type }.second,
+        COLOUR_OPTIONS.first { it.first == f.colour }.second).joinToString(" · ")) {
+        o.panel("court filters", onReset = { f.reset() }) {
+            FlyoutRow("player") { SegmentStrip(playerOptions(v, answer), f.who) { f.who = it } }
             FlyoutRow("shot type") { SegmentStrip(TYPE_OPTIONS, f.type) { f.type = it } }
             FlyoutRow("colour by") { SegmentStrip(COLOUR_OPTIONS, f.colour) { f.colour = it } }
-            FlyoutRow("player") { SegmentStrip(whoOptions(v, answer), f.who) { f.who = it } }
             if (!v.sample || answer != null) FlatToggle("opponent's stats", v.id in app.prefs.opponentStatsOn) { app.prefs.showOpponentStats(v.id, it) }
         }
     }
@@ -589,9 +606,9 @@ fun CourtB(v: VisionSession, answer: String?, f: VisionFilter, onShot: (VisionSh
     val shots = v.shots.filter { it.bounce != null && f.keep(it) }
     VisionFilterBar(v, answer, f)
     Spacer(Modifier.height(zpx(6f)))
-    CourtMapV2(v, shots, answer, f.colour == "spin", CourtStyle.Shades, TennisTokens.Vision.courtMapHeight + 110f, onShot)
+    CourtMapV2(v, shots, answer, f.colour == "spin", CourtStyle.Scale, TennisTokens.Vision.courtMapHeight + 110f, onShot)
     Spacer(Modifier.height(zpx(6f)))
-    CourtLegends(f.colour == "spin", CourtStyle.Shades, players(v, shots, answer))
+    CourtLegends(f.colour == "spin", CourtStyle.Scale, players(v, shots, answer))
     TennisText("${shots.size} bounces. Tap one for that shot.", TennisTokens.Type.listSecondary)
 }
 

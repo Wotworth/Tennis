@@ -58,13 +58,12 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /** TV-APP-02: the session detail pivots. */
-val VISION_PIVOTS = listOf("summary", "court", "shots", "rallies", "3d", "health")
+/** Chris, 17 Nov: shots and rallies fold into 3D (each rally opens its replay, its shots and heart rate). */
+val VISION_PIVOTS = listOf("summary", "court", "3D", "health")
 private const val V_SUMMARY = 0
 private const val V_COURT = 1
-private const val V_SHOTS = 2
-private const val V_RALLIES = 3
-private const val V_3D = 4
-private const val V_HEALTH = 5
+const val V_3D = 2
+private const val V_HEALTH = 3
 
 private val dayFormat = DateTimeFormatter.ofPattern("EEE d MMM", Locale.US)
 
@@ -124,7 +123,8 @@ fun VisionSessionScreen(id: String, initial: Int) {
     val app = LocalApp.current
     val nav = LocalNav.current
     val v = app.vision.session(id) ?: run { Page("vision") { TennisText("This session is not on the phone.", TennisTokens.Type.listPrimary) }; return }
-    val filter = remember(id) { VisionFilter() }
+    val answer = if (v.sample) app.prefs.visionSampleIdentity else null
+    val filter = remember(id, answer) { VisionFilter(firstPlayer(v, answer)) }
     PivotScreen(
         visionDay(v) + if (v.sample) " · sample" else "", VISION_PIVOTS, initial,
         onChange = { i -> nav.stack[nav.stack.lastIndex] = Screen.Vision(id, i) },
@@ -134,9 +134,7 @@ fun VisionSessionScreen(id: String, initial: Int) {
         when (i) {
             V_SUMMARY -> VisionSummary(v)
             V_COURT -> VisionCourt(v, filter)
-            V_SHOTS -> VisionShots(v, filter)
-            V_RALLIES -> VisionRallies(v)
-            V_3D -> Vision3d(v)
+            V_3D -> VisionRallyList(v)
             V_HEALTH -> VisionHealth(v)
         }
     }
@@ -269,45 +267,9 @@ fun speedColour(ms: Double?): Color {
     return lerp(TennisTokens.Colors.titleGradientEnd, TennisTokens.Colors.titleGradientStart, f)
 }
 
-@Composable
-private fun VisionShots(v: VisionSession, f: VisionFilter) {
-    val nav = LocalNav.current
-    val app = LocalApp.current
-    val zpx = LocalZpx.current
-    val answer = if (v.sample) app.prefs.visionSampleIdentity else null
-    PivotColumn {
-        VisionFilterBar(v, answer, f)
-        Spacer(Modifier.height(zpx(10f)))
-        v.shots.filter { f.keep(it) }.forEach { s ->
-            ShotRow(v, s, answer) { nav.open(Screen.VisionShot(v.id, s.rally, s.index)) }
-        }
-    }
-}
-
 fun shotLine(s: VisionShot, who: String = s.hitter) = listOfNotNull(
     s.type, who, Units.mph(s.speedContact), s.call.takeIf { it.isNotBlank() && it != "no bounce" },
 ).joinToString(" · ")
-
-@Composable
-private fun VisionRallies(v: VisionSession) {
-    val app = LocalApp.current
-    val nav = LocalNav.current
-    val zpx = LocalZpx.current
-    PivotColumn {
-        v.rallies.forEach { r ->
-            app.vision.rallyFrame(v.id, r.index)?.let { b ->
-                androidx.compose.foundation.Image(b.asImageBitmap(), "rally ${r.index}, ball path drawn", contentScale = androidx.compose.ui.layout.ContentScale.FillWidth,
-                    modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(zpx(4f)))
-            }
-            TextRow("rally ${r.index} · ${r.shots} shots", listOf("ended ${r.ending}", "fastest ${Units.mph(r.fastest)}",
-                "%.0f s".format(Locale.US, r.stop - r.start)).joinToString(" · "),
-                onLongClick = { nav.open(Screen.MissedShot(v.id, r.index)) })
-            io.github.wotworth.tennis.ui.components.SmallAction("missed a shot?") { nav.open(Screen.MissedShot(v.id, r.index)) }
-            Spacer(Modifier.height(zpx(6f)))
-        }
-    }
-}
 
 // ---------------------------------------------------------------------------------------------
 /**
@@ -316,60 +278,7 @@ private fun VisionRallies(v: VisionSession) {
  * JavaScript engine, no extra network permission, and the Metro look is easier to hold to.
  * Drag sideways to orbit, up and down to tilt; drag along the bar below to move through time.
  */
-@Composable
-private fun Vision3d(v: VisionSession) {
-    val zpx = LocalZpx.current
-    val t = TennisTokens.Vision
-    var rally by remember { mutableIntStateOf(v.rallies.firstOrNull()?.index ?: 1) }
-    var az by remember { mutableFloatStateOf(t.view3dStartAzimuthDeg) }
-    var el by remember { mutableFloatStateOf(t.view3dStartElevationDeg) }
-    var time by remember { mutableFloatStateOf(1f) }
-    val trajs = v.trajectories.filter { it.rally == rally }
-    val t0 = trajs.minOfOrNull { it.t0 } ?: 0.0
-    val t1 = trajs.maxOfOrNull { it.t0 + it.dt * (it.xyz.size - 1) } ?: 1.0
-    PivotColumn {
-        Row {
-            io.github.wotworth.tennis.ui.components.SmallAction("previous", rally > (v.rallies.firstOrNull()?.index ?: 1)) { rally = v.rallies.lastOrNull { it.index < rally }?.index ?: rally; time = 1f }
-            Spacer(Modifier.width(zpx(14f)))
-            TennisText("rally $rally of ${v.rallies.size}", TennisTokens.Type.body)
-            Spacer(Modifier.width(zpx(14f)))
-            io.github.wotworth.tennis.ui.components.SmallAction("next", rally < (v.rallies.lastOrNull()?.index ?: 1)) { rally = v.rallies.firstOrNull { it.index > rally }?.index ?: rally; time = 1f }
-        }
-        Spacer(Modifier.height(zpx(6f)))
-        Canvas(Modifier.fillMaxWidth().height(zpx(t.view3dHeight)).pointerInput(Unit) {
-            detectDragGestures { _, d -> az -= d.x * 0.3f; el = (el + d.y * 0.2f).coerceIn(5f, 85f) }
-        }) {
-            val cam = Orbit(az.toDouble(), el.toDouble(), t.view3dDistanceM.toDouble(), size.width, size.height)
-            val line = TennisTokens.Colors.primary.copy(alpha = t.lineAlpha)
-            Court.lines.forEach { l -> seg(cam, line, doubleArrayOf(l[0], l[1], 0.0), doubleArrayOf(l[2], l[3], 0.0), 1.5f) }
-            seg(cam, TennisTokens.Colors.primary, doubleArrayOf(0.0, -Court.POST_Y, Court.NET_POST), doubleArrayOf(0.0, 0.0, Court.NET_CENTRE), 2f)
-            seg(cam, TennisTokens.Colors.primary, doubleArrayOf(0.0, 0.0, Court.NET_CENTRE), doubleArrayOf(0.0, Court.POST_Y, Court.NET_POST), 2f)
-            for (y in listOf(-Court.POST_Y, Court.POST_Y)) seg(cam, TennisTokens.Colors.primary, doubleArrayOf(0.0, y, 0.0), doubleArrayOf(0.0, y, Court.NET_POST), 2f)
-            val now = t0 + (t1 - t0) * time
-            trajs.forEach { tr ->
-                val n = ((now - tr.t0) / tr.dt).toInt().coerceIn(-1, tr.xyz.size - 1)
-                if (n < 1) return@forEach
-                val path = Path()
-                for (i in 0..n) cam.screen(tr.xyz[i])?.let { if (i == 0) path.moveTo(it.x, it.y) else path.lineTo(it.x, it.y) }
-                drawPath(path, TennisTokens.Colors.titleGradientStart, style = Stroke(2.2f * density))
-                if (now <= tr.t0 + tr.dt * (tr.xyz.size - 1)) cam.screen(tr.xyz[n])?.let { drawCircle(TennisTokens.Colors.primary, 4f * density, it) }
-            }
-        }
-        Spacer(Modifier.height(zpx(8f)))
-        Canvas(Modifier.fillMaxWidth().height(zpx(t.scrubberHeight)).pointerInput(Unit) {
-            detectDragGestures { c, _ -> time = (c.position.x / size.width).coerceIn(0f, 1f) }
-        }.pointerInput(Unit) { detectTapGestures { p -> time = (p.x / size.width).coerceIn(0f, 1f) } }) {
-            val y = size.height / 2
-            drawLine(TennisTokens.Colors.disabled, Offset(0f, y), Offset(size.width, y), strokeWidth = 2f * density)
-            drawLine(TennisTokens.Colors.primary, Offset(0f, y), Offset(size.width * time, y), strokeWidth = 2f * density)
-            drawRect(TennisTokens.Colors.primary, Offset(size.width * time - 4 * density, y - 10 * density),
-                androidx.compose.ui.geometry.Size(8 * density, 20 * density))
-        }
-        TennisText("Drag the court to turn it; drag the bar to replay.", TennisTokens.Type.listSecondary)
-    }
-}
-
-private class Orbit(azDeg: Double, elDeg: Double, r: Double, val w: Float, val h: Float) {
+internal class Orbit(azDeg: Double, elDeg: Double, r: Double, val w: Float, val h: Float) {
     private val a = Math.toRadians(azDeg); private val e = Math.toRadians(elDeg)
     private val eye = doubleArrayOf(r * cos(e) * cos(a), r * cos(e) * sin(a), r * sin(e))
     private val fwd = norm(doubleArrayOf(-eye[0], -eye[1], -eye[2] + 1.0))
@@ -386,7 +295,7 @@ private class Orbit(azDeg: Double, elDeg: Double, r: Double, val w: Float, val h
     private fun norm(a: DoubleArray): DoubleArray { val n = Math.sqrt(dot(a, a)); return doubleArrayOf(a[0] / n, a[1] / n, a[2] / n) }
 }
 
-private fun DrawScope.seg(cam: Orbit, c: Color, a: DoubleArray, b: DoubleArray, wDp: Float) {
+internal fun DrawScope.seg(cam: Orbit, c: Color, a: DoubleArray, b: DoubleArray, wDp: Float) {
     val p = cam.screen(a) ?: return; val q = cam.screen(b) ?: return
     drawLine(c, p, q, strokeWidth = wDp * density)
 }

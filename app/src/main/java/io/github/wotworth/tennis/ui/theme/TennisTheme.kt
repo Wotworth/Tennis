@@ -43,7 +43,8 @@ fun toneColor(tone: TennisTokens.Tone): Color = when (tone) {
 }
 
 fun applyCase(text: String, case: TennisTokens.Case): String = when (case) {
-    TennisTokens.Case.Lowercase -> text.lowercase()
+    // a word of digits and capitals ("3D", Chris 17 Nov) keeps its capitals
+    TennisTokens.Case.Lowercase -> text.split(" ").joinToString(" ") { if (Regex("^\\d+[A-Z]+$").matches(it)) it else it.lowercase() }
     TennisTokens.Case.Uppercase -> text.uppercase()
     TennisTokens.Case.AsTagged -> text
 }

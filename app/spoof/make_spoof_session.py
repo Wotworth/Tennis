@@ -253,7 +253,8 @@ for s in shots:
     trajs.append({'rally': s['rally'], 'shot': s['index'], 't0': s['t'], 'dt': 0.01, 'xyz': xyz, 'noSpin': no, 'dtNoSpin': 0.02})
 
 # ---------------------------------------------------------------------------------------------
-# heart rate: a sample every few seconds, rallies higher; averages tuned odd. The time-in-zone
+# heart rate: a sample every few seconds, rallies higher; every sample odd (17 Nov: each rally's
+# highest and lowest readings are shown) and the averages tuned odd. The time-in-zone
 # minutes depend on the birth year set on the phone (the max heart rate), so they are not tuned.
 end = rallies[-1]['stop'] + 31.0
 if round(end / 60.0) % 2 == 0: end += 60.0          # the chart's length in minutes: odd
@@ -264,7 +265,7 @@ gap = (rallies[8]['stop'] + 3, rallies[8]['stop'] + 113)       # one gap over a 
 while tt <= end:
     if not (gap[0] < tt < gap[1]):
         inr = any(r['start'] <= tt <= r['stop'] for r in rallies)
-        b = (139 if inr else 121) + rng.randint(-9, 9)
+        b = ((139 if inr else 121) + rng.randint(-9, 9)) | 1
         hr.append({'t': round(tt, 1), 'bpm': b})
     tt += rng.choice([3.0, 3.5, 4.5, 5.0])
 if hr[-1]['t'] < end: hr.append({'t': end, 'bpm': 119})
@@ -286,14 +287,15 @@ for _ in range(400):
     a, mx, i_, o_ = hr_summary()
     if a % 2 and mx % 2 and i_ % 2 and o_ % 2: break
     if mx % 2 == 0:
-        top = max(hr, key=lambda h: h['bpm']); top['bpm'] += 1; continue
+        top = max(hr, key=lambda h: h['bpm']); top['bpm'] += 2; continue
     # nudge one sample in or out of rallies by one beat
     inr = lambda h: any(r['start'] <= h['t'] <= r['stop'] for r in rallies)
     pool = [h for h in hr if inr(h) == (i_ % 2 == 0)] if (i_ % 2 == 0 or o_ % 2 == 0) else hr
     h = rng.choice(pool)
-    if h['bpm'] < mx - 2: h['bpm'] += 1
+    if h['bpm'] < mx - 3: h['bpm'] += 2
 a, mx, i_, o_ = hr_summary()
 assert a % 2 and mx % 2 and i_ % 2 and o_ % 2, (a, mx, i_, o_)
+assert all(h['bpm'] % 2 for h in hr)
 
 # ---------------------------------------------------------------------------------------------
 # session minutes and the heart-rate chart's minutes must be odd too
