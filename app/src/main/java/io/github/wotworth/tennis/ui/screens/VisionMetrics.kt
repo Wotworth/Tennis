@@ -40,26 +40,32 @@ private class Figure(val group: String, val label: String, val unit: Unit, val g
     fun axis(x: Double): String = if (unit == Unit.FT && kotlin.math.abs(x) < 10) "%.1f".format(java.util.Locale.US, x) else "${x.roundToInt()}"
 }
 
+// Chris, 17 Nov: in this order
 private val FIGURES = listOf(
+    Figure("accuracy", "shots in, not serves", Unit.PCT) { it.inPct?.toDouble() },
+    Figure("accuracy", "depth inside the baseline", Unit.FT) { it.depth },
+    Figure("serves", "in", Unit.PCT) { it.serveInPct?.toDouble() },
+    Figure("serves", "speed", Unit.MPH) { it.serveSpeed },
+    Figure("serves", "spin, ft shorter", Unit.FT) { it.serveSpin },
     Figure("topspin", "forehand, ft shorter", Unit.FT) { it.topspinForehand },
     Figure("topspin", "backhand, ft shorter", Unit.FT) { it.topspinBackhand },
     Figure("speed", "forehand", Unit.MPH) { it.speedForehand },
     Figure("speed", "backhand", Unit.MPH) { it.speedBackhand },
-    Figure("serves", "in", Unit.PCT) { it.serveInPct?.toDouble() },
-    Figure("serves", "speed", Unit.MPH) { it.serveSpeed },
-    Figure("serves", "spin, ft shorter", Unit.FT) { it.serveSpin },
-    Figure("accuracy", "shots in, not serves", Unit.PCT) { it.inPct?.toDouble() },
-    Figure("accuracy", "depth inside the baseline", Unit.FT) { it.depth },
 )
 
-private data class History(val now: SessionMetrics, val avg: SessionMetrics?, val points: List<Pair<Long, SessionMetrics>>)
+/** This session's figures, the average of all earlier sessions, of the last [RECENT] of them (when there are more), and the points. */
+private data class History(val now: SessionMetrics, val avg: SessionMetrics?, val recent: SessionMetrics?, val points: List<Pair<Long, SessionMetrics>>)
+
+/** Chris, 17 Nov: "your average" is shown two ways: all earlier sessions, and the last 10. */
+private const val RECENT = 10
 
 @Composable
 private fun history(v: VisionSession, me: String): History {
     val app = LocalApp.current
     val day = sessionDay(v)
-    val earlier = app.vision.trends(v.sample).filter { it.epochDay < day }.mapNotNull { p -> p.metrics?.let { p.epochDay to it } }
-    return History(SessionMetrics.of(v, me), earlier.takeIf { it.isNotEmpty() }?.let { SessionMetrics.average(it.map { e -> e.second }) }, earlier)
+    val earlier = app.vision.trends(v.sample).filter { it.epochDay < day }.mapNotNull { p -> p.metrics?.let { p.epochDay to it } }.sortedBy { it.first }
+    return History(SessionMetrics.of(v, me), earlier.takeIf { it.isNotEmpty() }?.let { SessionMetrics.average(it.map { e -> e.second }) },
+        earlier.takeIf { it.size > RECENT }?.let { SessionMetrics.average(it.takeLast(RECENT).map { e -> e.second }) }, earlier)
 }
 
 /** The summary's key figures: this session's, against the average of the earlier ones. */
@@ -68,7 +74,8 @@ fun KeyFigures(v: VisionSession, me: String) {
     val zpx = LocalZpx.current
     val h = history(v, me)
     TennisText(if (h.avg == null) "Your first session: from the next one on, each figure is compared with your average."
-        else "This session against the average of your earlier sessions.", TennisTokens.Type.listSecondary)
+        else "This session against the average of all your earlier sessions" + (if (h.recent != null) ", and of the last ten." else "."),
+        TennisTokens.Type.listSecondary)
     FIGURES.groupBy { it.group }.forEach { (group, figs) ->
         SectionHeader(group)
         figs.chunked(2).forEach { row ->
@@ -88,6 +95,7 @@ fun KeyFigures(v: VisionSession, me: String) {
                                 else -> "below"
                             }
                             TennisText("$word your average, $a", TennisTokens.Type.listSecondary, maxLines = 2)
+                            h.recent?.let { f.get(it) }?.let { r -> TennisText("last ten: ${f.show(r)}", TennisTokens.Type.listSecondary, maxLines = 1) }
                         }
                     }
                 }
@@ -112,14 +120,15 @@ fun SessionTrends(v: VisionSession, me: String?) {
         val day = sessionDay(v)
         val racquet = d.racquet(app.prefs.selectedRacquet ?: -1) ?: d.active.firstOrNull()
         val jobs = d.jobs.filter { it.racquetId == racquet?.id }
-        TennisText("Each session's figure; this one in green." + (racquet?.let { " Dashed: restrings of ${it.name}, with the tension." } ?: ""), TennisTokens.Type.listSecondary)
+        TennisText("Each session's figure; this one in green. Grey: the average of the last ten sessions at each point, so you can see which way it's heading." +
+            (racquet?.let { " Dashed: restrings of ${it.name}, with the tension." } ?: ""), TennisTokens.Type.listSecondary)
         FIGURES.groupBy { it.group }.forEach { (group, figs) ->
             SectionHeader(group)
             figs.forEach { f ->
                 val pts = (h.points.mapNotNull { (dd, m) -> f.get(m)?.let { dd to f.shown(it) } } +
                     listOfNotNull(f.get(h.now)?.let { day to f.shown(it) })).sortedBy { it.first }
                 if (pts.size >= 2) {
-                    TrendChart(f.label, pts, jobs, highlight = day, format = { x -> f.axis(x) }, caption = false)
+                    TrendChart(f.label, pts, jobs, highlight = day, format = { x -> f.axis(x) }, caption = false, rollingAverage = RECENT)
                     Spacer(Modifier.height(zpx(10f)))
                 }
             }

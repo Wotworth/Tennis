@@ -460,7 +460,8 @@ fun VisionTrends() {
 
 @Composable
 internal fun TrendChart(title: String, pts: List<Pair<Long, Double>>, jobs: List<io.github.wotworth.tennis.data.StringJob>,
-                        highlight: Long? = null, format: (Double) -> String = { "%.1f".format(Locale.US, it) }, caption: Boolean = true) {
+                        highlight: Long? = null, format: (Double) -> String = { "%.1f".format(Locale.US, it) }, caption: Boolean = true,
+                        rollingAverage: Int = 0) {
     val zpx = LocalZpx.current
     val measurer = androidx.compose.ui.text.rememberTextMeasurer()
     val small = io.github.wotworth.tennis.ui.theme.textStyleFor(TennisTokens.Type.listSecondary)
@@ -486,6 +487,15 @@ internal fun TrendChart(title: String, pts: List<Pair<Long, Double>>, jobs: List
         val path = Path()
         pts.forEachIndexed { i, (day, v) -> if (i == 0) path.moveTo(x(day), y(v)) else path.lineTo(x(day), y(v)) }
         drawPath(path, TennisTokens.Colors.primary, style = Stroke(2f * density))
+        if (rollingAverage > 1 && pts.size > 2) {
+            // the average of the last [rollingAverage] points at each point (Chris, 17 Nov): which way it's heading
+            val avg = Path()
+            pts.forEachIndexed { i, (day, _) ->
+                val m = pts.subList(maxOf(0, i - rollingAverage + 1), i + 1).map { it.second }.average()
+                if (i == 0) avg.moveTo(x(day), y(m)) else avg.lineTo(x(day), y(m))
+            }
+            drawPath(avg, TennisTokens.Colors.secondary, style = Stroke(2.5f * density))
+        }
         pts.forEach { (day, v) ->
             if (day == highlight) drawCircle(TennisTokens.Colors.me, 6f * density, Offset(x(day), y(v)))
             else drawCircle(TennisTokens.Colors.primary, 3f * density, Offset(x(day), y(v)))

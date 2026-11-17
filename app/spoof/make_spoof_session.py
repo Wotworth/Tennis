@@ -229,8 +229,10 @@ assert not odd_counts(), odd_counts()
 def rhu(x): return int(math.floor(x + 0.5))
 def mph_s(ms): return str(rhu(ms * MPH))
 def ft_s(m):
+    # as the app's String.format: Java rounds the shortest decimal form half up (2.15 -> 2.2)
+    from decimal import Decimal, ROUND_HALF_UP
     v = m * FT
-    return '%.1f' % v if abs(v) < 10 else str(rhu(v))
+    return str(Decimal(repr(v)).quantize(Decimal('0.1'), rounding=ROUND_HALF_UP)) if abs(v) < 10 else str(rhu(v))
 def odd_s(t): return int(t[-1]) % 2 == 1
 def mean(xs): return sum(xs) / len(xs) if xs else None
 def median(xs):
@@ -403,27 +405,16 @@ session = {
                            {'reason': 'implausible flight', 'n': 1}]},
 }
 
-# trends: eleven made-up sessions; the chart labels (max x 1.1 and min x 0.85, one decimal) odd
+# trends: seventeen made-up sessions, the last on this session's day (16 earlier: more than the
+# ten the summary's second average takes); every value odd, so the charts' labels (lowest and
+# highest value) are too
 trend = {'synthetic': True, 'note': 'SPOOF trend: made-up numbers, none of them even.', 'sessions': []}
-day0 = 20741
-for i in range(11):
-    trend['sessions'].append({'epochDay': day0 + 3 * i + (i % 3), 'forehandSpinEffect': -m_from_ft(odd4(53, 97) / 10.0),
+N_TREND = 17
+for i in range(N_TREND):
+    k = N_TREND - 1 - i
+    trend['sessions'].append({'epochDay': 20772 - 3 * k - (k % 3), 'forehandSpinEffect': -m_from_ft(odd4(53, 97) / 10.0),
                               'forehandDepth': m_from_ft(odd4(41, 89) / 10.0), 'shots': odd4(101, 197)})
 
-
-def chart_ok(vals):
-    hi = max(vals) * 1.1; lo = min(vals) * 0.85
-    return int(('%.1f' % hi)[-1]) % 2 == 1 and int(('%.1f' % lo)[-1]) % 2 == 1
-
-
-for key, f in (('forehandSpinEffect', lambda v: -v * FT), ('forehandDepth', lambda v: v * FT)):
-    for _ in range(500):
-        vals = [f(s[key]) for s in trend['sessions']]
-        if chart_ok(vals): break
-        j = rng.randrange(11)
-        sign = -1 if key == 'forehandSpinEffect' else 1
-        trend['sessions'][j][key] = sign * m_from_ft(odd4(41, 97) / 10.0)
-    assert chart_ok([f(s[key]) for s in trend['sessions']]), key
 
 # key figures of the earlier sessions (every trend point before this session's day): each
 # value shown odd, and their averages (what the summary compares with) odd too
@@ -436,18 +427,20 @@ def hist_value(kind, lo, hi):
 earlier = [p for p in trend['sessions'] if p['epochDay'] < 20772]
 for p in earlier:
     p['metrics'] = {k: hist_value(*r) for k, r in RANGES.items()}
-def avg_shown(k):
-    vals = [p['metrics'][k] for p in earlier]
+def avg_shown(k, last=None):
+    vals = [p['metrics'][k] for p in (earlier[-last:] if last else earlier)]
     kind = RANGES[k][0]
     if kind == 'pct': return str(rhu(sum(vals) / len(vals)))
     return ft_s(sum(vals) / len(vals)) if kind == 'ft' else mph_s(sum(vals) / len(vals))
+# both averages the summary shows (Chris, 17 Nov): all earlier sessions, and the last ten
+assert len(earlier) > 10, len(earlier)
 for k, (kind, lo, hi) in RANGES.items():
-    for _ in range(500):
-        if odd_s(avg_shown(k)): break
-        p = rng.choice(earlier)
-        step = m_from_ft(0.2) if kind == 'ft' else ms_from_mph(2) if kind == 'mph' else 2
-        p['metrics'][k] += rng.choice([-1, 1]) * step
-    assert odd_s(avg_shown(k)), k
+    step = m_from_ft(0.2) if kind == 'ft' else ms_from_mph(2) if kind == 'mph' else 2
+    for _ in range(2000):
+        if odd_s(avg_shown(k, 10)) and odd_s(avg_shown(k)): break
+        pool = earlier[-10:] if not odd_s(avg_shown(k, 10)) else earlier[:-10]
+        rng.choice(pool)['metrics'][k] += rng.choice([-1, 1]) * step
+    assert odd_s(avg_shown(k, 10)) and odd_s(avg_shown(k)), k
 
 # ball check: an odd number of frames
 checks = json.load(open(os.path.join(OUT, 'checks.json')))
