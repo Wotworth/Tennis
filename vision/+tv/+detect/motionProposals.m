@@ -40,6 +40,7 @@ for ty = 1:T:H
         M(ty:y1, tx:x1) = t(ty - Y0 + 1:ty - Y0 + 1 + y1 - ty, tx - X0 + 1:tx - X0 + 1 + x1 - tx);
     end
 end
+M([1:ey, end - ey + 1:end], :) = 0;  M(:, [1:ex, end - ex + 1:end]) = 0;
 B = imclose(M > tau, true(3)) & mask;
 cc = bwconncomp(B, 8);
 C = zeros(0, 6);

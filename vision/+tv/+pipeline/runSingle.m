@@ -42,6 +42,7 @@ d = struct('overlayBoxes', zeros(0, 4), 'lineOpts', struct('minContrast', 20, 'm
            'playerHz', 2, 'clipOpts', struct(), 'hfovStart', 65, 'wholeFile', false, 'bounceMinPx', 1.5, ...
            'detectOpts', struct(), 'clipList', [], 'detectOnly', false, 'stillMps', 1.5, 'stillWindowS', 0.25, ...
            'bounceSkipHits', true, 'personMinArea', 1500, 'hitReach', 0.6, 'bounceMergeS', 0.3, ...
+           'detector', 'classical', 'ballNetFile', '', 'precomputed', '', 'chainOpts', struct(), ...
            'steady', true, 'steadyMaxPx', 40, 'windowS', 30, 'maxWindows', 0, 'maxJerkPx', 0, 'pointGapS', 4, 'pointMinS', 1.5, 'dropPlayerTracks', true, 'playerTrackStepS', 1 / 6, ...
            'playerTrackShare', 1, 'follow', true, 'followOpts', struct());
 fn = fieldnames(d);
@@ -61,8 +62,20 @@ if s.detectOnly
     detectAll(rec, C.clips, K, cfg, s, outDir);  R = [];  return
 end
 s.clipList = [];
-D = tv.pipeline.stage(outDir, 'detect', k(C.clips, s.overlayBoxes, cfg.court, K.cam.pos, s.detectOpts, s.steady, s.steadyMaxPx), @() detectAll(rec, C.clips, K, cfg, s, outDir));
-[D, nStill] = dropStillTracks(D, rec, K, cfg, s);
+learned = strcmp(s.detector, 'learned');
+if learned
+    % TV-DET-04 (brought forward, 18 Nov): colour-free motion proposals, the learned classifier,
+    % and the ball's path as the best chain of scored detections. None of the rule stages below
+    % (still balls, racquets, steered search, jumps, frame edge) are needed: each was a patch on
+    % the colour detector's mistakes
+    D = tv.pipeline.stage(outDir, 'detect', k(C.clips, s.overlayBoxes, cfg.court, K.cam.pos, 'learned', s.ballNetFile, s.precomputed, s.chainOpts), ...
+        @() detectLearned(rec, C.clips, K, cfg, s, outDir));
+    s.dropPlayerTracks = false;  s.follow = false;  s.maxJerkPx = 0;
+    nStill = 0;
+else
+    D = tv.pipeline.stage(outDir, 'detect', k(C.clips, s.overlayBoxes, cfg.court, K.cam.pos, s.detectOpts, s.steady, s.steadyMaxPx), @() detectAll(rec, C.clips, K, cfg, s, outDir));
+    [D, nStill] = dropStillTracks(D, rec, K, cfg, s);
+end
 nAtPlayer = 0;  PO = struct('frames', zeros(0, 1), 'raw', {{}});
 if s.dropPlayerTracks || s.bounceSkipHits
     PO = tv.pipeline.stage(outDir, 'outlines', k(C.clips, K.cam.pos, s.steady, s.steadyMaxPx, s.personMinArea, s.playerTrackStepS, 'clipbg'), ...
@@ -96,7 +109,7 @@ end
 % steadying fills the strip a shift uncovers with the frame's border, and that strip moves: tracks
 % that stay within s.steadyMaxPx of the frame's edge are dropped (Chris's clay video, 17 Nov)
 nEdge = 0;
-if s.steady
+if s.steady && ~learned
     for r = 1:numel(D.tracks)
         t = D.tracks{r};
         if isempty(t), continue; end
@@ -104,7 +117,7 @@ if s.steady
         D.tracks{r} = t(~e);  nEdge = nEdge + nnz(e);
     end
 end
-B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS, s.bounceSkipHits, s.personMinArea, s.hitReach, s.bounceMergeS, 'clipbg', 'ownpts', 'dbl', 'edge', s.maxJerkPx, s.steady, s.follow, s.followOpts, s.dropPlayerTracks, s.playerTrackStepS, s.playerTrackShare, 3), @() findBounces(rec, D, K, s, PO));
+B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS, s.bounceSkipHits, s.personMinArea, s.hitReach, s.bounceMergeS, 'clipbg', 'ownpts', 'dbl', 'edge', s.detector, s.maxJerkPx, s.steady, s.follow, s.followOpts, s.dropPlayerTracks, s.playerTrackStepS, s.playerTrackShare, 3), @() findBounces(rec, D, K, s, PO));
 PT = struct('points', zeros(0, 2));
 if s.wholeFile
     PT = tv.pipeline.stage(outDir, 'points', k(B.bounces, s.pointGapS, s.pointMinS, numel(D.tracks), cellfun(@numel, D.tracks)), @() findPoints(rec, D, s));
@@ -258,6 +271,49 @@ F = zeros(rec.height, rec.width, 3, n, 'uint8');
 for j = 1:n
     k = find(idx == want(j), 1, 'last');
     if ~isempty(k), F(:, :, :, j) = store{k}; end
+end
+end
+
+function D = detectLearned(rec, clips, K, cfg, s, outDir)
+% per clip: proposals, classifier scores and chains, in the empty court's pixels. With
+% s.precomputed, the same detector's results are read from clip_NNN.csv there (columns frame, x,
+% y, score, area, length, width, dmin, dmax, du, dv: x and y in the frame's own pixels, du and dv
+% its shift against the empty court as tv.calib.steady gives it); otherwise worked out here.
+S = tv.detect.ballSizeMap(K.cam, tv.court.interest(cfg.court));
+ov = blank(ones(rec.height, rec.width), s.overlayBoxes) ~= 1;
+S.mask = S.mask & ~ov;  S.dmax(ov) = 0;
+net = [];
+D.candidates = cell(size(clips, 1), 1);  D.tracks = cell(size(clips, 1), 1);
+for r = 1:size(clips, 1)
+    f0 = clips(r, 1);  f1 = clips(r, 2);
+    pc = fullfile(s.precomputed, sprintf('clip_%03d.csv', r));
+    if ~isempty(s.precomputed) && exist(pc, 'file')
+        A = dlmread(pc, ',', 1, 0);
+    else
+        if isempty(net), net = tv.detect.loadBallNet(s.ballNetFile); end
+        A = zeros(0, 11);  K2 = 2;
+        for a = f0:30:f1
+            first = max(0, a - K2);  n = min(30 + 2 * K2, rec.nFrames - first);
+            F = tv.media.readFrames(rec, first, n);
+            for t = a:min(a + 29, f1)
+                j = t - first + 1;
+                if j - K2 < 1 || j + K2 > size(F, 4), continue; end
+                cur = F(:, :, :, j);
+                C = tv.detect.motionProposals(F(:, :, :, j - K2), cur, F(:, :, :, j + K2), S);
+                if isempty(C), continue; end
+                prev = tv.calib.steady(F(:, :, :, j - K2), double(cur));  nxt = tv.calib.steady(F(:, :, :, j + K2), double(cur));
+                ix = sub2ind(size(S.dmax), min(max(round(C(:, 2)), 1), rec.height), min(max(round(C(:, 1)), 1), rec.width));
+                M = [S.dmin(ix), S.dmax(ix)];
+                p = tv.detect.ballNet(net, tv.detect.ballCrops(prev, cur, nxt, C), M);
+                [~, d] = tv.calib.steady(cur, K.bg, s.steadyMaxPx);
+                A = [A; repmat(t, size(C, 1), 1), C(:, 1:2), p(:), C(:, 3:5), M, repmat(d, size(C, 1), 1)]; %#ok<AGROW>
+            end
+        end
+    end
+    % into the empty court's pixels (where the camera fit and the bounce and player code work)
+    rows = [A(:, 1), A(:, 2) - A(:, 10), A(:, 3) - A(:, 11), A(:, 4), A(:, 8:9)];
+    D.candidates{r} = rows;
+    [D.tracks{r}, ~] = tv.track.chains(rows(rows(:, 4) > 0.05, :), s.chainOpts);
 end
 end
 
