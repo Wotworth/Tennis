@@ -1,6 +1,6 @@
 # Footage test 2: your unedited clay-court video (18 Nov)
 
-Release: RELEASE_LINK. In the app: Sessions → **Clay, iPhone** (the only footage test now; the two earlier ones are gone, as you asked).
+Release: [v0.6.36](https://github.com/Wotworth/Tennis/releases/tag/v0.6.36). In the app: Sessions → **Clay, iPhone** (the only footage test now; the two earlier ones are gone, as you asked).
 
 **What ran.**
 - **The stretch:** 6 minutes from the middle of your 85-minute recording (36:00–42:00). I first planned 15; I cut it to 6 so it would finish within the hour you asked for.
@@ -61,8 +61,15 @@ Release: RELEASE_LINK. In the app: Sessions → **Clay, iPhone** (the only foota
 
 ## What CI proved
 
-CI_PROVED
+- **Build and release (run 44220976324): passed.** The app built, its unit and screenshot tests passed, and the release is published.
+- **The tests cover:** only the clay test ships, it loads, and its pages render.
+- **Vision tests (MATLAB) on the pipeline changes:** still running at the time of writing.
+- **Checked in this session:** the steadying, still-ball, racquet and steered-search unit tests pass.
 
 ## On your phone
 
-PHONE_STEPS
+1. Install v0.6.36, then open **Sessions**. There is one footage tile, **Clay, iPhone · 9 rallies**; the two earlier iPhone tiles are gone.
+2. On **summary**, check the tiles, including "rallies, 6:00".
+3. Swipe to **court**: the red lines should sit on the tape.
+4. Swipe to **ball** and go through the 10 frames. The players should be pixelated, and frame 3 shows the lob.
+5. In the sample session, tap a serve: its spin should read kick, slice or flat.
