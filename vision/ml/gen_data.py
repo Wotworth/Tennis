@@ -49,26 +49,27 @@ def resample(img, cx, cy, side, n=None):
 
 
 def crop_batch(F, xs, ys, scs):
-    """crop() for many spots of one frame triple at once (same numbers, far fewer Python calls):
-    returns (n, 3, S, S, 3) uint8."""
+    """crop() for many spots of one frame triple at once: (n, 3, S, S, 3) uint8. The same bilinear,
+    edge-clamped sampling (torch's grid_sample, in single precision: a pixel in a few thousand can
+    differ by one level from crop()), about 30 times faster than one cut at a time."""
+    import torch, torch.nn.functional as TF
     n_ = len(xs); out = np.zeros((n_, 3, S, S, 3), np.uint8)
+    if n_ == 0: return out
     sides = np.array([side_of(q) for q in scs]); h, w = F[0].shape[:2]
+    T = [torch.from_numpy(np.array(f)).permute(2, 0, 1)[None].float() for f in F]
     for ss in (1, 2):
         k = np.nonzero((sides > S) == (ss == 2))[0]
         if not len(k): continue
         g = S * ss
         o = ((np.arange(g) + 0.5) / g - 0.5)[None, :] * sides[k, None]
         u = np.clip(np.asarray(xs, float)[k, None] + o, 0, w - 1); v = np.clip(np.asarray(ys, float)[k, None] + o, 0, h - 1)
-        u0 = np.floor(u).astype(int); v0 = np.floor(v).astype(int)
-        u1 = np.minimum(u0 + 1, w - 1); v1 = np.minimum(v0 + 1, h - 1)
-        fu = (u - u0)[:, None, :, None]; fv = (v - v0)[:, :, None, None]
+        gx = torch.from_numpy((2 * u + 1) / w - 1).float(); gy = torch.from_numpy((2 * v + 1) / h - 1).float()
+        grid = torch.stack([gx[:, None, :].expand(-1, g, -1), gy[:, :, None].expand(-1, -1, g)], dim=3)
         for f in range(3):
-            img = F[f]
-            a = img[v0[:, :, None], u0[:, None, :]].astype(np.float64); b = img[v0[:, :, None], u1[:, None, :]].astype(np.float64)
-            c = img[v1[:, :, None], u0[:, None, :]].astype(np.float64); d = img[v1[:, :, None], u1[:, None, :]].astype(np.float64)
-            r = (a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv
-            if ss > 1: r = r.reshape(len(k), S, ss, S, ss, -1).mean(axis=(2, 4))
-            out[k, f] = np.clip(r + 0.5, 0, 255).astype(np.uint8)
+            for j in range(0, len(k), 256):
+                r = TF.grid_sample(T[f].expand(len(k[j:j + 256]), -1, -1, -1), grid[j:j + 256], mode='bilinear', padding_mode='border', align_corners=False)
+                if ss > 1: r = TF.avg_pool2d(r, ss)
+                out[k[j:j + 256], f] = (r + 0.5).clamp(0, 255).permute(0, 2, 3, 1).to(torch.uint8).numpy()
     return out
 
 

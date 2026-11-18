@@ -56,6 +56,32 @@ class BallNet(nn.Module):
         return self.head(torch.cat([c, g, m], dim=1)).squeeze(1)
 
 
+class PreNet(nn.Module):
+    """The first pass (round 4): the same kind of network, 40 times cheaper, on the middle 24 x 24
+    of each cut and with no colour whatever the main input. It only throws out spots that are
+    plainly not a ball; the threshold is set so that 99.8% of the ball examples pass, and what
+    passes goes to the full classifier."""
+    def __init__(self):
+        super().__init__()
+        def block(i, o):
+            return nn.Sequential(nn.Conv2d(i, o, 3, padding=1), nn.BatchNorm2d(o), nn.ReLU(inplace=True))
+        self.f = nn.Sequential(block(5, 12), nn.MaxPool2d(2), block(12, 16), nn.MaxPool2d(2), block(16, 16))   # 24 -> 6
+        self.head = nn.Sequential(nn.Linear(16 * 2 + 2, 16), nn.ReLU(inplace=True), nn.Linear(16, 1))
+
+    def forward(self, x, m):
+        z = self.f(x)
+        c = z[:, :, 2:4, 2:4].mean(dim=(2, 3)); g = z.amax(dim=(2, 3))
+        return self.head(torch.cat([c, g, m], dim=1)).squeeze(1)
+
+
+def prepare_pre(X, M):
+    """The first pass's input: the middle 24 x 24 of each cut, prepared without colour."""
+    global INPUT
+    keep = INPUT; INPUT = 'grey'
+    try: return prepare(np.ascontiguousarray(X[:, :, 12:36, 12:36]), M)
+    finally: INPUT = keep
+
+
 def augment(X, rng):
     """Light and court-colour changes, flips, a little noise: the classifier must not learn any
     one court's colours or any one light."""
