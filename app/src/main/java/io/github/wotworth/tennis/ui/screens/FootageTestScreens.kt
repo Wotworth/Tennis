@@ -212,8 +212,8 @@ private fun TestBall(t: FootageTest) {
             .pointerInput(t.id) { detectTapGestures(onDoubleTap = { zoom = 1f; pan = Offset.Zero }) }
             .pointerInput(t.id, t.frames.size) {
                 awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    var dx = 0f;  var dy = 0f;  var sideways = false;  var pinched = false
+                    val first = awaitFirstDown(requireUnconsumed = false)
+                    var dx = 0f;  var dy = 0f;  var sideways = false;  var pinched = false;  var panning = false
                     while (true) {
                         val e = awaitPointerEvent()
                         if (e.changes.none { it.pressed }) break
@@ -230,8 +230,12 @@ private fun TestBall(t: FootageTest) {
                         }
                         val c = e.changes.first { it.pressed };  val d = c.position - c.previousPosition
                         if (zoom > 1f) {
-                            pan = Offset((pan.x + d.x).coerceIn(size.width * (1 - zoom), 0f), (pan.y + d.y).coerceIn(size.height * (1 - zoom), 0f))
-                            c.consume()
+                            // past the touch slop only, so a double-tap with a little movement still zooms out
+                            if (!panning && (c.position - first.position).getDistance() > viewConfiguration.touchSlop) panning = true
+                            if (panning) {
+                                pan = Offset((pan.x + d.x).coerceIn(size.width * (1 - zoom), 0f), (pan.y + d.y).coerceIn(size.height * (1 - zoom), 0f))
+                                c.consume()
+                            }
                         } else if (!pinched) {
                             dx += d.x;  dy += d.y
                             if (!sideways && kotlin.math.abs(dx) > viewConfiguration.touchSlop && kotlin.math.abs(dx) > kotlin.math.abs(dy)) sideways = true

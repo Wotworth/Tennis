@@ -266,21 +266,26 @@ fun CourtMapV2(v: VisionSession, shots: List<VisionShot>, answer: String?, bySpi
     }
     val pinch = Modifier.pointerInput(Unit) {
         awaitEachGesture {
-            awaitFirstDown(requireUnconsumed = false)
+            val first = awaitFirstDown(requireUnconsumed = false)
+            // a finger moves a few pixels during a tap: it pans only once it has gone past the
+            // touch slop, so a tap on a bounce still opens its shot when zoomed in (Chris, 18 Nov)
+            var panning = false
             while (true) {
                 val e = awaitPointerEvent()
                 if (e.changes.none { it.pressed }) break
                 if (e.changes.count { it.pressed } < 2) {
                     if (zoom > 1f) {
                         val c = e.changes.first { it.pressed }
+                        if (!panning && (c.position - first.position).getDistance() > viewConfiguration.touchSlop) panning = true
                         val d = c.position - c.previousPosition
-                        if (d != Offset.Zero) {
+                        if (panning && d != Offset.Zero) {
                             pan = Offset((pan.x + d.x).coerceIn(size.width * (1 - zoom), 0f), (pan.y + d.y).coerceIn(size.height * (1 - zoom), 0f))
                             c.consume()
                         }
                     }
                     continue
                 }
+                panning = true
                 val z = e.calculateZoom();  val c = e.calculateCentroid(useCurrent = true);  val d = e.calculatePan()
                 val nz = (zoom * z).coerceIn(1f, t.courtMaxZoom)
                 val k = nz / zoom
