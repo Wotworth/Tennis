@@ -13,14 +13,14 @@ X = permute(X, [3 4 5 2 1]);                      % h w c f n
 p = tv.detect.ballNet(net, X, C.M);
 assert(max(abs(p(:) - C.p(:))) < 1e-6, sprintf('max difference %.3g', max(abs(p(:) - C.p(:)))));
 
-%% the shipped model (vision/models/ballnet_v1.json) matches PyTorch to 1e-6
-net1 = tv.detect.loadBallNet(fullfile(fileparts(here), 'models', 'ballnet_v1.json'));
-C1 = jsondecode(fileread(fullfile(here, 'fixtures', 'ballnet', 'v1_check.json')));
+%% the shipped model (vision/models/ballnet_v2.json, round 2) matches PyTorch to 1e-6
+net1 = tv.detect.loadBallNet(fullfile(fileparts(here), 'models', 'ballnet_v2.json'));
+C1 = jsondecode(fileread(fullfile(here, 'fixtures', 'ballnet', 'v2_check.json')));
 p = tv.detect.ballNet(net1, permute(uint8(C1.X), [3 4 5 2 1]), C1.M);
 assert(max(abs(p(:) - C1.p(:))) < 1e-6, sprintf('max difference %.3g', max(abs(p(:) - C1.p(:)))));
 
 %% the shipped model calls a small ball moving across three frames a ball
-net1 = tv.detect.loadBallNet(fullfile(fileparts(here), 'models', 'ballnet_v1.json'));
+net1 = tv.detect.loadBallNet(fullfile(fileparts(here), 'models', 'ballnet_v2.json'));
 [xx, yy] = meshgrid(0:47, 0:47);
 X = zeros(48, 48, 3, 3, 'uint8');  ballColour = [225 230 90];
 for k = 1:3

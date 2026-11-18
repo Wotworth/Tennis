@@ -55,6 +55,30 @@ The new detector here was trained on the clay video only. Videos 1 and 2 are foo
 - **The rule:** a change counts only if no video gets worse, so the shipped model stays.
 - **Next:** the tracker's thresholds were set for the first model; a model that is surer of real balls needs them re-set, on footage outside the test set.
 
+## Round 2 (18 Nov, afternoon)
+
+You asked me to keep training. What I did:
+1. **More real footage.** The shipped model ran over 40 new stretches: 24 from the parts of the 85-minute clay recording it had never seen (the warm-up and after 51:00), and 8 more from each of videos 1 and 2. Confident, smooth paths gave 6,395 more real balls, and the misses around them gave 97,966 more "not a ball" examples, including the dome's curtain and the nets. I checked a random 60 of the new balls by eye; all but 3 to 5 were real.
+2. **A separate check set.** 40 new frames (24 clay, 8 each from videos 1 and 2), kept apart from both training and the test set, labelled blind the same way. It's for comparing models and setting the tracker; the test set still gives the verdict.
+3. **One model on all of it,** about 182,000 examples.
+
+**Results**, one ball in play:
+
+| | Shipped (v1) | Round 2 (v2) |
+| --- | --- | --- |
+| Test set: video 1 | 11 of 13, 0 false | 11 of 13, 0 false |
+| Test set: video 2 | 12 of 13, 1 false | **13 of 13, 0 false** |
+| Test set: clay | 5 of 8, 0 false | **6 of 8, 0 false** |
+| Test set: all | 28 of 34, 1 false | **30 of 34, 0 false** |
+| Check set | 26 of 36, 4 false | **27 of 36, 3 false** |
+
+Better on the test set, the check set and every video; worse on none. So round 2 replaces v1.
+
+**Three findings:**
+- **The tracker needs no tuning.** One ball in play can find at most one ball per frame, and the check set has 28 frames with a ball. The shipped model already found 26 of them. Every tracker setting I tried gave the same result within one ball.
+- **The test set grew by one ball.** The second look now covers every model's disputed spots. It found one more ball my labels missed (seen through the net) and one ball in the server's hand (ignored). Every model is scored on the same corrected set.
+- **"Never seen" no longer applies.** Round 2 learned from all three videos, so its videos 1 and 2 numbers aren't a new-footage test. The new-footage figure stays the clay-only model's: 11 of 13 and 12 of 13.
+
 ## The clay test in the app, re-run
 
 Same 6 minutes (36:00–42:00), same court fit; only the ball detector changed. Nothing was set for this court or its light.
