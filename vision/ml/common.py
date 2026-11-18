@@ -1,6 +1,6 @@
 """Shared helpers for the ball-detection experiments (private footage only; nothing here is committed
 with data). Frames are read exactly as MATLAB's tv.media.readFrames does (accurate seek by pts)."""
-import os, subprocess, numpy as np, csv, os
+import os, subprocess, numpy as np, csv
 
 ROOT = '/home/user/private-footage'
 VIDEO = {1: f'{ROOT}/video.bin', 2: f'{ROOT}/video2.bin', 3: f'{ROOT}/v3/video3_mid.mp4'}
@@ -34,21 +34,24 @@ def geom(v):
     return dmin, dmax
 
 
+TESTSET = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'testset')   # vision/testset (numbers only)
+
+
 def labels():
     """Test set: per (v, i): frame, in-play balls [(x, y)], ignore points [(x, y)] (still, held or unsure)."""
     frames = {}
     for v in (1, 2, 3):
-        for row in csv.reader(open(f'{ROOT}/testset/v{v}/frames.csv')):
+        for row in list(csv.reader(open(f'{TESTSET}/frames_v{v}.csv')))[1:]:
             i, fr, du, dv = map(int, row)
             frames[(v, i)] = {'frame': fr, 'shift': (du, dv), 'balls': [], 'ignore': []}
-    for r in csv.DictReader(open(f'{ROOT}/testset/labels_moving.csv')):
+    for r in csv.DictReader(open(f'{TESTSET}/labels_moving.csv')):
         k = (int(r['v']), int(r['i']))
         p = (int(r['x']), int(r['y']))
         (frames[k]['balls'] if float(r['diff']) >= 20 else frames[k]['ignore']).append(p)
     # second look (18 Nov): every spot either detector put where no label was, checked blind on
     # five frames around it; moving balls the first labels missed are added, unsure ones ignored
     if os.environ.get('TESTSET', 'reviewed') == 'reviewed':
-        for r in csv.DictReader(open(f'{ROOT}/testset/labels_review.csv')):
+        for r in csv.DictReader(open(f'{TESTSET}/labels_review.csv')):
             k = (int(r['v']), int(r['i'])); p = (float(r['x']), float(r['y']))
             if r['verdict'] == 'ball': frames[k]['balls'].append(p)
             elif r['verdict'] == 'unsure': frames[k]['ignore'].append(p)

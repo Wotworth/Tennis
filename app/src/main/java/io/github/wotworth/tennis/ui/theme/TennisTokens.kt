@@ -216,6 +216,8 @@ object TennisTokens {
         var scrubberHeight by mutableFloatStateOf(26f)       // zpx
         // Chris, 17 Nov: the 3D tab's rally pictures and the rally replay
         var courtMaxZoom by mutableFloatStateOf(6f)          // pinch zoom on the court map, at most
+        var frameMaxZoom by mutableFloatStateOf(6f)          // pinch zoom on a footage test's sample frame, at most (Chris, 18 Nov)
+        var frameSwipePx by mutableFloatStateOf(40f)         // sideways drag that turns to the next sample frame
         var rallyThumbHeight by mutableFloatStateOf(150f)    // zpx, each rally on the 3D tab
         var rallyViewDistanceM by mutableFloatStateOf(15f)   // closest camera for the rally pictures and replay (it backs off until the court fits)
         var rallyViewSideDeg by mutableFloatStateOf(25f)     // camera this far round from behind your end

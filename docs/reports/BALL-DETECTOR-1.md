@@ -111,6 +111,8 @@ You asked me to take the recommended option and tell you in the morning. All are
 | Tracking in seconds, not frames; one ball in play at a time | Any frame rate; another ball can't take over mid-rally |
 | The clay test in the app re-run with the new detector | So you can see the difference on your phone |
 
+**Added after your answers (18 Nov):** the model (`vision/models/ballnet_v1.json`) and the test-set labels (`vision/testset`) are in the repository, numbers only; the footage test's frames pinch to zoom.
+
 ## What's next
 
 1. **Pre-serve bounces.** Tell them from bounces in play (a serve follows), and start each point at its serve. That fixes both the extra bounces and the points that run together.

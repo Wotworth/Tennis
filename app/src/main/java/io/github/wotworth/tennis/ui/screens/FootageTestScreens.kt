@@ -2,7 +2,27 @@ package io.github.wotworth.tennis.ui.screens
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import io.github.wotworth.tennis.ui.motion.NoSwipe
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -172,17 +192,62 @@ private fun TestBall(t: FootageTest) {
     val f = t.frames[i.coerceIn(0, t.frames.lastIndex)]
     val img = remember(t.id, f.file) { app.vision.tests.image(t.id, f.file) }
     PivotColumn {
-        TennisText("Ring: the ball found in this frame. Dots: where it was over the last half second. Swipe for the next frame.", TennisTokens.Type.listSecondary)
+        TennisText("Ring: the ball found in this frame. Dots: where it was over the last half second. Pinch to zoom, double-tap to go back; swipe for the next frame.", TennisTokens.Type.listSecondary)
         Spacer(Modifier.height(zpx(8f)))
-        var drag = 0f
-        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).pointerInput(t.id) {
-            detectHorizontalDragGestures(onDragEnd = {
-                if (drag < -40) i = (i + 1) % t.frames.size
-                if (drag > 40) i = (i - 1 + t.frames.size) % t.frames.size
-                drag = 0f
-            }) { _, d -> drag += d }
-        }) {
-            if (img != null) Image(img.asImageBitmap(), f.caption, Modifier.fillMaxWidth().aspectRatio(16f / 9f), contentScale = ContentScale.FillBounds)
+        // Chris, 18 Nov: pinch to zoom a frame to check the ring; zoomed in, one finger pans; double-tap
+        // goes back. Not zoomed, a sideways swipe turns to the next frame.
+        var zoom by remember { mutableFloatStateOf(1f) }
+        var pan by remember { mutableStateOf(Offset.Zero) }
+        LaunchedEffect(i) { zoom = 1f; pan = Offset.Zero }
+        val key = remember { Any() }
+        var bounds by remember { mutableStateOf(Rect.Zero) }
+        DisposableEffect(key) { onDispose { NoSwipe.areas.remove(key) } }
+        // the frame's own area is kept from the tab swipe: there a sideways swipe turns the frame (or
+        // pans it when zoomed); the tabs still swipe anywhere else on the page
+        LaunchedEffect(bounds) { NoSwipe.areas[key] = bounds }
+        val v = TennisTokens.Vision
+        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clipToBounds()
+            .onGloballyPositioned { val o = it.localToWindow(Offset.Zero); bounds = Rect(o, Size(it.size.width.toFloat(), it.size.height.toFloat())) }
+            .testTag("testFrame").semantics { stateDescription = "frame $i zoom $zoom pan ${pan.x}" }
+            .pointerInput(t.id) { detectTapGestures(onDoubleTap = { zoom = 1f; pan = Offset.Zero }) }
+            .pointerInput(t.id, t.frames.size) {
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    var dx = 0f;  var dy = 0f;  var sideways = false;  var pinched = false
+                    while (true) {
+                        val e = awaitPointerEvent()
+                        if (e.changes.none { it.pressed }) break
+                        if (e.changes.count { it.pressed } >= 2) {
+                            // keep the point under the fingers where it is, then follow the fingers
+                            val z = e.calculateZoom();  val c = e.calculateCentroid(useCurrent = true);  val d = e.calculatePan()
+                            val nz = (zoom * z).coerceIn(1f, v.frameMaxZoom)
+                            var np = (pan - c) * (nz / zoom) + c + d
+                            if (nz == 1f) np = Offset.Zero
+                            pan = Offset(np.x.coerceIn(size.width * (1 - nz), 0f), np.y.coerceIn(size.height * (1 - nz), 0f))
+                            zoom = nz;  pinched = true
+                            e.changes.forEach { it.consume() }
+                            continue
+                        }
+                        val c = e.changes.first { it.pressed };  val d = c.position - c.previousPosition
+                        if (zoom > 1f) {
+                            pan = Offset((pan.x + d.x).coerceIn(size.width * (1 - zoom), 0f), (pan.y + d.y).coerceIn(size.height * (1 - zoom), 0f))
+                            c.consume()
+                        } else if (!pinched) {
+                            dx += d.x;  dy += d.y
+                            if (!sideways && kotlin.math.abs(dx) > viewConfiguration.touchSlop && kotlin.math.abs(dx) > kotlin.math.abs(dy)) sideways = true
+                            if (!sideways && kotlin.math.abs(dy) > viewConfiguration.touchSlop) break      // the page scrolls
+                            if (sideways) c.consume()
+                        }
+                    }
+                    if (sideways && zoom == 1f) {
+                        if (dx < -v.frameSwipePx) i = (i + 1) % t.frames.size
+                        if (dx > v.frameSwipePx) i = (i - 1 + t.frames.size) % t.frames.size
+                    }
+                }
+            }) {
+            if (img != null) Image(img.asImageBitmap(), f.caption, Modifier.fillMaxSize().graphicsLayer {
+                transformOrigin = TransformOrigin(0f, 0f);  scaleX = zoom;  scaleY = zoom;  translationX = pan.x;  translationY = pan.y
+            }, contentScale = ContentScale.FillBounds)
         }
         Spacer(Modifier.height(zpx(8f)))
         TextRow("frame ${i + 1} of ${t.frames.size} · ${if (f.clip > 0) "rally ${f.clip}" else "between rallies"} · ${mmss(f.t)}", listOf(f.verdict, f.caption).filter { it.isNotBlank() }.joinToString(" · "))
