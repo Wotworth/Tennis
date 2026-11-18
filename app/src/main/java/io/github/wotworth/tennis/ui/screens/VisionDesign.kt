@@ -300,7 +300,11 @@ fun CourtMapV2(v: VisionSession, shots: List<VisionShot>, answer: String?, bySpi
     }
     Canvas(Modifier.fillMaxWidth().height(zpx(heightZpx)).clipToBounds()
         .onGloballyPositioned { val o = it.localToWindow(Offset.Zero); bounds = androidx.compose.ui.geometry.Rect(o, androidx.compose.ui.geometry.Size(it.size.width.toFloat(), it.size.height.toFloat())) }
-        .testTag("courtMap").semantics { stateDescription = "zoom $zoom pan ${pan.x}" }.then(pinch).then(tap)) {
+        .testTag("courtMap").semantics {
+            // for tests: the zoom, the pan and where the first bounce is drawn
+            val d = shots.firstOrNull()?.let { mapping(it.bounce!![0], it.bounce[1]) } ?: Offset.Zero
+            stateDescription = "zoom $zoom pan ${pan.x} dot ${d.x} ${d.y}"
+        }.then(pinch).then(tap)) {
         // the court runs up the screen: court x -> screen y, court y -> screen x
         val pad = zpx(t.courtSidePadding).toPx()
         val s0 = minOf((size.width - 2 * pad) / widthM.toFloat(), (size.height - 2 * pad) / lengthM.toFloat())

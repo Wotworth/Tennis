@@ -58,17 +58,26 @@ class CourtTapTest {
             pinch(center - Offset(20f, 0f), center - Offset(60f, 0f), center + Offset(20f, 0f), center + Offset(60f, 0f))
         }
         rule.waitForIdle()
-        var opened = false
-        loop@ for (gy in 1..9) for (gx in 1..9) {
-            map.performTouchInput {
-                down(Offset(size.width * gx / 10f, size.height * gy / 10f))
-                moveBy(Offset(3f, 2f));  moveBy(Offset(-1f, 2f))
-                up()
-            }
-            rule.mainClock.advanceTimeBy(600)
-            rule.waitForIdle()
-            if (nav.current is Screen.VisionShot) { opened = true; break@loop }
+        // tap the first bounce where it is drawn now (pan it into view first if the pinch moved it out)
+        fun dot(): Offset {
+            val p = map.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.StateDescription].split(" ")
+            return Offset(p[5].toFloat(), p[6].toFloat())
         }
+        var tries = 0
+        while ((dot().x !in 20f..size.width - 20f || dot().y !in 20f..size.height - 20f) && tries++ < 8) {
+            val d = dot()
+            val to = Offset(d.x.coerceIn(60f, size.width - 60f), d.y.coerceIn(60f, size.height - 60f))
+            map.performTouchInput { down(center); moveBy((to - d) / 2f); moveBy((to - d) / 2f); up() }
+            rule.mainClock.advanceTimeBy(600);  rule.waitForIdle()
+        }
+        map.performTouchInput {
+            down(dot())
+            moveBy(Offset(3f, 2f));  moveBy(Offset(-1f, 2f))
+            up()
+        }
+        rule.mainClock.advanceTimeBy(600)
+        rule.waitForIdle()
+        val opened = nav.current is Screen.VisionShot
         assertTrue("zoomed in, no finger tap on the court map opened a shot", opened)
     }
 }

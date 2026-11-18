@@ -34,9 +34,9 @@ class CourtZoomTest {
         rule.setContent { AppRoot(app, nav) }
         rule.waitForIdle()
         val map = rule.onNodeWithTag("courtMap")
-        fun state() = map.fetchSemanticsNode().config[SemanticsProperties.StateDescription].removePrefix("zoom ").split(" pan ")
-        fun zoom() = state()[0].toFloat()
-        fun panX() = state()[1].toFloat()
+        fun state() = map.fetchSemanticsNode().config[SemanticsProperties.StateDescription].split(" ")   // zoom z pan x dot x y
+        fun zoom() = state()[1].toFloat()
+        fun panX() = state()[3].toFloat()
         assertEquals(1f, zoom(), 1e-3f)
         map.performTouchInput {
             pinch(center - Offset(20f, 0f), center - Offset(200f, 0f), center + Offset(20f, 0f), center + Offset(200f, 0f))

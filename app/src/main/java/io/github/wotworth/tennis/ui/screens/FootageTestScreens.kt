@@ -182,7 +182,7 @@ private fun TestCourt(t: FootageTest) {
     }
 }
 
-/** Sample frames, people pixelated: the ball ringed where found, its last half second dotted. */
+/** Sample frames (people pixelated unless the footage may be shown as it is): the ball ringed where found, its last half second dotted. */
 @Composable
 private fun TestBall(t: FootageTest) {
     val app = LocalApp.current
