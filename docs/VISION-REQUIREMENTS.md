@@ -277,6 +277,9 @@ t₁ = t₂ + Δ + ε (t₂ − t_ref);  t_pixel = t_frame + (v/H) τᵣ
 - TV-DET-02 Mask everything outside the projected court of interest (TV-ADJ-01). **[16 Nov]** Was: the court plus a 4 m margin, up to 8 m high. Treat stationary yellow objects (balls lying on court, the ball basket) as background.
 - TV-DET-03 Accept elongated blobs consistent with motion blur along the expected direction.
 - TV-DET-04 Version 2, learned: a TrackNet-style heat-map detector, trained with Deep Learning Toolbox on the GPU. Its input is three consecutive frames; its output is a ball-probability map.
+  - **[18 Nov, Chris]** Brought forward from TV-PH-5: version 1's colour thresholds needed hand-set numbers for each court and light. The first models are trained before the PC exists, in PyTorch on the cloud machine, and saved as ONNX, which MATLAB imports (`importNetworkFromONNX`), so the PC runs the same model; retraining moves to Deep Learning Toolbox on the PC later. Training data are Chris's own footage only (kept private, never in the repository): real ball crops and rendered balls pasted into his frames at the size and blur the camera geometry gives, plus flights that pass the physics test. Version 1 stays only to bootstrap labels.
+  - **[18 Nov]** Accepted detections are judged by physics, not by rules: a track counts as the ball only where a ballistic flight over the court of interest, seen through the fitted camera, explains it (gravity sets the scale even for one camera), and only one ball in play is kept per moment.
+  - **[18 Nov]** A fixed, hand-labelled test set from every footage test (ball position or "no ball" per sampled frame, private) scores every detector change on all of them; a change counts only if none gets worse.
 - TV-DET-05 Training labels:
   - Most come free: v1 detections that survive the stereo and physics checks become labels.
   - Corrections are made in Video Labeler.
