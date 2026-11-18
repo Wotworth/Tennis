@@ -46,6 +46,7 @@ if __name__ == '__main__':
         jobs += [(v, s, W[v - 1], out) for v in (1, 2) for s in stretches(v, seed=31, n=8, avoid=stretches(v), away=240)]
     else:
         jobs = [(v, s, W[v - 1], out) for v in (1, 2, 3) for s in stretches(v)]
+    if os.environ.get('ONLY'): jobs = [j for j in jobs if str(j[0]) in os.environ['ONLY']]
     print(len(jobs), 'stretches', flush=True)
     with mp.Pool(4) as p:
         p.map(one, jobs, chunksize=1)

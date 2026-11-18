@@ -35,6 +35,26 @@ def smooth_points(rows, n=9):
     return good
 
 
+SLOW_FRAMES, SLOW_DIAM = 30, 3.0
+
+
+def slow_points(rows):
+    """True for chain points that stay put for a second: every chain point within SLOW_FRAMES
+    frames (0.5 s) either side lies within SLOW_DIAM of the smallest ball diameter possible there,
+    and those points span at least 0.8 s. A ball in flight never does: gravity alone moves it over
+    a metre in that time (at the top of a lob it stays within a few pixels for a sixth of a second,
+    not for a second). A blinking light, a curtain fold, the net, a logo on a player standing still
+    and a ball lying or held still do. Such points are never ball examples and are taught as
+    "not a ball" (round 3)."""
+    out = np.zeros(len(rows), bool); f = rows[:, 0]
+    for i in range(len(rows)):
+        k = np.abs(f - f[i]) <= SLOW_FRAMES
+        if f[k].max() - f[k].min() < 1.6 * SLOW_FRAMES: continue
+        ext = np.hypot(rows[k, 1] - rows[i, 1], rows[k, 2] - rows[i, 2]).max()
+        out[i] = ext <= SLOW_DIAM * max(rows[i, 7], 3.0)
+    return out
+
+
 def smooth_movers(D, tol0=1.5, tolk=0.1):
     """True for proposals that move steadily over five frames: proposals at t-2, t-1, t+1 and
     t+2 sit where a steady speed puts them (within tol0 px + tolk of the step, a step of at least
@@ -59,7 +79,7 @@ def smooth_movers(D, tol0=1.5, tolk=0.1):
 
 
 def one(f):
-    out = f.replace('.npy', '_mine.npz')
+    out = f.replace('.npy', os.environ.get('MINE_SUFFIX', '_mine') + '.npz')
     if os.path.exists(out): return out
     rng = np.random.default_rng(abs(hash(os.path.basename(f))) % 2 ** 32)
     v = int(os.path.basename(f)[1]); s = int(os.path.basename(f)[3:9])
@@ -67,12 +87,15 @@ def one(f):
     pos, neg = np.zeros((0, D.shape[1])), np.zeros((0, D.shape[1]))
     if len(D):
         Ds, ch = T.chains(D[D[:, 3] > 0.05])
-        keep = []
+        keep = []; still = []
         for val, p in ch:
+            sl = slow_points(Ds[p])
+            if sl.any(): still.append(p[sl])
             if val >= POS_VALUE and len(p) >= POS_LEN:
-                g = smooth_points(Ds[p])
+                g = smooth_points(Ds[p]) & ~sl
                 if g.any(): keep.append(p[g])
         pos = Ds[np.concatenate(keep)] if keep else pos
+        still = Ds[np.concatenate(still)] if still else np.zeros((0, D.shape[1]))
         allc = np.concatenate([Ds[p][:, :3] for _, p in ch]) if ch else np.zeros((0, 3))
         far = ~smooth_movers(D)
         for i, r in enumerate(D):
@@ -83,7 +106,7 @@ def one(f):
             k = np.nonzero(far & (D[:, 0] == fr))[0]
             hard = k[D[k, 3] > 0.3]; rest = k[D[k, 3] <= 0.3]
             rows += list(hard) + list(rng.choice(rest, min(NEG_PER_FRAME, len(rest)), replace=False))
-        neg = D[np.array(rows, int)]
+        neg = np.concatenate([D[np.array(rows, int)], still])
     X, M, Y = [], [], []
     want = {}
     for r, y in [(r, 1) for r in pos] + [(r, 0) for r in neg]: want.setdefault(int(r[0]), []).append((r, y))
@@ -100,7 +123,7 @@ def one(f):
 
 
 if __name__ == '__main__':
-    files = sorted(f for f in glob.glob(sys.argv[1]) if not f.endswith('_mine.npz'))
+    files = sorted(f for f in glob.glob(sys.argv[1]) if f.endswith('.npy'))
     with mp.Pool(4) as p:
         p.map(one, files, chunksize=1)
     print('all done')
