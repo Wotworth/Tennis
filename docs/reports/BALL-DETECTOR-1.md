@@ -1,6 +1,6 @@
 # Ball detector, rebuilt overnight (18 Nov)
 
-Release: [v0.6.37](https://github.com/Wotworth/Tennis/releases/tag/v0.6.37). In the app: Sessions → **Clay, iPhone**, re-run with the new detector.
+Releases: [v0.6.37](https://github.com/Wotworth/Tennis/releases/tag/v0.6.37) (first detector), [v0.6.38](https://github.com/Wotworth/Tennis/releases/tag/v0.6.38) (frames zoom), [v0.6.39](https://github.com/Wotworth/Tennis/releases/tag/v0.6.39) (round 2). In the app: Sessions → **Clay, iPhone**.
 
 You asked for a detector that works on any footage without me tuning it, using far less compute, and not fooled by other balls, clothes or racquets. Here is what I built overnight, how it scores on the fixed test set, and the decisions I made without you.
 
@@ -95,6 +95,22 @@ What's still wrong, honestly:
 - **3 of the 12 spots are false:** on the dome's curtain, the net and empty court. In one sample frame the ring is on the curtain while the ball is by the far player. The curtain's folds sway, and the classifier hasn't seen enough of that. More self-training on this court is the fix.
 - **Bounces went up, not down.** 36 of the 141 are just behind a baseline at the centre mark: the server bouncing the ball before serving. They are real bounces, but not in play; telling them apart (a serve follows) is next. The court map in the app shows them as "out".
 - **Some points still run together.** Between points the players hit balls back to each other, and those balls are real, so the gaps fill in. Points need the serve as their start, which comes with the bounce fix above.
+
+## The clay test re-run again with round 2 (v0.6.39)
+
+| | v1 (v0.6.37) | Round 2 (v0.6.39) |
+| --- | --- | --- |
+| Tracked spots that are a ball (random 12, checked by eye) | 9 | 9 (2 of them on the next court, seen through the divider net) |
+| Sample frames with the ball in flight: found | 2 of 3 | 2 of 3 (the same miss by the curtain at 5:54) |
+| Points found | 10 | 7 |
+| Bounces (of them pre-serve, behind the baseline centre) | 141 (36) | 144 (31) |
+
+On these 6 minutes the two look alike; a 12-spot check can't separate them. Round 2's gain shows on the larger test and check sets.
+
+**A pixelation fix.**
+- **What I found:** in round 2's sample frames, one far player wasn't pixelated. He had stood still through that 30-second clip, so he had become part of the clip's empty-court picture.
+- **The fix:** people are now also looked for against the whole session's empty court, as person-shaped regions only; smaller ones count too.
+- **Checked:** every exported frame, by eye. The frames shipped in v0.6.37 and v0.6.38 were also checked: everyone in them was pixelated.
 
 ## Rules retired
 
