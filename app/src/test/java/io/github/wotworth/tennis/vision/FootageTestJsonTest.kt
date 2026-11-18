@@ -37,12 +37,13 @@ class FootageTestJsonTest {
     }
 }
 
-/** Chris, 17 Nov: the iPhone footage tests were temporary; none ship with the app. */
+/** Chris, 17 Nov: only the clay test ships (the two earlier iPhone tests were temporary). */
 @RunWith(AndroidJUnit4::class)
 class FootageTestAssetsTest {
     private val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
 
-    @Test fun noFootageTestsShip() {
-        assertEquals(emptyList<String>(), FootageTests(context).all.map { it.id })
+    @Test fun onlyTheClayTestShips() {
+        assertEquals(listOf("iphone-2025-11-10-clay"), FootageTests(context).all.map { it.id })
+        assertEquals("10 Nov 2025", FootageTests(context).all.single().date)
     }
 }

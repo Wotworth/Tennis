@@ -71,6 +71,8 @@ class PreviewScreenshots {
     @Test fun p09WhichOne() = screen("09-which-one-is-you", Screen.VisionIdentity(id))
     @Test fun p10Courts() = screen("10a-courts-list", Screen.Hub(LIBRARY))
     @Test fun p10AddCourt() = screen("10b-add-court", Screen.CourtEdit())
+    @Test fun p13ClaySummary() = screen("13a-clay-test-summary", Screen.FootageTest("iphone-2025-11-10-clay", 0))
+    @Test fun p13ClayBall() = screen("13b-clay-test-ball", Screen.FootageTest("iphone-2025-11-10-clay", 2))
 
     /** MOCKUP: the launcher tile's states, highest priority first (TV-APP-07). */
     @Test fun p11LauncherTile() = shot("11-launcher-tile-states-mockup") {

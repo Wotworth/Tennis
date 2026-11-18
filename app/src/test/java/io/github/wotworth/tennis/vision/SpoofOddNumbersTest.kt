@@ -38,6 +38,8 @@ class SpoofOddNumbersTest {
         Regex("""^(30|90) mph$|^12 ft shorter$"""),        // the court map's colour scale (TennisTokens.Vision)
         Regex("""^180 · 140 · 100 bpm$"""),                // the heart-rate chart's grid lines
         Regex("""^\d+–\d+%$|^90%\+$"""),                   // the heart-rate zone names
+        // the bundled footage test's tile on the sessions page: real footage, not the spoof session
+        Regex("""^Clay, iPhone · \d+ rallies$|^footage test · \d+ \w+ \d+$|^ball found in \d+% of frames$"""),
     )
 
     private var current = androidx.compose.runtime.mutableStateOf<Pair<Int, Screen>?>(null)

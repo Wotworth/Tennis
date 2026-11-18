@@ -42,7 +42,7 @@ d = struct('overlayBoxes', zeros(0, 4), 'lineOpts', struct('minContrast', 20, 'm
            'playerHz', 2, 'clipOpts', struct(), 'hfovStart', 65, 'wholeFile', false, 'bounceMinPx', 1.5, ...
            'detectOpts', struct(), 'clipList', [], 'detectOnly', false, 'stillMps', 1.5, 'stillWindowS', 0.25, ...
            'bounceSkipHits', true, 'personMinArea', 1500, 'hitReach', 0.6, 'bounceMergeS', 0.3, ...
-           'steady', true, 'steadyMaxPx', 40, 'windowS', 30, 'maxWindows', 0, 'pointGapS', 4, 'pointMinS', 1.5, 'dropPlayerTracks', true, 'playerTrackStepS', 1 / 6, ...
+           'steady', true, 'steadyMaxPx', 40, 'windowS', 30, 'maxWindows', 0, 'maxJerkPx', 0, 'pointGapS', 4, 'pointMinS', 1.5, 'dropPlayerTracks', true, 'playerTrackStepS', 1 / 6, ...
            'playerTrackShare', 1, 'follow', true, 'followOpts', struct());
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(s, fn{k}), s.(fn{k}) = d.(fn{k}); end, end
@@ -82,7 +82,29 @@ if s.follow
     [D, nFollowed] = followAll(rec, C.clips, K, cfg, s, outDir, D);
     [D, n2] = dropStillTracks(D, rec, K, cfg, s);  nStill = nStill + n2;
 end
-B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS, s.bounceSkipHits, s.personMinArea, s.hitReach, s.bounceMergeS, 'clipbg', 'ownpts', 'dbl', s.steady, s.follow, s.followOpts, s.dropPlayerTracks, s.playerTrackStepS, s.playerTrackShare, 3), @() findBounces(rec, D, K, s, PO));
+% a ball doesn't jump: tracks with a step beyond s.maxJerkPx px per frame and six times their usual
+% step are chains of unrelated spots (the steered search on clay, 17 Nov). Off (0) by default: on
+% clay it also dropped 3 of 4 real ball tracks, which carry the same hops at their ends; the
+% steered search's window cap (tv.track.follow maxRadius) is the fix
+nRagged = 0;
+for r = 1:numel(D.tracks) * (s.maxJerkPx > 0)
+    t = D.tracks{r};
+    if isempty(t), continue; end
+    bad = arrayfun(@(q) raggedTrack(q, s.maxJerkPx), t);
+    D.tracks{r} = t(~bad);  nRagged = nRagged + nnz(bad);
+end
+% steadying fills the strip a shift uncovers with the frame's border, and that strip moves: tracks
+% that stay within s.steadyMaxPx of the frame's edge are dropped (Chris's clay video, 17 Nov)
+nEdge = 0;
+if s.steady
+    for r = 1:numel(D.tracks)
+        t = D.tracks{r};
+        if isempty(t), continue; end
+        e = arrayfun(@(q) median(min([q.uv(:, 1) - 1, rec.width - q.uv(:, 1), q.uv(:, 2) - 1, rec.height - q.uv(:, 2)], [], 2)) < s.steadyMaxPx, t);
+        D.tracks{r} = t(~e);  nEdge = nEdge + nnz(e);
+    end
+end
+B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS, s.bounceSkipHits, s.personMinArea, s.hitReach, s.bounceMergeS, 'clipbg', 'ownpts', 'dbl', 'edge', s.maxJerkPx, s.steady, s.follow, s.followOpts, s.dropPlayerTracks, s.playerTrackStepS, s.playerTrackShare, 3), @() findBounces(rec, D, K, s, PO));
 PT = struct('points', zeros(0, 2));
 if s.wholeFile
     PT = tv.pipeline.stage(outDir, 'points', k(B.bounces, s.pointGapS, s.pointMinS, numel(D.tracks), cellfun(@numel, D.tracks)), @() findPoints(rec, D, s));
@@ -90,7 +112,7 @@ end
 Y = tv.pipeline.stage(outDir, 'players', k(s.playerHz, C.clips, K.cam.pos, s.steady), @() trackPlayers(rec, C.clips, K, s));
 R = struct('rec', rec, 'clips', C.clips, 'cutT', C.cutT, 'cam', K.cam, 'calib', K.report, 'corners', K.corners, ...
     'bg', K.bg, 'overlayBoxes', s.overlayBoxes, 'candidates', {D.candidates}, 'tracks', {D.tracks}, ...
-    'bounces', B.bounces, 'bounceSkips', struct('hits', B.hitsSkipped, 'net', B.netSkipped, 'duplicates', B.duplicates), 'players', Y.samples, 'stillTracks', nStill, 'stillMps', s.stillMps, 'playerTracks', nAtPlayer, 'followedPoints', nFollowed, 'points', PT.points);
+    'bounces', B.bounces, 'bounceSkips', struct('hits', B.hitsSkipped, 'net', B.netSkipped, 'duplicates', B.duplicates), 'players', Y.samples, 'stillTracks', nStill, 'stillMps', s.stillMps, 'playerTracks', nAtPlayer, 'followedPoints', nFollowed, 'points', PT.points, 'edgeTracks', nEdge, 'raggedTracks', nRagged);
 save(fullfile(outDir, 'single.mat'), '-struct', 'R');
 end
 
@@ -105,6 +127,15 @@ for r = 1:numel(D.tracks)
     [D.tracks{r}, st] = tv.track.dropStill(D.tracks{r}, minPx, max(2, round(s.stillWindowS * rec.fps)));
     n = n + nnz(st);
 end
+end
+
+function bad = raggedTrack(t, maxJump)
+% a jump between consecutive points beyond maxJump px per frame and six times the track's usual
+% step: the track hopped to an unrelated spot
+f = double(t.frames(:));  bad = false;
+if numel(f) < 4, return; end
+st = sqrt(sum(diff(t.uv).^2, 2)) ./ diff(f);
+bad = any(st > maxJump & st > 6 * median(st));
 end
 
 function P = findPoints(rec, D, s)

@@ -13,7 +13,8 @@ function [trk, added] = follow(trk, readF, bg, mask, span, opts)
 %     loose      factor on minSat, diffThr and motionThr in the window (0.6)
 %     valDrop    lowered minVal in the window (0.15)
 %     hueWiden   degrees added to each end of the hue range (10)
-%     radius     smallest search radius, px (8); it grows with the ball's speed
+%     radius     smallest search radius, px (8); it grows with the ball's speed up to
+%     maxRadius  (40 px)
 %     maxMiss    frames with nothing found before a track's end is given up (3)
 %     maxSteps   furthest a track is extended at each end, frames (30)
 %     history    points the prediction is fitted to (6; a parabola from 5 points)
@@ -24,7 +25,7 @@ function [trk, added] = follow(trk, readF, bg, mask, span, opts)
 %   RETUNE(real footage): every value in opts.
 if nargin < 6, opts = struct(); end
 d = struct('hue', [40 95], 'minSat', 0.35, 'minVal', 0.35, 'diffThr', 30, 'motionThr', 18, 'maxArea', 400, ...
-    'loose', 0.6, 'valDrop', 0.15, 'hueWiden', 10, 'radius', 8, 'maxMiss', 3, 'maxSteps', 30, 'history', 6, 'joinPx', 4);
+    'loose', 0.6, 'valDrop', 0.15, 'hueWiden', 10, 'radius', 8, 'maxRadius', 40, 'maxMiss', 3, 'maxSteps', 30, 'history', 6, 'joinPx', 4);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 L = struct('hue', opts.hue + [-1 1] * opts.hueWiden, 'minSat', opts.minSat * opts.loose, ...
@@ -55,7 +56,9 @@ trk = join(trk, opts.joinPx);
         for g = f0:dirn:f1
             [p, sp] = predict(t, g);
             if any(p < 1) || p(1) > size(bg, 2) || p(2) > size(bg, 1), break; end
-            q = search(F, g - lo + 1, p, max(opts.radius, 1.5 * sp));
+            % the window grows with the ball's speed, to at most maxRadius (on clay, 17 Nov, an
+            % unbounded window let a bad prediction hop between unrelated spots)
+            q = search(F, g - lo + 1, p, min(opts.maxRadius, max(opts.radius, 1.5 * sp)));
             if isempty(q)
                 miss = miss + 1;
                 if miss > opts.maxMiss, break; end
