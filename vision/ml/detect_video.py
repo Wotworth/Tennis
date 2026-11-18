@@ -37,7 +37,7 @@ def main(v, first, last, step, weights, out):
             hy = np.minimum(props[:, 1].astype(int) // 2, dmin.shape[0] - 1); hx = np.minimum(props[:, 0].astype(int) // 2, dmin.shape[1] - 1)
             M = np.stack([dmin[hy, hx], dmax[hy, hx]], axis=1).astype(np.float32)
             sc = np.array([G.scale_of(p[4], m[0], m[1]) for p, m in zip(props, M)], np.float32)
-            X = np.array([G.crop((pa, cur, na), p[0], p[1], q) for p, q in zip(props, sc)])
+            X = G.crop_batch((pa, cur, na), props[:, 0], props[:, 1], sc)
             with torch.no_grad():
                 s = torch.cat([torch.sigmoid(net(*Mdl.prepare(X[j:j + 512], M[j:j + 512] / sc[j:j + 512, None]))) for j in range(0, len(X), 512)]).numpy()
             # the frame's shift against the empty court, as tv.calib.steady's d: raw = court + d

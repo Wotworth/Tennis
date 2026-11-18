@@ -40,9 +40,35 @@ def resample(img, cx, cy, side, n=None):
     u0 = np.floor(u).astype(int); v0 = np.floor(v).astype(int)
     u1 = np.minimum(u0 + 1, w - 1); v1 = np.minimum(v0 + 1, h - 1)
     fu = (u - u0)[None, :, None]; fv = (v - v0)[:, None, None]
-    im = img.astype(np.float64)
-    out = (im[np.ix_(v0, u0)] * (1 - fu) + im[np.ix_(v0, u1)] * fu) * (1 - fv) + (im[np.ix_(v1, u0)] * (1 - fu) + im[np.ix_(v1, u1)] * fu) * fv
+    # (only the pixels needed are converted: converting the whole frame for every cut cost 20 ms)
+    a = img[np.ix_(v0, u0)].astype(np.float64); b = img[np.ix_(v0, u1)].astype(np.float64)
+    c = img[np.ix_(v1, u0)].astype(np.float64); d = img[np.ix_(v1, u1)].astype(np.float64)
+    out = (a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv
     if ss > 1: out = out.reshape(n, ss, n, ss, -1).mean(axis=(1, 3))
+    return out
+
+
+def crop_batch(F, xs, ys, scs):
+    """crop() for many spots of one frame triple at once (same numbers, far fewer Python calls):
+    returns (n, 3, S, S, 3) uint8."""
+    n_ = len(xs); out = np.zeros((n_, 3, S, S, 3), np.uint8)
+    sides = np.array([side_of(q) for q in scs]); h, w = F[0].shape[:2]
+    for ss in (1, 2):
+        k = np.nonzero((sides > S) == (ss == 2))[0]
+        if not len(k): continue
+        g = S * ss
+        o = ((np.arange(g) + 0.5) / g - 0.5)[None, :] * sides[k, None]
+        u = np.clip(np.asarray(xs, float)[k, None] + o, 0, w - 1); v = np.clip(np.asarray(ys, float)[k, None] + o, 0, h - 1)
+        u0 = np.floor(u).astype(int); v0 = np.floor(v).astype(int)
+        u1 = np.minimum(u0 + 1, w - 1); v1 = np.minimum(v0 + 1, h - 1)
+        fu = (u - u0)[:, None, :, None]; fv = (v - v0)[:, :, None, None]
+        for f in range(3):
+            img = F[f]
+            a = img[v0[:, :, None], u0[:, None, :]].astype(np.float64); b = img[v0[:, :, None], u1[:, None, :]].astype(np.float64)
+            c = img[v1[:, :, None], u0[:, None, :]].astype(np.float64); d = img[v1[:, :, None], u1[:, None, :]].astype(np.float64)
+            r = (a * (1 - fu) + b * fu) * (1 - fv) + (c * (1 - fu) + d * fu) * fv
+            if ss > 1: r = r.reshape(len(k), S, ss, S, ss, -1).mean(axis=(2, 4))
+            out[k, f] = np.clip(r + 0.5, 0, 255).astype(np.uint8)
     return out
 
 

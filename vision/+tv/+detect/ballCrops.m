@@ -37,7 +37,8 @@ o = (((0:g - 1) + 0.5) / g - 0.5) * side;
 u = min(max(cx + o, 1), w);  v = min(max(cy + o, 1), h);
 u0 = floor(u);  v0 = floor(v);  u1 = min(u0 + 1, w);  v1 = min(v0 + 1, h);
 fu = reshape(u - u0, 1, []);  fv = reshape(v - v0, [], 1);
-im = double(img);
-out = (im(v0, u0, :) .* (1 - fu) + im(v0, u1, :) .* fu) .* (1 - fv) + (im(v1, u0, :) .* (1 - fu) + im(v1, u1, :) .* fu) .* fv;
+% (only the pixels needed are converted to double, not the whole frame)
+out = (double(img(v0, u0, :)) .* (1 - fu) + double(img(v0, u1, :)) .* fu) .* (1 - fv) ...
+    + (double(img(v1, u0, :)) .* (1 - fu) + double(img(v1, u1, :)) .* fu) .* fv;
 if ss > 1, out = reshape(mean(mean(reshape(out, ss, n, ss, n, []), 1), 3), n, n, []); end
 end
