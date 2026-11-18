@@ -113,4 +113,7 @@ You asked me to take the recommended option and tell you in the morning. All are
 
 ## What's next
 
-TBD
+1. **Pre-serve bounces.** Tell them from bounces in play (a serve follows), and start each point at its serve. That fixes both the extra bounces and the points that run together.
+2. **The curtain.** Self-train on this court's own footage, so the dome's swaying folds stop scoring as balls.
+3. **Tracker thresholds** for the surer, self-trained model, set on footage outside the test set.
+4. **The full 85-minute clay video,** if you want it: about 5 hours of computing here, minutes on the PC.
