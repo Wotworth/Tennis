@@ -136,6 +136,29 @@ You asked for the pre-serve bounces next. Three things were mixed into the 144 "
 
 **The limit, plainly:** one camera behind the baseline can't see how far a ball flying straight away from it has come. So a few far-end bounces in play are left out, and a few server bounces (the first after the ball arrives) still count as in play; you can see them as a small cluster of rings behind the far baseline. Two cameras measure distance directly and remove both problems.
 
+## Round 3: the curtain mistakes (tried, not adopted)
+
+You asked for the curtain mistakes after the bounces. What I found, and what happened:
+
+**What the mistakes are.** I looked at a sample of the round-2 model's confident ball paths on clay footage it had never seen. Most are real balls. The false ones are:
+- fixed in the scene: a ball machine's blinking blue light, the curtain, the net;
+- carried by a player: small white logos on dark shorts and shirts.
+
+**A flaw I fixed in the self-training.** Any confident, smooth path became a "real ball" example, including the blinking light. Now a path that stays within a few pixels for a second is never a ball example and is taught as "not a ball". Gravity makes this safe: a ball in flight moves over a metre in a second. (A shorter window caught real far-away balls near the top of their flight, so I didn't use it.)
+
+**Round 3** added 56,705 "not a ball" and 3,272 ball examples from the round-2 model's own run over unseen clay footage.
+
+| One ball in play | Round 2 (shipped) | Round 3 |
+| --- | --- | --- |
+| Test set: video 1 | 11 of 13, 0 false | 11 of 13, 0 false |
+| Test set: video 2 | 13 of 13, 0 false | 13 of 13, **1 false** |
+| Test set: clay | 6 of 9, 0 false | 7 of 9, 0 false |
+| Check set | 27 of 36, 3 false | 28 of 36, 3 false |
+
+Round 3 finds one more ball on each set, but adds a false spot on video 2 (a small dark thing blowing across the court). By the rule that no video may get worse, **round 2 stays**.
+
+**Why this didn't move.** Curtain mistakes are rare enough that 48 test frames and 40 check frames hold none of them: the check set's three false spots are a blur trail and two spots near players. So the sets can't show whether a model fixed the curtain or not. Two ways forward are in my questions.
+
 ## Rules retired
 
 Each of these patched one of the colour detector's mistakes on one video. None is needed with the new detector, so it skips them all:
