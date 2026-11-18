@@ -291,7 +291,7 @@ for r = 1:size(clips, 1)
         A = dlmread(pc, ',', 1, 0);
     else
         if isempty(net), net = tv.detect.loadBallNet(s.ballNetFile); end
-        A = zeros(0, 11);  K2 = 2;
+        A = zeros(0, 11);  K2 = max(1, round(2 * rec.fps / 60));    % neighbours 1/30 s away
         for a = f0:30:f1
             first = max(0, a - K2);  n = min(30 + 2 * K2, rec.nFrames - first);
             F = tv.media.readFrames(rec, first, n);
@@ -313,7 +313,8 @@ for r = 1:size(clips, 1)
     % into the empty court's pixels (where the camera fit and the bounce and player code work)
     rows = [A(:, 1), A(:, 2) - A(:, 10), A(:, 3) - A(:, 11), A(:, 4), A(:, 8:9)];
     D.candidates{r} = rows;
-    [D.tracks{r}, ~] = tv.track.chains(rows(rows(:, 4) > 0.05, :), s.chainOpts);
+    co = s.chainOpts;  if ~isfield(co, 'fps'), co.fps = rec.fps; end
+    [D.tracks{r}, ~] = tv.track.chains(rows(rows(:, 4) > 0.05, :), co);
 end
 end
 

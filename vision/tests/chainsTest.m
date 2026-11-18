@@ -17,3 +17,12 @@ assert(all(ismember(T(1).frames, ball(:, 1))) && val(1) == max(val));
 %% nothing confident: no chain
 [T, ~] = tv.track.chains(noise);
 assert(isempty(T));
+
+%% a 120 fps video: the same flight hidden for 12 frames (0.1 s) is still one chain
+n = (1:80)';  f2 = n / 2;
+fast = [n, 300 + 9 * f2, 200 - 6 * f2 + 0.2 * f2 .^ 2, 0.9 * ones(80, 1), 4 * ones(80, 1), 9 * ones(80, 1)];
+fast(30:41, :) = [];
+[T, ~] = tv.track.chains(fast, struct('fps', 120));
+assert(numel(T) == 1 && numel(T(1).frames) == size(fast, 1), 'the 120 fps flight was split');
+[T, ~] = tv.track.chains(fast, struct('fps', 60));
+assert(numel(T) == 2, 'read as 60 fps, the 0.2 s gap should split it');
