@@ -43,6 +43,7 @@ d = struct('overlayBoxes', zeros(0, 4), 'lineOpts', struct('minContrast', 20, 'm
            'detectOpts', struct(), 'clipList', [], 'detectOnly', false, 'stillMps', 1.5, 'stillWindowS', 0.25, ...
            'bounceSkipHits', true, 'personMinArea', 1500, 'hitReach', 0.6, 'bounceMergeS', 0.3, ...
            'detector', 'classical', 'ballNetFile', '', 'precomputed', '', 'chainOpts', struct(), ...
+           'bounceKindOpts', struct(), 'pointNeedsPlay', true, 'pointSplitS', 0.5, 'offBounceS', 0.75, 'pointTrackMinS', 0.5, ...
            'steady', true, 'steadyMaxPx', 40, 'windowS', 30, 'maxWindows', 0, 'maxJerkPx', 0, 'pointGapS', 4, 'pointMinS', 1.5, 'dropPlayerTracks', true, 'playerTrackStepS', 1 / 6, ...
            'playerTrackShare', 1, 'follow', true, 'followOpts', struct());
 fn = fieldnames(d);
@@ -117,15 +118,40 @@ if s.steady && ~learned
         D.tracks{r} = t(~e);  nEdge = nEdge + nnz(e);
     end
 end
-B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS, s.bounceSkipHits, s.personMinArea, s.hitReach, s.bounceMergeS, 'clipbg', 'ownpts', 'dbl', 'edge', s.detector, s.maxJerkPx, s.steady, s.follow, s.followOpts, s.dropPlayerTracks, s.playerTrackStepS, s.playerTrackShare, 3), @() findBounces(rec, D, K, s, PO));
+B = tv.pipeline.stage(outDir, 'bounces', k(s.bounceMinPx, K.cam.pos, s.stillMps, s.stillWindowS, s.bounceSkipHits, s.personMinArea, s.hitReach, s.bounceMergeS, 'clipbg', 'ownpts', 'dbl', 'edge', s.detector, s.maxJerkPx, s.steady, s.follow, s.followOpts, s.dropPlayerTracks, s.playerTrackStepS, s.playerTrackShare, 3, 'kind3', s.bounceKindOpts, cfg.court), @() findBounces(rec, D, K, s, PO, tv.court.interest(cfg.court)));
+% the next court's ball (TV-ADJ-04, one camera): a ball in flight can't be placed, but a bounce is
+% on the ground, so a track whose bounces are mostly outside the court of interest is the next
+% court's ball and is dropped (its bounces stay in B, marked 'off')
+nOff = 0;
+if isfield(B.bounces, 'kind')
+    for r = 1:numel(D.tracks)
+        drop = false(numel(D.tracks{r}), 1);
+        for ti = 1:numel(D.tracks{r})
+            bb = B.bounces([B.bounces.clip] == r & [B.bounces.track] == ti);
+            off = strcmp({bb.kind}, 'off');
+            if ~any(off), continue; end
+            if nnz(off) > nnz(~off & ~strcmp({bb.kind}, 'air')), drop(ti) = true; continue; end
+            % a chain that ran from Chris's ball onto the next court's: the flights either side
+            % of each bounce there (s.offBounceS seconds) are the next court's
+            t = D.tracks{r}(ti);  f = double(t.frames(:));
+            keep = true(size(f));
+            for fo = double([bb(off).frame]), keep = keep & abs(f - fo) > s.offBounceS * rec.fps; end
+            t.frames = t.frames(keep);  t.uv = t.uv(keep, :);
+            if isfield(t, 'area'), t.area = t.area(keep); end
+            if isfield(t, 'score'), t.score = t.score(keep); end
+            D.tracks{r}(ti) = t;  drop(ti) = nnz(keep) < 2;
+        end
+        D.tracks{r} = D.tracks{r}(~drop);  nOff = nOff + nnz(drop);
+    end
+end
 PT = struct('points', zeros(0, 2));
 if s.wholeFile
-    PT = tv.pipeline.stage(outDir, 'points', k(B.bounces, s.pointGapS, s.pointMinS, numel(D.tracks), cellfun(@numel, D.tracks)), @() findPoints(rec, D, s));
+    PT = tv.pipeline.stage(outDir, 'points', k(B.bounces, s.pointGapS, s.pointMinS, numel(D.tracks), cellfun(@numel, D.tracks), s.pointNeedsPlay, s.pointSplitS, s.pointTrackMinS, s.offBounceS, cellfun(@(t) sum(arrayfun(@(q) numel(q.frames), t)), D.tracks)), @() findPoints(rec, D, s, B.bounces));
 end
 Y = tv.pipeline.stage(outDir, 'players', k(s.playerHz, C.clips, K.cam.pos, s.steady), @() trackPlayers(rec, C.clips, K, s));
 R = struct('rec', rec, 'clips', C.clips, 'cutT', C.cutT, 'cam', K.cam, 'calib', K.report, 'corners', K.corners, ...
     'bg', K.bg, 'overlayBoxes', s.overlayBoxes, 'candidates', {D.candidates}, 'tracks', {D.tracks}, ...
-    'bounces', B.bounces, 'bounceSkips', struct('hits', B.hitsSkipped, 'net', B.netSkipped, 'duplicates', B.duplicates), 'players', Y.samples, 'stillTracks', nStill, 'stillMps', s.stillMps, 'playerTracks', nAtPlayer, 'followedPoints', nFollowed, 'points', PT.points, 'edgeTracks', nEdge, 'raggedTracks', nRagged);
+    'bounces', B.bounces, 'bounceSkips', struct('hits', B.hitsSkipped, 'net', B.netSkipped, 'duplicates', B.duplicates), 'players', Y.samples, 'stillTracks', nStill, 'stillMps', s.stillMps, 'playerTracks', nAtPlayer, 'followedPoints', nFollowed, 'points', PT.points, 'edgeTracks', nEdge, 'raggedTracks', nRagged, 'nextCourtTracks', nOff);
 save(fullfile(outDir, 'single.mat'), '-struct', 'R');
 end
 
@@ -151,23 +177,9 @@ st = sqrt(sum(diff(t.uv).^2, 2)) ./ diff(f);
 bad = any(st > maxJump & st > 6 * median(st));
 end
 
-function P = findPoints(rec, D, s)
-% raw footage: a point is where the ball is in play: the tracks' time spans (after every rule),
-% joined when less than s.pointGapS apart, kept when at least s.pointMinS long. Rows: first and
-% last frame (0-based).
-sp = zeros(0, 2);
-for r = 1:numel(D.tracks)
-    for t = D.tracks{r}(:)', sp(end+1, :) = double(t.frames([1 end]))'; end %#ok<AGROW>
-end
-P.points = zeros(0, 2);
-if isempty(sp), return; end
-sp = sortrows(sp);  gap = s.pointGapS * rec.fps;
-cur = sp(1, :);
-for i = 2:size(sp, 1)
-    if sp(i, 1) - cur(2) <= gap, cur(2) = max(cur(2), sp(i, 2)); else, P.points(end+1, :) = cur; cur = sp(i, :); end %#ok<AGROW>
-end
-P.points(end+1, :) = cur;
-P.points = P.points(diff(P.points, 1, 2) >= s.pointMinS * rec.fps, :);
+function P = findPoints(rec, D, s, bounces)
+P.points = tv.events.pointsFromTracks(D.tracks, bounces, rec.fps, struct('gapS', s.pointGapS, 'minS', s.pointMinS, ...
+    'splitS', s.pointSplitS, 'needsPlay', s.pointNeedsPlay, 'trackMinS', s.pointTrackMinS));
 end
 
 function C = findClips(rec, s)
@@ -351,13 +363,14 @@ for r = list(:)'
 end
 end
 
-function B = findBounces(rec, D, K, s, PO)
+function B = findBounces(rec, D, K, s, PO, box)
 % a bounce: the track falls (image row increasing) then rises, with the turn away from people
 c = tv.court.constants();
-B.bounces = struct('clip', {}, 'frame', {}, 't', {}, 'u', {}, 'v', {}, 'x', {}, 'y', {}, 'call', {}, 'marginM', {});
+B.bounces = struct('clip', {}, 'frame', {}, 't', {}, 'u', {}, 'v', {}, 'x', {}, 'y', {}, 'call', {}, 'marginM', {}, 'track', {});
 nHit = 0;  nNet = 0;
 for r = 1:numel(D.tracks)
-    for trk = D.tracks{r}(:)'
+    for ti = 1:numel(D.tracks{r})
+        trk = D.tracks{r}(ti);
         f = double(trk.frames(:));  v = double(trk.uv(:, 2));  u = double(trk.uv(:, 1));
         if isfield(trk, 'followed')
             % the detector's own points only: a turn needs its evidence, not the looser search's
@@ -379,7 +392,7 @@ for r = 1:numel(D.tracks)
                 end
                 [call, m] = callSingles(g(1:2), c);
                 B.bounces(end+1) = struct('clip', r, 'frame', f(j), 't', rec.pts(f(j) + 1), 'u', u(j), 'v', v(j), ...
-                    'x', g(1), 'y', g(2), 'call', call, 'marginM', m); %#ok<AGROW>
+                    'x', g(1), 'y', g(2), 'call', call, 'marginM', m, 'track', ti); %#ok<AGROW>
             end
         end
     end
@@ -396,6 +409,19 @@ for a = 1:numel(B.bounces)
 end
 B.duplicates = nnz(~keep);
 B.bounces = B.bounces(keep);
+% in play, bounced on the spot (a server's dribble) or on the next court (tv.events.bounceKind)
+if isempty(B.bounces)
+    B.bounces = struct('clip', {}, 'frame', {}, 't', {}, 'u', {}, 'v', {}, 'x', {}, 'y', {}, 'call', {}, 'marginM', {}, 'track', {}, 'kind', {}, 'cameM', {});
+    B.hitsSkipped = nHit;  B.netSkipped = nNet;  return
+end
+[B.bounces.kind] = deal('play');  [B.bounces.cameM] = deal(NaN);
+for r = unique([B.bounces.clip])
+    P = zeros(0, 3);
+    for trk = D.tracks{r}(:)', P = [P; double(trk.frames(:)), double(trk.uv)]; end %#ok<AGROW>
+    i = find([B.bounces.clip] == r);
+    [kd, cm] = tv.events.bounceKind(K.cam, B.bounces(i), P, rec.fps, box, s.bounceKindOpts);
+    for j = 1:numel(i), B.bounces(i(j)).kind = kd{j};  B.bounces(i(j)).cameM = cm(j); end
+end
 B.hitsSkipped = nHit;  B.netSkipped = nNet;
 end
 

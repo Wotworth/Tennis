@@ -123,7 +123,7 @@ private fun TestSummary(t: FootageTest) {
             NumberTile(t.court.scorecardMedianPx?.let { "${it.roundToInt()} px" } ?: "${(t.court.paintShare * 100).roundToInt()}%",
                 if (t.court.scorecardMedianPx != null) "off your lines" else "lines on paint", w, w)
             Spacer(Modifier.width(zpx(l.tileGap)))
-            NumberTile("${t.bounces.size}", "bounces found", w, w)
+            NumberTile("${t.bounces.size}", if (t.bounceCounts != null) "bounces in play" else "bounces found", w, w)
         }
         SectionHeader("court")
         TextRow("found from the lines alone", "lens ${t.court.hfovDeg.roundToInt()}° wide · camera ${f1(kotlin.math.abs(t.court.camera[0]) - 11.885)} m behind the baseline, ${f1(t.court.camera[2])} m up")
@@ -286,6 +286,11 @@ private fun TestBounces(t: FootageTest) {
         Spacer(Modifier.height(zpx(6f)))
         val ins = t.bounces.count { it.call == "in" }
         TennisText("${t.bounces.size} bounces: $ins in (filled), ${t.bounces.size - ins} out (rings), against the singles court. The camera is at the bottom. One camera can't tell a bounce from a hit near the ground, so some dots are hits.", TennisTokens.Type.listSecondary)
+        t.bounceCounts?.let { c ->
+            Spacer(Modifier.height(zpx(6f)))
+            TennisText("Only bounces in play are shown. Left out: ${c.onTheSpot} where the ball was bounced on the spot (before a serve) or had too little track to tell, " +
+                "${c.otherCourts} on the next courts, ${c.inTheAir} in the air (hits), ${c.betweenRallies} between rallies.", TennisTokens.Type.listSecondary)
+        }
     }
 }
 

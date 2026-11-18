@@ -47,6 +47,14 @@ nC = size(spans, 1);
 clips = struct('index', {}, 'startS', {}, 'lengthS', {}, 'frames', {}, 'framesWithBall', {}, 'tracks', {}, 'bounces', {});
 totF = 0;  totB = 0;
 bClip = arrayfun(@(b) firstOr0(inSpan(b.frame)), R.bounces);
+% only bounces in play are shown (tv.events.bounceKind: not the ball bounced on the spot before a
+% serve, not the next court's); the rest are counted
+inPlay = true(1, numel(R.bounces));
+if isfield(R.bounces, 'kind'), inPlay = strcmp({R.bounces.kind}, 'play'); end
+bClip(~inPlay) = 0;
+kinds = repmat({'play'}, 1, numel(R.bounces));  if isfield(R.bounces, 'kind'), kinds = {R.bounces.kind}; end
+bounceCounts = struct('found', numel(kinds), 'inPlay', nnz(bClip > 0), 'onTheSpot', nnz(ismember(kinds, {'spot', 'dribble'})), ...
+    'otherCourts', nnz(strcmp(kinds, 'off')), 'inTheAir', nnz(strcmp(kinds, 'air')), 'betweenRallies', nnz(inPlay(:)' & bClip(:)' == 0));
 for r = 1:nC
     f = spans(r, 1):spans(r, 2);
     nWith = nnz(allF >= f(1) & allF <= f(end));
@@ -94,7 +102,7 @@ T = struct('id', opts.id, 'title', opts.title, 'date', opts.date, 'source', opts
     'ball', struct('framesInClips', totF, 'framesWithBall', totB, ...
         'candidates', sum(cellfun(@(x) size(x, 1), R.candidates)), 'tracks', sum(cellfun(@numel, R.tracks)), ...
         'check', opts.check), ...
-    'bounces', bounces, ...
+    'bounces', bounces, 'bounceCounts', bounceCounts, ...
     'players', struct('samples', numel(R.players), 'withTwoOnCourt', n2, 'withOneOrMore', n1), ...
     'frames', frames, 'notes', {opts.notes});
 tv.util.writeJson(fullfile(outDir, 'test.json'), T);

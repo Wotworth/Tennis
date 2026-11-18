@@ -1,6 +1,6 @@
 # Ball detector, rebuilt overnight (18 Nov)
 
-Releases: [v0.6.37](https://github.com/Wotworth/Tennis/releases/tag/v0.6.37) (first detector), [v0.6.38](https://github.com/Wotworth/Tennis/releases/tag/v0.6.38) (frames zoom), [v0.6.39](https://github.com/Wotworth/Tennis/releases/tag/v0.6.39) (round 2). In the app: Sessions → **Clay, iPhone**.
+Releases: [v0.6.37](https://github.com/Wotworth/Tennis/releases/tag/v0.6.37) (first detector), [v0.6.38](https://github.com/Wotworth/Tennis/releases/tag/v0.6.38) (frames zoom), [v0.6.39](https://github.com/Wotworth/Tennis/releases/tag/v0.6.39) (round 2), [v0.6.40](https://github.com/Wotworth/Tennis/releases/tag/v0.6.40) (tap fix, frames unpixelated), [v0.6.41](https://github.com/Wotworth/Tennis/releases/tag/v0.6.41) (bounces in play, points). In the app: Sessions → **Clay, iPhone**.
 
 You asked for a detector that works on any footage without me tuning it, using far less compute, and not fooled by other balls, clothes or racquets. Here is what I built overnight, how it scores on the fixed test set, and the decisions I made without you.
 
@@ -111,6 +111,30 @@ On these 6 minutes the two look alike; a 12-spot check can't separate them. Roun
 - **What I found:** in round 2's sample frames, one far player wasn't pixelated. They had stood still through that 30-second clip, so they had become part of the clip's empty-court picture.
 - **The fix:** people are now also looked for against the whole session's empty court, as person-shaped regions only; smaller ones count too.
 - **Checked:** every exported frame, by eye. The frames shipped in v0.6.37 and v0.6.38 were also checked: everyone in them was pixelated.
+
+## Bounces in play and points (v0.6.41)
+
+You asked for the pre-serve bounces next. Three things were mixed into the 144 "bounces":
+
+| What it was | How it's told apart | Count |
+| --- | --- | --- |
+| The ball bounced on the spot (the server before a serve), or too little track to tell | In the second before the bounce, the ball was never more than 2.2 m from where it bounced | 36 |
+| A bounce on the next court | A bounce is on the ground, so its position is exact: it is beside your court | 37 |
+| A turn in the air (a hit, or the ball against the back curtain) | Its sight line reaches the ground beyond the end of the court | 10 |
+| **A bounce in play** | The ball came from further away | **61** (56 inside points) |
+
+**Points** went from 7 (one of them 70 seconds long) to **14, all between 2 and 21 seconds**.
+- A point ends where the server bounces the ball again and again on one spot, so the next point starts with its serve.
+- The next court's ball no longer joins your points together: a ball path whose bounces are on the next court is dropped.
+- A point must hold at least one bounce in play.
+- 9 of the 14 begin with a bounce in a service box about 2 seconds in, as a serve does.
+
+**What I checked by eye:** 24 bounces, without knowing how the rule had labelled them.
+- Of 8 with too little track to tell: none was in play (6 server bounces, 2 next court).
+- Of 8 called "on the spot": 5 were server bounces, 2 were real bounces at the far end, 1 was a dead ball by the net.
+- Of 8 called "in play" (before the next-court and in-the-air checks existed): 3 were in play, 2 next court, 1 a racquet bounce, 1 in the air, 1 nothing.
+
+**The limit, plainly:** one camera behind the baseline can't see how far a ball flying straight away from it has come. So a few far-end bounces in play are left out, and a few server bounces (the first after the ball arrives) still count as in play; you can see them as a small cluster of rings behind the far baseline. Two cameras measure distance directly and remove both problems.
 
 ## Rules retired
 

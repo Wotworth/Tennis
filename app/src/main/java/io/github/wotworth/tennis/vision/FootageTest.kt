@@ -21,6 +21,8 @@ data class FootageTest(
     val clips: List<TestClip>,
     val ball: TestBall,
     val bounces: List<TestBounce>,
+    /** Bounces not shown: bounced on the spot (before serves), on the next courts, between rallies. Null in older tests. */
+    val bounceCounts: BounceCounts? = null,
     val players: TestPlayers,
     val frames: List<TestFrame>,
     val notes: List<String>,
@@ -47,6 +49,7 @@ data class TestCheck(val framesChecked: Int, val ballVisible: Int, val found: In
 
 data class TestBall(val framesInClips: Int, val framesWithBall: Int, val candidates: Int, val tracks: Int, val check: TestCheck?)
 
+data class BounceCounts(val found: Int, val inPlay: Int, val onTheSpot: Int, val otherCourts: Int, val inTheAir: Int, val betweenRallies: Int)
 data class TestBounce(val clip: Int, val t: Double, val x: Double, val y: Double, val call: String, val marginM: Double)
 
 data class TestPlayers(val samples: Int, val withTwoOnCourt: Int, val withOneOrMore: Int)
@@ -90,6 +93,9 @@ object FootageTestJson {
             ball = TestBall(b.getInt("framesInClips"), b.getInt("framesWithBall"), b.getInt("candidates"), b.getInt("tracks"), ck),
             bounces = o.list("bounces").objs().map {
                 TestBounce(it.getInt("clip"), it.getDouble("t"), it.getDouble("x"), it.getDouble("y"), it.getString("call"), it.getDouble("marginM"))
+            },
+            bounceCounts = o.optJSONObject("bounceCounts")?.let {
+                BounceCounts(it.getInt("found"), it.getInt("inPlay"), it.getInt("onTheSpot"), it.getInt("otherCourts"), it.optInt("inTheAir"), it.getInt("betweenRallies"))
             },
             players = TestPlayers(p.getInt("samples"), p.getInt("withTwoOnCourt"), p.getInt("withOneOrMore")),
             frames = o.list("frames").objs().map {
