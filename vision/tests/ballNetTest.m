@@ -31,3 +31,23 @@ for k = 1:3
 end
 p = tv.detect.ballNet(net1, X, [4 9]);
 assert(p > 0.9, sprintf('moving ball scored %.2f', p));
+
+%% round 4 (no colour, 5 input channels): the probabilities match PyTorch's to 1e-6
+net5 = tv.detect.loadBallNet(fullfile(here, 'fixtures', 'ballnet', 'random5_net.json'));
+C5 = jsondecode(fileread(fullfile(here, 'fixtures', 'ballnet', 'random5_check.json')));
+assert(size(net5.conv(1).W, 3) == 5);
+p = tv.detect.ballNet(net5, permute(uint8(C5.X), [3 4 5 2 1]), C5.M);
+assert(max(abs(p(:) - C5.p(:))) < 1e-6, sprintf('max difference %.3g', max(abs(p(:) - C5.p(:)))));
+
+%% round 4 cuts: tv.detect.ballCrops at the ball's scale gives the Python twin's pixels
+K = jsondecode(fileread(fullfile(here, 'fixtures', 'ballnet', 'crops_check.json')));
+Fr = uint8(K.F);                                            % frame, row, column, channel
+fr = @(k) reshape(Fr(k, :, :, :), size(Fr, 2), size(Fr, 3), 3);
+X = tv.detect.ballCrops(fr(1), fr(2), fr(3), K.C, 48, K.scale);
+want = permute(uint8(K.X), [3 4 5 2 1]);                    % n f h w c -> h w c f n
+d = abs(double(X) - double(want));
+assert(max(d(:)) <= 1 && mean(d(:) > 0) < 0.01, sprintf('largest difference %d levels, %.2f%% of pixels differ', max(d(:)), 100 * mean(d(:) > 0)));
+
+%% the scale stays within the camera's range
+s = tv.detect.ballScale([1; 5; 40], [3 9; 3 9; 3 9]);
+assert(isequal(s, [3; 5; 9]), mat2str(s'));

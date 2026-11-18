@@ -14,7 +14,7 @@ def stream(v, first, count):
     while True:
         b = pr.stdout.read(n)
         if len(b) < n: break
-        yield np.frombuffer(b, np.uint8).reshape(common.H, common.W, 3)
+        yield common.condition(np.frombuffer(b, np.uint8).reshape(common.H, common.W, 3))
     pr.wait()
 
 
@@ -22,7 +22,7 @@ def main(v, first, last, step, weights, out):
     net = Mdl.BallNet(); net.load_state_dict(torch.load(weights)); net.eval()
     dmin, dmax = common.geom(v); mask = P.mask_full(v)
     from PIL import Image
-    bg = np.asarray(Image.open(f'{common.ROOT}/ml/bg_v{v}.png').convert('RGB'))
+    bg = common.condition(np.asarray(Image.open(f'{common.ROOT}/ml/bg_v{v}.png').convert('RGB')))
     buf = {}; rows = []; t0 = time.time(); done = 0
     for k, f in enumerate(stream(v, first - P.K, last - first + 2 * P.K + 1)):
         fr = first - P.K + k
@@ -34,11 +34,12 @@ def main(v, first, last, step, weights, out):
         props, _ = P.proposals(prev, cur, nxt, dmin, dmax, mask)
         if len(props):
             pa = P.moved(prev, *P.shift(cur, prev)); na = P.moved(nxt, *P.shift(cur, nxt))
-            X = np.array([G.crop((pa, cur, na), p[0], p[1]) for p in props])
             hy = np.minimum(props[:, 1].astype(int) // 2, dmin.shape[0] - 1); hx = np.minimum(props[:, 0].astype(int) // 2, dmin.shape[1] - 1)
             M = np.stack([dmin[hy, hx], dmax[hy, hx]], axis=1).astype(np.float32)
+            sc = np.array([G.scale_of(p[4], m[0], m[1]) for p, m in zip(props, M)], np.float32)
+            X = np.array([G.crop((pa, cur, na), p[0], p[1], q) for p, q in zip(props, sc)])
             with torch.no_grad():
-                s = torch.cat([torch.sigmoid(net(*Mdl.prepare(X[j:j + 512], M[j:j + 512]))) for j in range(0, len(X), 512)]).numpy()
+                s = torch.cat([torch.sigmoid(net(*Mdl.prepare(X[j:j + 512], M[j:j + 512] / sc[j:j + 512, None]))) for j in range(0, len(X), 512)]).numpy()
             # the frame's shift against the empty court, as tv.calib.steady's d: raw = court + d
             dy, dx = P.shift(bg, cur)
             rows.append(np.column_stack([np.full(len(props), c), props[:, :2], s, props[:, 2:5], M, np.full(len(props), -dx), np.full(len(props), -dy)]))

@@ -5,13 +5,14 @@ function [C, tau] = motionProposals(prev, cur, nxt, sizeMap, opts)
 %   after either is shifted by up to opts.R px: edges and textures that shimmer or sway by a pixel
 %   or two (net mesh, fences, tape after steadying) drop out; a ball that moved further does not.
 %   The threshold comes from each frame's own noise: the median plus opts.nsig robust deviations
-%   of the plain difference over the court of interest, never below opts.floor. Blobs are kept
+%   of the plain difference over the court of interest, never below opts.floorRel of the frame's
+%   own brightness there (opts.floor, a fixed number, when floorRel is 0: rounds 1-3). Blobs are kept
 %   when their size fits a ball there (sizeMap from tv.detect.ballSizeMap): no wider than about
 %   two diameters, no longer than nine (motion blur).
 %   C: rows [x y area length width strength], x and y 1-based pixels. tau: the threshold used.
 %   No value here depends on the court, the light or the ball's colour.
 if nargin < 5, opts = struct(); end
-d = struct('R', 2, 'nsig', 8, 'floor', 18);
+d = struct('R', 2, 'nsig', 8, 'floor', 18, 'floorRel', 0.05);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 c = int16(cur);
@@ -24,7 +25,13 @@ plain([1:ey, end - ey + 1:end], :) = 0;  plain(:, [1:ex, end - ex + 1:end]) = 0;
 mask = sizeMap.mask;
 m = plain(mask);  m = m(1:7:end);
 med = median(m);  mad = 1.4826 * median(abs(m - med)) + 1e-3;
-tau = max(opts.floor, med + opts.nsig * mad);
+fl = opts.floor;
+if opts.floorRel > 0
+    % round 4: the floor is a share of the frame's own brightness (median of R+G+B over the court
+    % of interest), so dim footage is not held to a bright frame's number
+    br = sum(single(cur), 3);  br = br(mask);  fl = opts.floorRel * median(br(1:7:end));
+end
+tau = max(fl, med + opts.nsig * mad);
 % the shift-tolerant difference can only be smaller than the plain one, so it can pass the
 % threshold only where the plain one does: it is worked out at those pixels and one pixel round
 % (closing can add those), which gives the same blobs as working it out everywhere

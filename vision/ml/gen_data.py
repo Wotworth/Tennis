@@ -11,14 +11,46 @@ S = 48
 rng = np.random.default_rng(int(sys.argv[2]) if __name__ == '__main__' and len(sys.argv) > 2 else 0)
 
 
-def crop(F, x, y):
-    """S x S crops of the three frames around (x, y), edge-padded."""
-    x0 = int(round(x)) - S // 2; y0 = int(round(y)) - S // 2
-    out = np.zeros((3, S, S, 3), np.uint8)
-    for k in range(3):
-        ys = np.clip(np.arange(y0, y0 + S), 0, common.H - 1); xs = np.clip(np.arange(x0, x0 + S), 0, common.W - 1)
-        out[k] = F[k][np.ix_(ys, xs)]
+BALL_PX = 6.0      # the ball's diameter in the classifier's input, whatever the camera or distance
+SIDE_MIN, SIDE_MAX = 24.0, 192.0
+
+
+def scale_of(width, dmin, dmax):
+    """The ball's likely diameter (px) at a proposal: its blob's width, kept within what the
+    camera's geometry allows there."""
+    return float(np.clip(max(width, 2.0), max(dmin, 1.0), max(dmax, max(dmin, 1.0))))
+
+
+def side_of(s):
+    """Side (px, in the frame) of the square cut out for a ball of diameter s: S / BALL_PX
+    diameters, so the ball is BALL_PX px across once the square is resampled to S x S."""
+    return float(np.clip(s * S / BALL_PX, SIDE_MIN, SIDE_MAX))
+
+
+def resample(img, cx, cy, side, n=None):
+    """The square of `side` px centred on (cx, cy) (0-based pixel centres) of img (H, W, C),
+    resampled to n x n (default S): bilinear, edge-clamped, averaged over a 2 x 2 grid per output
+    pixel when shrinking. Written out so the MATLAB twin (tv.detect.ballCrops) is identical."""
+    n = n or S
+    ss = 2 if side > n else 1
+    g = n * ss
+    o = ((np.arange(g) + 0.5) / g - 0.5) * side
+    h, w = img.shape[:2]
+    u = np.clip(cx + o, 0, w - 1); v = np.clip(cy + o, 0, h - 1)
+    u0 = np.floor(u).astype(int); v0 = np.floor(v).astype(int)
+    u1 = np.minimum(u0 + 1, w - 1); v1 = np.minimum(v0 + 1, h - 1)
+    fu = (u - u0)[None, :, None]; fv = (v - v0)[:, None, None]
+    im = img.astype(np.float64)
+    out = (im[np.ix_(v0, u0)] * (1 - fu) + im[np.ix_(v0, u1)] * fu) * (1 - fv) + (im[np.ix_(v1, u0)] * (1 - fu) + im[np.ix_(v1, u1)] * fu) * fv
+    if ss > 1: out = out.reshape(n, ss, n, ss, -1).mean(axis=(1, 3))
     return out
+
+
+def crop(F, x, y, s):
+    """The classifier's input for a spot at (x, y) with likely ball diameter s: the three frames,
+    each S x S x 3 uint8, cut so the ball is BALL_PX px across."""
+    side = side_of(s)
+    return np.clip(np.stack([resample(F[k], x, y, side) for k in range(3)]) + 0.5, 0, 255).astype(np.uint8)
 
 
 def ball_colour():
@@ -81,18 +113,24 @@ def positive(F, dmin, dmax, cam, ok_px):
     else:
         return None, None
     lo, hi = dmin[int(y) // 2, int(x) // 2], dmax[int(y) // 2, int(x) // 2]
-    # the motion within one exposure: the image velocity per frame times the exposure's share
-    vimg = (q[2] - q[0]) / (2 * P.K)
+    # the scale a proposal would give: about the ball's diameter, within the geometry's range
+    sc = scale_of(Ds[1] * rng.uniform(0.75, 1.3), lo, hi); side = side_of(sc)
+    # the spot's centre is not exactly the ball's
+    cx0, cy0 = x + rng.uniform(-0.2, 0.2) * sc, y + rng.uniform(-0.2, 0.2) * sc
+    # drawn at the frame's own resolution when the cut is small (a far ball stays as soft as a real
+    # one after enlarging), at the input's resolution when it is large
+    n = int(round(side)) if side <= S else S
+    g = n / side                                   # work pixels per frame pixel
+    vimg = (q[2] - q[0]) / (2 * P.K) * g           # image velocity per frame, in work pixels
     blur = rng.uniform(0.05, 0.9)
     col = ball_colour()
-    C = crop(F, x, y).astype(float)
-    out = np.empty_like(C)
+    out = np.empty((3, S, S, 3), np.float32)
     for k in range(3):
-        cx = S / 2 - 0.5 + (q[k][0] - round(x)); cy = S / 2 - 0.5 + (q[k][1] - round(y))
-        out[k] = draw(C[k], cx, cy, Ds[k] * rng.uniform(0.95, 1.05), col * rng.uniform(0.92, 1.08), vimg[0], vimg[1], blur)
-    jitter = rng.integers(-1, 2, 2)                # the proposal's centre is not exactly the ball's
-    out = np.roll(out, tuple(jitter), axis=(1, 2))
-    return np.clip(out, 0, 255).astype(np.uint8), (lo, hi)
+        patch = resample(F[k], cx0, cy0, side, n)
+        px = (q[k][0] - cx0) * g + n / 2 - 0.5; py = (q[k][1] - cy0) * g + n / 2 - 0.5
+        patch = draw(patch.astype(float), px, py, Ds[k] * g * rng.uniform(0.95, 1.05), col * rng.uniform(0.92, 1.08), vimg[0], vimg[1], blur)
+        out[k] = patch if n == S else resample(patch, n / 2 - 0.5, n / 2 - 0.5, n)
+    return np.clip(out + 0.5, 0, 255).astype(np.uint8), (lo / sc, hi / sc)
 
 
 def frames_for(v, n):
@@ -124,9 +162,10 @@ def main(v, n_frames, seed, out):
             props, _ = P.proposals(F5[0], cur, F5[2 * P.K], dmin, dmax, mask)
         if len(props) > 150: props = props[rng.choice(len(props), 150, replace=False)]
         for p in props:
-            X.append(crop(F, p[0], p[1])); Y.append(0)
-            M.append((dmin[min(int(p[1]) // 2, dmin.shape[0] - 1), min(int(p[0]) // 2, dmin.shape[1] - 1)],
-                      dmax[min(int(p[1]) // 2, dmin.shape[0] - 1), min(int(p[0]) // 2, dmin.shape[1] - 1)]))
+            lo = dmin[min(int(p[1]) // 2, dmin.shape[0] - 1), min(int(p[0]) // 2, dmin.shape[1] - 1)]
+            hi = dmax[min(int(p[1]) // 2, dmin.shape[0] - 1), min(int(p[0]) // 2, dmin.shape[1] - 1)]
+            sc = scale_of(p[4], lo, hi)
+            X.append(crop(F, p[0], p[1], sc)); Y.append(0); M.append((lo / sc, hi / sc))
         for _ in range(int(os.environ.get('POSONLY', 0)) or max(60, len(props))):
             c, m = positive(F, dmin, dmax, cam, ok_px)
             if c is None: continue

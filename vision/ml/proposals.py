@@ -3,13 +3,17 @@ lined up with t (whole-pixel shift by phase correlation), and a pixel moves when
 both (so the ghost of where a thing was is not counted). The threshold is set from each frame's
 own noise (median + N robust deviations), and blobs are kept only when their size fits a ball at
 that place in the picture (the camera fit gives the diameter range). No colour anywhere."""
+import os
 import numpy as np
 from scipy import ndimage
 import common
 
 K = 2            # frames apart
 NSIG = 8.0       # robust deviations above the frame's median motion
-MIN_FLOOR = 18.0  # never below this (sum over RGB), so a still frame's sensor noise is not "motion"
+MIN_FLOOR = 18.0  # (round 1-3) never below this (sum over RGB), so a still frame's sensor noise is not "motion"
+FLOOR_REL = float(os.environ.get('FLOOR_REL', '0.05'))   # round 4: the floor as a share of the frame's own brightness
+#                   (median of R+G+B over the court of interest): 17-21 on the three test videos as
+#                   filmed, and the same share of the light when the footage is dimmer or brighter
 
 
 def _grey_half(f):
@@ -123,9 +127,11 @@ def proposals(prev, cur, nxt, dmin, dmax, mask):
 
     def thresh(plain):
         # the frame's own noise, from the plain difference over where the ball can be
-        m = plain[mask][::7]
+        # (sampled down the columns, as MATLAB's plain(mask) does, so both give the same numbers)
+        m = plain.T[mask.T][::7]
         med = np.median(m); mad = np.median(np.abs(m - med)) * 1.4826 + 1e-3
-        st['tau'] = max(MIN_FLOOR, med + NSIG * mad)
+        floor = FLOOR_REL * np.median(cur.astype(np.float32).sum(axis=2).T[mask.T][::7]) if FLOOR_REL > 0 else MIN_FLOOR
+        st['tau'] = max(floor, med + NSIG * mad)
         return st['tau']
     M = motion(prev, cur, nxt, thresh)
     tau = st['tau']

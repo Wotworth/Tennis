@@ -316,7 +316,12 @@ for r = 1:size(clips, 1)
                 prev = tv.calib.steady(F(:, :, :, j - K2), double(cur));  nxt = tv.calib.steady(F(:, :, :, j + K2), double(cur));
                 ix = sub2ind(size(S.dmax), min(max(round(C(:, 2)), 1), rec.height), min(max(round(C(:, 1)), 1), rec.width));
                 M = [S.dmin(ix), S.dmax(ix)];
-                p = tv.detect.ballNet(net, tv.detect.ballCrops(prev, cur, nxt, C), M);
+                if size(net.conv(1).W, 3) == 5     % round 4: cut at the ball's scale, no colour
+                    sc = tv.detect.ballScale(C(:, 5), M);
+                    p = tv.detect.ballNet(net, tv.detect.ballCrops(prev, cur, nxt, C, 48, sc), M ./ sc);
+                else
+                    p = tv.detect.ballNet(net, tv.detect.ballCrops(prev, cur, nxt, C), M);
+                end
                 [~, d] = tv.calib.steady(cur, K.bg, s.steadyMaxPx);
                 A = [A; repmat(t, size(C, 1), 1), C(:, 1:2), p(:), C(:, 3:5), M, repmat(d, size(C, 1), 1)]; %#ok<AGROW>
             end

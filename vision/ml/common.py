@@ -8,6 +8,25 @@ W, H, FPS = 1920, 1080, 60.0
 OVERLAYS = {1: [(1630, 10, 1915, 470), (1430, 925, 1915, 1070)], 2: [(1630, 10, 1915, 470), (1430, 925, 1915, 1070)], 3: [], 4: []}
 
 
+COND = os.environ.get('COND', 'plain')   # stress conditions: the same footage as another camera, light or ball colour would show it
+
+
+def condition(F):
+    """Frames (..., H, W, 3) uint8 under the stress condition COND (plain: unchanged).
+    grey: no colour at all. hue: channels rotated (a yellow ball turns pink-blue, clothes change
+    colour). dark: 40% of the light. invert: light and dark swapped (a dark ball on a pale court).
+    warm: a strong orange cast with less contrast."""
+    if COND == 'plain': return F
+    f = F.astype(np.float32)
+    if COND == 'grey': f = np.repeat(f.mean(axis=-1, keepdims=True), 3, axis=-1)
+    elif COND == 'hue': f = f[..., [2, 0, 1]]
+    elif COND == 'dark': f = f * 0.4
+    elif COND == 'invert': f = 255 - f
+    elif COND == 'warm': f = (f - 128) * 0.7 + 128; f = f * np.array([1.15, 0.95, 0.6], np.float32)
+    else: raise ValueError(COND)
+    return np.clip(f, 0, 255).astype(np.uint8)
+
+
 def pts(v):
     return np.fromfile(f'{ROOT}/ml/pts_v{v}.f64', dtype=np.float64)
 
@@ -22,7 +41,7 @@ def read(v, first, count):
     cmd = ['ffmpeg', '-v', 'error', '-ss', '%.6f' % t, '-i', VIDEO[v], '-frames:v', str(count), '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-']
     raw = subprocess.run(cmd, stdout=subprocess.PIPE, check=True).stdout
     n = len(raw) // (W * H * 3)
-    return np.frombuffer(raw[:n * W * H * 3], np.uint8).reshape(n, H, W, 3)
+    return condition(np.frombuffer(raw[:n * W * H * 3], np.uint8).reshape(n, H, W, 3))
 
 
 def geom(v):

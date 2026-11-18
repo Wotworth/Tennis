@@ -116,7 +116,8 @@ def one(f):
         if c not in want or c - P.K not in buf: continue
         cur = buf[c]; pa = P.moved(buf[c - P.K], *P.shift(cur, buf[c - P.K])); na = P.moved(buf[c + P.K], *P.shift(cur, buf[c + P.K]))
         for r, y in want[c]:
-            X.append(G.crop((pa, cur, na), r[1], r[2])); M.append(r[7:9]); Y.append(y)
+            sc = G.scale_of(r[6], r[7], r[8])
+            X.append(G.crop((pa, cur, na), r[1], r[2], sc)); M.append(r[7:9] / sc); Y.append(y)
     np.savez_compressed(out, X=np.array(X, np.uint8).reshape(-1, 3, 48, 48, 3), M=np.array(M, np.float32).reshape(-1, 2), Y=np.array(Y, np.uint8))
     print(os.path.basename(out), 'balls', int(np.sum(Y)), 'not balls', len(Y) - int(np.sum(Y)), flush=True)
     return out
