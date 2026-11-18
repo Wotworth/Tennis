@@ -108,7 +108,7 @@ What's still wrong, honestly:
 On these 6 minutes the two look alike; a 12-spot check can't separate them. Round 2's gain shows on the larger test and check sets.
 
 **A pixelation fix.**
-- **What I found:** in round 2's sample frames, one far player wasn't pixelated. He had stood still through that 30-second clip, so he had become part of the clip's empty-court picture.
+- **What I found:** in round 2's sample frames, one far player wasn't pixelated. They had stood still through that 30-second clip, so they had become part of the clip's empty-court picture.
 - **The fix:** people are now also looked for against the whole session's empty court, as person-shaped regions only; smaller ones count too.
 - **Checked:** every exported frame, by eye. The frames shipped in v0.6.37 and v0.6.38 were also checked: everyone in them was pixelated.
 
