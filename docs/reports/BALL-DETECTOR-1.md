@@ -1,5 +1,7 @@
 # Ball detector, rebuilt overnight (18 Nov)
 
+Release: [v0.6.37](https://github.com/Wotworth/Tennis/releases/tag/v0.6.37). In the app: Sessions → **Clay, iPhone**, re-run with the new detector.
+
 You asked for a detector that works on any footage without me tuning it, using far less compute, and not fooled by other balls, clothes or racquets. Here is what I built overnight, how it scores on the fixed test set, and the decisions I made without you.
 
 ## How SwingVision likely does it
