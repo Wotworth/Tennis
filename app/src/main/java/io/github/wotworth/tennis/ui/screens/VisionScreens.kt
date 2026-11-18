@@ -438,7 +438,7 @@ fun VisionTrends() {
     val shown = d.racquet(racquetId ?: -1) ?: racquet
     val shownJobs = if (shown == null) jobs else d.jobs.filter { it.racquetId == shown.id }
     val o = LocalOverlays.current
-    val measures = listOf("both" to "spin and depth", "spin" to "spin effect", "depth" to "depth")
+    val measures = listOf("both" to "topspin and depth", "spin" to "topspin", "depth" to "depth")
     fun open() = o.panel("trend choices", onReset = { racquetId = racquet?.id; measure = "both" }) {
         TennisText("racquet", TennisTokens.Type.listSecondary)
         Spacer(Modifier.height(zpx(4f)))
@@ -456,7 +456,7 @@ fun VisionTrends() {
     Spacer(Modifier.height(zpx(4f)))
     TennisText("Synthetic trend for the preview. Tap a choice to change it.", TennisTokens.Type.listSecondary)
     Spacer(Modifier.height(zpx(6f)))
-    if (measure != "depth") TrendChart("spin effect, ft shorter", pts.map { it.epochDay to -it.forehandSpinEffect * Units.FT_PER_M }, shownJobs)
+    if (measure != "depth") TrendChart("ft shorter from topspin", pts.map { it.epochDay to -it.forehandSpinEffect * Units.FT_PER_M }, shownJobs)
     if (measure == "both") Spacer(Modifier.height(zpx(10f)))
     if (measure != "spin") TrendChart("depth, ft short of the baseline", pts.map { it.epochDay to it.forehandDepth * Units.FT_PER_M }, shownJobs)
 }

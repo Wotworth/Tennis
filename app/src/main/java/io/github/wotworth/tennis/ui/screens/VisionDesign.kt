@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
@@ -254,13 +255,31 @@ fun CourtMapV2(v: VisionSession, shots: List<VisionShot>, answer: String?, bySpi
             if (near != null && (mapping(near.bounce!![0], near.bounce[1]) - p).getDistance() < zpx(t.spotTapRadius).toPx()) onShot(near)
         }
     }
+    // zoomed in, one finger pans the map (Chris, 17 Nov): its area is kept from the tab swipe,
+    // and the drag is consumed so the page doesn't scroll
+    val key = remember { Any() }
+    var bounds by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+    androidx.compose.runtime.DisposableEffect(key) { onDispose { io.github.wotworth.tennis.ui.motion.NoSwipe.areas.remove(key) } }
+    androidx.compose.runtime.LaunchedEffect(zoom > 1f, bounds) {
+        if (zoom > 1f) io.github.wotworth.tennis.ui.motion.NoSwipe.areas[key] = bounds else io.github.wotworth.tennis.ui.motion.NoSwipe.areas.remove(key)
+    }
     val pinch = Modifier.pointerInput(Unit) {
         awaitEachGesture {
             awaitFirstDown(requireUnconsumed = false)
             while (true) {
                 val e = awaitPointerEvent()
                 if (e.changes.none { it.pressed }) break
-                if (e.changes.count { it.pressed } < 2) continue
+                if (e.changes.count { it.pressed } < 2) {
+                    if (zoom > 1f) {
+                        val c = e.changes.first { it.pressed }
+                        val d = c.position - c.previousPosition
+                        if (d != Offset.Zero) {
+                            pan = Offset((pan.x + d.x).coerceIn(size.width * (1 - zoom), 0f), (pan.y + d.y).coerceIn(size.height * (1 - zoom), 0f))
+                            c.consume()
+                        }
+                    }
+                    continue
+                }
                 val z = e.calculateZoom();  val c = e.calculateCentroid(useCurrent = true);  val d = e.calculatePan()
                 val nz = (zoom * z).coerceIn(1f, t.courtMaxZoom)
                 val k = nz / zoom
@@ -273,7 +292,9 @@ fun CourtMapV2(v: VisionSession, shots: List<VisionShot>, answer: String?, bySpi
             }
         }
     }
-    Canvas(Modifier.fillMaxWidth().height(zpx(heightZpx)).clipToBounds().testTag("courtMap").semantics { stateDescription = "zoom $zoom" }.then(pinch).then(tap)) {
+    Canvas(Modifier.fillMaxWidth().height(zpx(heightZpx)).clipToBounds()
+        .onGloballyPositioned { val o = it.localToWindow(Offset.Zero); bounds = androidx.compose.ui.geometry.Rect(o, androidx.compose.ui.geometry.Size(it.size.width.toFloat(), it.size.height.toFloat())) }
+        .testTag("courtMap").semantics { stateDescription = "zoom $zoom pan ${pan.x}" }.then(pinch).then(tap)) {
         // the court runs up the screen: court x -> screen y, court y -> screen x
         val pad = zpx(t.courtSidePadding).toPx()
         val s0 = minOf((size.width - 2 * pad) / widthM.toFloat(), (size.height - 2 * pad) / lengthM.toFloat())
@@ -350,7 +371,10 @@ fun PivotFrame(title: String, header: String, next: String?, bar: (@Composable (
             }
             Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = zpx(l.pageSideMargin)).padding(top = zpx(10f))) {
                 content()
-                Spacer(Modifier.height(zpx(l.appBarHeight + 16f)))
+                // room for the labelled bar and the phone's own navigation bar (Chris, 17 Nov: the
+                // last figures of a shot were hidden under them)
+                Spacer(Modifier.height(zpx(l.appBarHeight + 40f)))
+                Spacer(Modifier.navigationBarsPadding())
             }
         }
         if (bar != null) Box(Modifier.align(Alignment.BottomCenter)) { bar() }
@@ -388,7 +412,7 @@ private fun FlyoutRow(label: String, content: @Composable () -> Unit) {
 // ---- the variations Chris chooses between ------------------------------------------------------------
 
 val TYPE_OPTIONS = listOf("all" to "all", "serve" to "serves", "forehand" to "forehands", "backhand" to "backhands")
-val COLOUR_OPTIONS = listOf("speed" to "speed", "spin" to "spin effect")
+val COLOUR_OPTIONS = listOf("speed" to "speed", "spin" to "topspin")
 
 private fun whoOptions(v: VisionSession, answer: String?): List<Pair<String, String>> =
     listOf("all" to "everyone") + v.shots.map { it.hitter }.distinct().sorted().map { it to v.who(it, answer) }
@@ -502,7 +526,7 @@ fun ShotVariantB(v: VisionSession, s: VisionShot, answer: String?) {
         val all = shotStats(s).associate { it.second to it.first }
         Group("flight"); StatGrid(listOfNotNull(pick(all, "launch angle"), pick(all, "net clearance"), pick(all, "highest point"), pick(all, "at the bounce")), 2)
         Group("bounce"); StatGrid(listOfNotNull(pick(all, "short of the baseline"), pick(all, "bounce ±"), pick(all, "kick off the court"), pick(all, "call")), 2)
-        Group("spin"); StatGrid(listOfNotNull(pick(all, "spin effect on the bounce"), pick(all, "spin"), pick(all, "topspin / sidespin"), pick(all, "spin rate")), 2)
+        Group("spin"); StatGrid(listOfNotNull(all.entries.firstOrNull { it.key.contains(" from ") }?.let { it.value to it.key }, pick(all, "spin"), pick(all, "topspin / sidespin"), pick(all, "spin rate")), 2)
         TennisText("measurement confidence ${s.confidence?.let { "${(it * 100).roundToInt()}%" } ?: "–"}", TennisTokens.Type.listSecondary)
     }
 }
@@ -532,7 +556,8 @@ fun shotStats(s: VisionShot): List<Pair<String, String>> = listOfNotNull(
     s.call to "call",
     Units.ft(s.depth) to "short of the baseline",
     "± ${Units.inches(s.bounceSd)}" to "bounce ±",
-    (s.spinEffect?.let { "${Units.ft(abs(it))} ${if (it < 0) "shorter" else "longer"}" } ?: "–") to "spin effect on the bounce",
+    // Chris, 17 Nov: name the spin: topspin brings the ball down shorter, slice carries it longer
+    (s.spinEffect?.let { Units.ft(abs(it)) } ?: "–") to (s.spinEffect?.let { "${if (it < 0) "shorter" else "longer"} from ${s.spinLabel.ifBlank { "spin" }}" } ?: "from spin"),
     (s.spinLabel.ifBlank { "–" }) to "spin",
     (s.rpm?.let { Units.rpm(it, s.rpmSd) } ?: "–") to "spin rate",
     spinSplit(s).replace("topspin ", "").replace("slice ", "").replace(" · sidespin ", " / ") to "topspin / sidespin",
@@ -581,7 +606,7 @@ private fun TrendCharts() {
     if (pts.size < 2) return
     val racquet = d.racquet(app.prefs.selectedRacquet ?: -1) ?: d.active.firstOrNull()
     val jobs = d.jobs.filter { it.racquetId == racquet?.id }
-    TrendChart("spin effect, ft shorter", pts.map { it.epochDay to -it.forehandSpinEffect * Units.FT_PER_M }, jobs)
+    TrendChart("ft shorter from topspin", pts.map { it.epochDay to -it.forehandSpinEffect * Units.FT_PER_M }, jobs)
     Spacer(Modifier.height(zpx(10f)))
     TrendChart("depth, ft short of the baseline", pts.map { it.epochDay to it.forehandDepth * Units.FT_PER_M }, jobs)
 }
@@ -592,7 +617,7 @@ private fun TrendsFlyout(racquet: String?) {
         FlyoutRow("shot type") { SegmentStrip(listOf("serve" to "serves", "forehand" to "forehands", "backhand" to "backhands", "volley" to "volleys"), "forehand") }
         FlyoutRow("player") { SegmentStrip(listOf("you" to "you", "opponents" to "opponents"), "you") }
         FlyoutRow("racquet") { SegmentStrip(listOfNotNull("any" to "any racquet", racquet?.let { it to it.lowercase() }), racquet ?: "any") }
-        FlyoutRow("measures") { SegmentStrip(listOf("spin" to "spin effect", "depth" to "depth", "speed" to "speed", "net" to "net clearance"), "spin") }
+        FlyoutRow("measures") { SegmentStrip(listOf("spin" to "topspin", "depth" to "depth", "speed" to "speed", "net" to "net clearance"), "spin") }
     }
 }
 

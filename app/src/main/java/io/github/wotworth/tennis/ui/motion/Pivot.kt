@@ -29,6 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -204,14 +205,24 @@ fun PagerCategoryBar(state: CategoryPagerState, labels: List<String>) {
     }
 }
 
+/**
+ * Areas of the screen (window coordinates) where a one-finger drag belongs to the content, not
+ * to the tab swipe: a zoomed-in court map pans instead (Chris, 17 Nov).
+ */
+object NoSwipe {
+    val areas = androidx.compose.runtime.mutableStateMapOf<Any, androidx.compose.ui.geometry.Rect>()
+}
+
 /** MOT-20: the content area. The current category follows the finger 1:1, with its neighbour beside it. */
 @Composable
 fun PagerContent(state: CategoryPagerState, content: @Composable (Int) -> Unit) {
+    val origin = androidx.compose.runtime.remember { floatArrayOf(0f, 0f) }
     Box(
         Modifier
             .fillMaxSize()
             .clipToBounds()
-            .pointerInput(state) { categorySwipes(state) },
+            .then(Modifier.onGloballyPositionedCompat { o -> origin[0] = o.x; origin[1] = o.y })
+            .pointerInput(state) { categorySwipes(state) { p -> NoSwipe.areas.values.any { it.contains(p + androidx.compose.ui.geometry.Offset(origin[0], origin[1])) } } },
     ) {
         // Only the direction matters for composition; the offset itself is read at draw time.
         val side by androidx.compose.runtime.remember(state) {
@@ -264,10 +275,13 @@ private const val MAX_ROWS = 20
  * is still coasting from a vertical fling (the touch stops the coast; Chris's v0.5.16 report).
  * A mostly-vertical first movement is left to the list.
  */
-private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.categorySwipes(state: CategoryPagerState) {
+private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.categorySwipes(
+    state: CategoryPagerState, blocked: (androidx.compose.ui.geometry.Offset) -> Boolean = { false },
+) {
     awaitEachGesture {
         val pass = androidx.compose.ui.input.pointer.PointerEventPass.Initial
         val down = awaitFirstDown(requireUnconsumed = false, pass = pass)
+        if (blocked(down.position)) return@awaitEachGesture
         val slop = viewConfiguration.touchSlop
         var total = androidx.compose.ui.geometry.Offset.Zero
         // Decide the direction once the finger has moved past the slop.
@@ -306,3 +320,7 @@ private suspend fun androidx.compose.ui.input.pointer.PointerInputScope.category
         }
     }
 }
+
+/** This element's top-left in window coordinates, whenever it is placed. */
+fun Modifier.onGloballyPositionedCompat(f: (androidx.compose.ui.geometry.Offset) -> Unit): Modifier =
+    this.then(Modifier.onGloballyPositioned { f(it.localToWindow(androidx.compose.ui.geometry.Offset.Zero)) })

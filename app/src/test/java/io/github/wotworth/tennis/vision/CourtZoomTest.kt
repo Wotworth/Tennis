@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pinch
+import androidx.compose.ui.test.swipe
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.wotworth.tennis.Sample
 import io.github.wotworth.tennis.ui.AppRoot
@@ -33,13 +34,21 @@ class CourtZoomTest {
         rule.setContent { AppRoot(app, nav) }
         rule.waitForIdle()
         val map = rule.onNodeWithTag("courtMap")
-        fun zoom() = map.fetchSemanticsNode().config[SemanticsProperties.StateDescription].removePrefix("zoom ").toFloat()
+        fun state() = map.fetchSemanticsNode().config[SemanticsProperties.StateDescription].removePrefix("zoom ").split(" pan ")
+        fun zoom() = state()[0].toFloat()
+        fun panX() = state()[1].toFloat()
         assertEquals(1f, zoom(), 1e-3f)
         map.performTouchInput {
             pinch(center - Offset(20f, 0f), center - Offset(200f, 0f), center + Offset(20f, 0f), center + Offset(200f, 0f))
         }
         rule.waitForIdle()
         assertTrue("zoom ${zoom()}", zoom() > 2f)
+        assertEquals(Screen.Vision(VisionStore.SAMPLE_ID, 1), nav.current)
+        // zoomed in, one finger pans the map (Chris, 17 Nov) and doesn't turn the page
+        val before = panX()
+        map.performTouchInput { swipe(center, center + Offset(-250f, 0f), 400) }
+        rule.waitForIdle()
+        assertTrue("pan ${panX()} from $before", panX() < before - 100f)
         assertEquals(Screen.Vision(VisionStore.SAMPLE_ID, 1), nav.current)
     }
 }
