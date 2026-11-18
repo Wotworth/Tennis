@@ -185,7 +185,7 @@ private fun TestBall(t: FootageTest) {
             if (img != null) Image(img.asImageBitmap(), f.caption, Modifier.fillMaxWidth().aspectRatio(16f / 9f), contentScale = ContentScale.FillBounds)
         }
         Spacer(Modifier.height(zpx(8f)))
-        TextRow("frame ${i + 1} of ${t.frames.size} · rally ${f.clip} · ${mmss(f.t)}", listOf(f.verdict, f.caption).filter { it.isNotBlank() }.joinToString(" · "))
+        TextRow("frame ${i + 1} of ${t.frames.size} · ${if (f.clip > 0) "rally ${f.clip}" else "between rallies"} · ${mmss(f.t)}", listOf(f.verdict, f.caption).filter { it.isNotBlank() }.joinToString(" · "))
         TextRow("next frame", null) { i = (i + 1) % t.frames.size }
     }
 }

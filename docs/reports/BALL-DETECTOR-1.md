@@ -1,4 +1,4 @@
-# Ball detector, rebuilt overnight (18 Nov) — draft, results to come
+# Ball detector, rebuilt overnight (18 Nov)
 
 You asked for a detector that works on any footage without me tuning it, using far less compute, and not fooled by other balls, clothes or racquets. Here is what I built overnight, how it scores on the fixed test set, and the decisions I made without you.
 
@@ -45,6 +45,23 @@ The new detector here was trained on the clay video only. Videos 1 and 2 are foo
 - **The cause:** their "not a ball" examples were every moving spot in a frame. Videos 1 and 2 are rally-only edits, so almost every such frame had the real ball in it, labelled "not a ball". The models learned exactly that.
 - **The clay video was different:** it is raw footage and mostly between points, so it taught the model right. Trained on it alone, the model found the balls on the other two videos.
 - **The guard now:** "not a ball" examples leave out anything near a ball path or moving smoothly like a ball.
+
+## The clay test in the app, re-run
+
+Same 6 minutes (36:00–42:00), same court fit; only the ball detector changed. Nothing was set for this court or its light.
+
+| | Before (colour detector, 17 Nov) | Now |
+| --- | --- | --- |
+| Tracked spots that are the ball (random sample of 12, checked by eye) | 4 of 12 | **9 of 12** (one is a ball bounced before a serve) |
+| Ball tracks | 697 | 133 |
+| Sample frames with the ball in flight: found | 0 of 0 (none in flight in that sample) | 2 of 3 |
+| Points found | 9 | 10 |
+| Bounces | 60 | 141 |
+
+What's still wrong, honestly:
+- **3 of the 12 spots are false:** on the dome's curtain, the net and empty court. In one sample frame the ring is on the curtain while the ball is by the far player. The curtain's folds sway, and the classifier hasn't seen enough of that. More self-training on this court is the fix.
+- **Bounces went up, not down.** 36 of the 141 are just behind a baseline at the centre mark: the server bouncing the ball before serving. They are real bounces, but not in play; telling them apart (a serve follows) is next. The court map in the app shows them as "out".
+- **Some points still run together.** Between points the players hit balls back to each other, and those balls are real, so the gaps fill in. Points need the serve as their start, which comes with the bounce fix above.
 
 ## Rules retired
 
