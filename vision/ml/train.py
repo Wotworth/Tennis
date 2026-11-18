@@ -12,18 +12,31 @@ OLDNEG = os.environ.get('OLDNEG', '1') == '1'   # the first negatives (every pro
 OLDNEG_V = [int(c) for c in os.environ.get('OLDNEG_V', '123')]   # ... only from these videos (raw footage: few real balls among them)
 
 
+MINED_NEG = float(os.environ.get('MINED_NEG', '1'))   # share of the mined "not a ball" examples kept
+
+
 def load(videos):
-    X, M, Y = [], [], []
+    """All examples for these videos in one preallocated array (no doubled copies: the round-2
+    set is about 5 GB as uint8)."""
+    parts = []                                          # (file, row selection)
     for v in videos:
         for f in sorted(glob.glob(f'/home/user/private-footage/ml/data/v{v}_s*.npz')) if OLDNEG and v in OLDNEG_V else []:
-            d = np.load(f); k = d['Y'] == 0
-            X.append(d['X'][k]); M.append(d['M'][k]); Y.append(d['Y'][k])
+            parts.append((f, np.nonzero(np.load(f)['Y'] == 0)[0]))
         for f in sorted(glob.glob(f'/home/user/private-footage/ml/data/{POS}_v{v}_*.npz')):
-            d = np.load(f); X.append(d['X']); M.append(d['M']); Y.append(d['Y'])
-        if EXTRA:
-            for f in sorted(glob.glob(EXTRA.replace('{v}', str(v)))):
-                d = np.load(f); X.append(d['X']); M.append(d['M']); Y.append(d['Y'])
-    return np.concatenate(X), np.concatenate(M), np.concatenate(Y).astype(np.float32)
+            parts.append((f, None))
+        for pat in [e for e in EXTRA.split(';') if e]:       # several globs, ';'-separated
+            for f in sorted(glob.glob(pat.replace('{v}', str(v)))):
+                y = np.load(f)['Y']
+                keep = (y == 1) | (rng.random(len(y)) < MINED_NEG)
+                parts.append((f, np.nonzero(keep)[0]))
+    n = sum(len(np.load(f)['Y']) if k is None else len(k) for f, k in parts)
+    X = np.empty((n, 3, 48, 48, 3), np.uint8); M = np.empty((n, 2), np.float32); Y = np.empty(n, np.float32)
+    j = 0
+    for f, k in parts:
+        d = np.load(f); x = d['X'] if k is None else d['X'][k]
+        X[j:j + len(x)] = x; M[j:j + len(x)] = d['M'] if k is None else d['M'][k]; Y[j:j + len(x)] = d['Y'] if k is None else d['Y'][k]
+        j += len(x); del x, d
+    return X, M, Y
 
 
 def run(train_v, val_v, epochs, out):
@@ -61,4 +74,5 @@ if __name__ == '__main__':
         tv = [int(c) for c in mode[1:]]
         run(tv, [v for v in (1, 2, 3) if v not in tv][:1], int(sys.argv[2]), sys.argv[3])
     else:
-        run([1, 2, 3], None, int(sys.argv[2]), sys.argv[3])
+        # video 4 is the whole clay recording (only self-training stretches outside the test cut)
+        run([1, 2, 3, 4], None, int(sys.argv[2]), sys.argv[3])

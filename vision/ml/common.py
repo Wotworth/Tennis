@@ -3,9 +3,9 @@ with data). Frames are read exactly as MATLAB's tv.media.readFrames does (accura
 import os, subprocess, numpy as np, csv
 
 ROOT = '/home/user/private-footage'
-VIDEO = {1: f'{ROOT}/video.bin', 2: f'{ROOT}/video2.bin', 3: f'{ROOT}/v3/video3_mid.mp4'}
+VIDEO = {1: f'{ROOT}/video.bin', 2: f'{ROOT}/video2.bin', 3: f'{ROOT}/v3/video3_mid.mp4', 4: f'{ROOT}/v3/video3.bin'}   # 4: the whole clay recording (3 is its 36:00-51:00 cut)
 W, H, FPS = 1920, 1080, 60.0
-OVERLAYS = {1: [(1630, 10, 1915, 470), (1430, 925, 1915, 1070)], 2: [(1630, 10, 1915, 470), (1430, 925, 1915, 1070)], 3: []}
+OVERLAYS = {1: [(1630, 10, 1915, 470), (1430, 925, 1915, 1070)], 2: [(1630, 10, 1915, 470), (1430, 925, 1915, 1070)], 3: [], 4: []}
 
 
 def pts(v):
