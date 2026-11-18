@@ -48,6 +48,13 @@ The new detector here was trained on the clay video only. Videos 1 and 2 are foo
 - **The clay video was different:** it is raw footage and mostly between points, so it taught the model right. Trained on it alone, the model found the balls on the other two videos.
 - **The guard now:** "not a ball" examples leave out anything near a ball path or moving smoothly like a ball.
 
+**Self-training, tried and not adopted (yet).**
+- **What it did:** the shipped model found 4,721 real balls in unlabelled stretches of all three videos (I checked a random 60 by eye; nearly all were real balls), and a second model was trained with them.
+- **Ball by ball, it's better:** 29 of 33 found with 3 false spots, against 26 and 7.
+- **With tracking, it isn't:** video 1 drops from 11 to 10 found, and the clay video goes from 0 to 2 false spots.
+- **The rule:** a change counts only if no video gets worse, so the shipped model stays.
+- **Next:** the tracker's thresholds were set for the first model; a model that is surer of real balls needs them re-set, on footage outside the test set.
+
 ## The clay test in the app, re-run
 
 Same 6 minutes (36:00–42:00), same court fit; only the ball detector changed. Nothing was set for this court or its light.
