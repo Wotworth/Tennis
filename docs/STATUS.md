@@ -63,6 +63,8 @@ Footage tests (Chris 17 Nov): two SwingVision "included rallies" exports from Ch
 
 Adjacent courts (AC-14 to 16) on CI 17 Nov: false positives 0% (limit 0.5%), swaps 0 (limit 0), **false negatives 13.5% (limit 2%)**, and shots found under 95%. Mostly "overlaps a better track" (195 of 402). Being fixed; stage files now printed by CI.
 
+Ball detector rebuilt (overnight 18 Nov, Chris: robust to any footage, no tuning, less compute; TV-DET-04 brought forward): colour-free motion proposals, a small classifier (48 px crops of three frames, about 63,000 weights, trained here in PyTorch on Chris's footage only with balls drawn on 3D flights), chains through time with one ball in play (tv.track.chains, tv.track.inPlay), run in runSingle with detector = 'learned'. Rule stages skipped on that path. Reviewed fixed test set (33 balls in 48 frames): 28 found and 1 false spot (old colour detector 15 and 63); trained on the clay video only, so videos 1 and 2 are unseen footage (11 of 13, 12 of 13). Proposals 4x faster with the same result. Report: docs/reports/BALL-DETECTOR-1.md. Weights and test frames stay private until Chris says otherwise. Fixed: an Octave-only line break in tv.out.singleTest that real MATLAB rejected (productsTest failure in CI).
+
 Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens calibration and trial sessions). The launcher needs the new "checks" tile state (LAUNCHER-REQUESTS.md), not built.
 
 ## Next
@@ -83,6 +85,8 @@ Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens ca
 - After Chris accepts PH-0: PH-1 (logging).
 
 ## Open questions
+
+- Ball detector (18 Nov): may the trained weights (numbers only, no pictures) go in the public repository so the PC and CI use the same model? Until then they stay private. May the report show clay frames with no people in them?
 
 - Purchase: Claude recommends buying the two cameras now and the PC later (17 Nov); Chris to decide.
 
