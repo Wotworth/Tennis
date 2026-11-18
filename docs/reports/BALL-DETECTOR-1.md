@@ -19,15 +19,71 @@ The difference from SwingVision: they have years of labelled video; we have thre
 
 ## Results on the fixed test set
 
-TBD
+The test set is 48 frames I labelled by hand: 16 from each of your three videos.
+- **Found:** a ball in play with a spot within 10 px.
+- **False:** a spot on anything else.
+
+The new detector here was trained on the clay video only. Videos 1 and 2 are footage it has never seen: the honest test of "any footage without tuning".
+
+| | Old detector (colours and rules) | New detector |
+| --- | --- | --- |
+| Video 1 (outdoor, evening) | 4 of 13 found, 40 false | **11 of 13 found, 0 false** |
+| Video 2 (outdoor, green surround) | 9 of 13 found, 1 false | **12 of 13 found, 1 false** |
+| Clay (indoor) | 2 of 7 found, 22 false | **5 of 7 found, 0 false** |
+| All 48 frames | 15 of 33 found, 63 false | **28 of 33 found, 1 false** |
+
+**A correction to the test set itself.**
+- **What I found:** the new detector's "false" spots were mostly balls I had missed when labelling. A ball 3–10 px across is easy to miss in a full 1920 × 1080 frame.
+- **The second look:** I checked every disputed spot from both detectors (71 in all) on five frames around it, without knowing which detector put it there. 13 were moving balls; one was too unclear to call and is ignored; the other 57 were not balls.
+- **What changed:** the first labels are kept as they were, and the 13 balls are added on top.
+- **Why it's fair:** both detectors are scored on the same corrected set.
+- **Against your first labels:** the old detector found 10 of 20 with 68 false; the new one found 16 of 20 with 14 false, and nearly all of those 14 were the missed balls.
+
+**An example (clay):** one of the balls I missed was moving so fast it was a faint yellow streak over the clay. The new detector tracked it across the court, and left alone the two balls lying still nearby. (No picture here: tell me if clay frames with no people in them are fine in reports, and I'll add a few.)
+
+**What fixed it.** The first models scored real balls near zero on videos 1 and 2.
+- **The cause:** their "not a ball" examples were every moving spot in a frame. Videos 1 and 2 are rally-only edits, so almost every such frame had the real ball in it, labelled "not a ball". The models learned exactly that.
+- **The clay video was different:** it is raw footage and mostly between points, so it taught the model right. Trained on it alone, the model found the balls on the other two videos.
+- **The guard now:** "not a ball" examples leave out anything near a ball path or moving smoothly like a ball.
 
 ## Rules retired
 
-TBD
+Each of these patched one of the colour detector's mistakes on one video. None is needed with the new detector, so it skips them all:
+
+| Rule | Why it existed | Why it's not needed |
+| --- | --- | --- |
+| Ball colour window (hue, saturation, brightness), set per court | Find yellow | No colour anywhere: the classifier learned the ball's look under three lights |
+| Clay settings (white-ish ball, stronger motion) | Indoor warm light | Same model on every video |
+| Still-ball rule | Balls lying on court | Only moving spots are proposed |
+| Racquet rule (tracks that stay on a player) | Yellow strings | The classifier was taught racquets, shirts and shoes are not balls |
+| Steered search | Faint balls the colour test lost | Faint balls are proposed; tracking bridges gaps of up to 0.13 s |
+| Jump rule, frame-edge rule | Tracks hopping between unrelated spots | Paths must be smooth to score; the frame's edge strip is never proposed |
+
+What is still set by hand, and why it doesn't depend on the footage:
+- **Proposals:** a 2 px shift tolerance, and a threshold set from each frame's own noise.
+- **Ball size:** from the camera fit.
+- **Tracking:** gap and smoothness costs, in seconds, so 30 and 60 fps behave the same.
+
+These are listed in VISION-RETUNE.md for the PC's first sessions.
+
+## Compute
+
+About 0.6 s a frame on one laptop CPU core (proposals 0.35 s, classifier 0.15 s). I made the proposals 4 times faster tonight with the same result: the expensive comparison is now done only on pixels that changed. SwingVision runs in real time on the phone's AI chip, at lower resolution. The PC's graphics card will run this classifier hundreds of times faster than a CPU.
 
 ## Decisions I made overnight
 
-TBD
+You asked me to take the recommended option and tell you in the morning. All are in DECISIONS.md.
+
+| Decision | Why |
+| --- | --- |
+| Spot finder plus a small classifier, not a whole-frame heat map (the spec's TrackNet wording) | Same three-frame input at a fraction of the compute; the ball is 3–25 px |
+| Weights saved as plain numbers that plain MATLAB reads, not an ONNX import | Runs in CI and on the PC without the Deep Learning Toolbox; matches PyTorch to 1 in a million |
+| Drawn balls fly on 3D paths through the fitted camera | The first drawn balls moved too far between frames and looked nothing like real ones |
+| "Not a ball" examples exclude anything near a ball path or moving smoothly | The first models learned real balls as "not a ball" |
+| Self-training brought forward (from the spec's later "free labels") | Real balls in real light, with no labelling by you |
+| Test set corrected after a blind second look; first labels kept | 13 moving balls had been missed; both detectors scored the same way |
+| Tracking in seconds, not frames; one ball in play at a time | Any frame rate; another ball can't take over mid-rally |
+| The clay test in the app re-run with the new detector | So you can see the difference on your phone |
 
 ## What's next
 
