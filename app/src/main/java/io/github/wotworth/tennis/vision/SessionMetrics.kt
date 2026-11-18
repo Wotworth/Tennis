@@ -11,7 +11,8 @@ import kotlin.math.roundToInt
  *              positive: shorter than the same shot without spin)
  *   speed      his forehands' and backhands' speed at contact (mean, m/s); serves left out
  *   serves     first and second serves apart (Chris, 17 Nov; [secondServes]): % in, speed (mean)
- *              and spin (the commonest kind, and the mean effect on the bounce, m, positive: shorter)
+ *              and spin: the commonest kind (kick, slice or flat, [serveSpinKind]) and, for those
+ *              serves, how much shorter they landed (kick, flat) or how far they curved (slice), m
  *   accuracy   % of his shots in, serves left out (in / in, out, net, too close), and how far
  *              short of the baseline the ones in landed (mean, m; smaller is deeper)
  */
@@ -43,16 +44,18 @@ data class SessionMetrics(
             val rally = mine.filter { !it.isServe }
             fun topspin(type: String) = mean(rally.filter { it.type == type }.mapNotNull { it.spinEffect?.let { e -> -e } })
             fun speed(type: String) = mean(rally.filter { it.type == type }.mapNotNull { it.speedContact })
-            fun kind(sv: List<VisionShot>) = sv.map { it.spinLabel }.filter { it.isNotBlank() }.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key
+            fun kind(sv: List<VisionShot>) = sv.map { serveSpinKind(it) }.groupingBy { it }.eachCount().maxByOrNull { it.value }?.key
+            // the serves of the commonest kind: how much shorter (kick, flat) or how far sideways (slice)
+            fun spinOf(sv: List<VisionShot>) = kind(sv)?.let { k -> mean(sv.filter { serveSpinKind(it) == k }.mapNotNull { spinAmount(it) }) }
             return SessionMetrics(
                 topspinForehand = topspin("forehand"),
                 topspinBackhand = topspin("backhand"),
                 speedForehand = speed("forehand"),
                 speedBackhand = speed("backhand"),
                 serve1InPct = pctIn(s1), serve1Speed = mean(s1.mapNotNull { it.speedContact }), serve1SpinKind = kind(s1),
-                serve1Spin = mean(s1.mapNotNull { it.spinEffect?.let { e -> -e } }),
+                serve1Spin = spinOf(s1),
                 serve2InPct = pctIn(s2), serve2Speed = mean(s2.mapNotNull { it.speedContact }), serve2SpinKind = kind(s2),
-                serve2Spin = mean(s2.mapNotNull { it.spinEffect?.let { e -> -e } }),
+                serve2Spin = spinOf(s2),
                 inPct = pctIn(rally),
                 depth = mean(rally.filter { it.call == "in" }.mapNotNull { it.depth }),
             )

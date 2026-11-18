@@ -113,6 +113,11 @@ for k, n in enumerate(lengths):
         top_pct = odd4(57, 97)                              # topspin share; sidespin = 100 - that (odd too)
         top = 0.21 * top_pct / 100.0 * (1 if spin != 'slice' else -1)
         side_sp = 0.21 * (100 - top_pct) / 100.0
+        curve = None
+        if serve and spin == 'slice':
+            # a slice serve spins mostly sideways and curves (Chris, 17 Nov), with a little topspin
+            top_pct = odd4(13, 41); top = 0.21 * top_pct / 100.0; side_sp = 0.21 * (100 - top_pct) / 100.0
+            curve = m_from_ft(odd4(13, 49) / 10.0)
         rpm = rng.choice([1130, 1370, 1510, 1790, 2010, 2290, 2530]) if spin != 'flat / low spin' else None
         kick = odd4(9, 25)
         conf = odd4(81, 97)
@@ -127,7 +132,7 @@ for k, n in enumerate(lengths):
             'bounceSd': m_from_in(sd_in) if bounce else None,
             'depth': m_from_ft(depth_ft) if depth_ft is not None else None,
             'call': call, 'margin': 0.31, 'spinEffect': spin_eff if bounce else None, 'spinEffectNet': None,
-            'spinTop': top, 'spinSide': side_sp, 'CL': abs(top), 'rpm': rpm, 'rpmSd': (rpm * 0.25 if rpm else None),
+            'spinTop': top, 'spinSide': side_sp, 'spinCurve': curve if bounce else None, 'CL': abs(top), 'rpm': rpm, 'rpmSd': (rpm * 0.25 if rpm else None),
             'spinLabel': spin, 'kickAngleDeg': float(kick) if bounce else None, 'speedAfter': None, 'speedRatio': None,
             'CD': 0.507, 'fitRmsPx': 0.47, 'confidence': conf / 100.0,
         }
@@ -273,6 +278,23 @@ def second_serves():
     return out
 
 
+def serve_kind(s):
+    # as the app's serveSpinKind
+    if s['spinLabel'].startswith('flat'): return 'flat'
+    if s['spinSide'] is not None and s['spinTop'] is not None and abs(s['spinSide']) > abs(s['spinTop']): return 'slice'
+    return 'kick' if (s['spinTop'] or 0) >= 0 else 'underspin'
+
+
+def serve_spin(sv):
+    # as the app: the commonest kind; how much shorter (kick, flat) or how far it curved (slice)
+    from collections import Counter
+    if not sv: return None
+    c = Counter(serve_kind(s) for s in sv); top = max(c.values()); k = [x for x in c if c[x] == top][0]
+    xs = [s for s in sv if serve_kind(s) == k]
+    vals = [abs(s['spinCurve']) for s in xs if s['spinCurve'] is not None] if k == 'slice' else [-s['spinEffect'] for s in xs if s['spinEffect'] is not None]
+    return mean(vals)
+
+
 def serves_of(no):
     sec = second_serves()
     return [s for s in shots if s['hitter'] == 'Player A' and s['isServe'] and ((id(s) in sec) == (no == 2))]
@@ -286,9 +308,9 @@ def figures():
     return {'topspinForehand': top('forehand'), 'topspinBackhand': top('backhand'), 'speedForehand': spd('forehand'),
             'speedBackhand': spd('backhand'),
             'serve1InPct': pct(s1), 'serve1Speed': mean([s['speedContact'] for s in s1]),
-            'serve1Spin': mean([-s['spinEffect'] for s in s1 if s['spinEffect'] is not None]),
+            'serve1Spin': serve_spin(s1),
             'serve2InPct': pct(s2), 'serve2Speed': mean([s['speedContact'] for s in s2]),
-            'serve2Spin': mean([-s['spinEffect'] for s in s2 if s['spinEffect'] is not None]), 'inPct': pct(rally),
+            'serve2Spin': serve_spin(s2), 'inPct': pct(rally),
             'depth': mean([s['depth'] for s in rally if s['call'] == 'in' and s['depth'] is not None])}
 
 
@@ -322,7 +344,16 @@ def nudge(key):
         ty = {'topspinForehand': 'forehand', 'topspinBackhand': 'backhand', 'median forehand spin': 'forehand'}.get(key)
         pool = [s for s in (serves if key.startswith('serve') else rally) if (ty is None or s['type'] == ty)
                 and s['spinEffect'] is not None and 1.0 < abs(s['spinEffect'] * FT) < 9.0]
-        s = rng.choice(pool); s['spinEffect'] -= d * m_from_ft(0.2)
+        curved = [s for s in pool if s['isServe'] and serve_kind(s) == 'slice' and s['spinCurve'] is not None]
+        if key.startswith('serve') and curved and rng.random() < 0.5:
+            s = rng.choice(curved)
+            if s['spinCurve'] * FT < 1.0: d = 1
+            if s['spinCurve'] * FT > 9.0: d = -1
+            s['spinCurve'] += d * m_from_ft(0.2)
+        else:
+            s = rng.choice(pool)
+            if abs(s['spinEffect'] * FT) > 8.6: d = -1 if s['spinEffect'] < 0 else 1
+            s['spinEffect'] -= d * m_from_ft(0.2)
     elif key in ('speedForehand', 'speedBackhand', 'serve1Speed', 'serve2Speed') or key.startswith('median forehand '):
         ty = {'speedForehand': 'forehand', 'speedBackhand': 'backhand'}.get(key, 'forehand')
         hitter = key.replace('median forehand ', '') if key.startswith('median forehand ') else 'Player A'
@@ -331,8 +362,12 @@ def nudge(key):
                 and s['speedContact'] is not None and (key.startswith('serve2') or abs(s['speedContact'] - fastest[s['rally']]) > 1e-6)]
         s = rng.choice(pool); s['speedContact'] += d * ms_from_mph(2)
     elif key == 'depth':
-        pool = [s for s in rally if s['call'] == 'in' and s['depth'] is not None and 1.0 < s['depth'] * FT < 9.0]
-        s = rng.choice(pool); s['depth'] += d * m_from_ft(0.2)
+        # one decimal below 10 ft: a 0.2 ft step keeps the shot's own figure odd; stay within 0.5-9.5
+        pool = [s for s in rally if s['call'] == 'in' and s['depth'] is not None and 0.6 < s['depth'] * FT < 9.4]
+        s = rng.choice(pool)
+        if s['depth'] * FT < 1.0: d = 1
+        if s['depth'] * FT > 9.0: d = -1
+        s['depth'] += d * m_from_ft(0.2)
     elif key in ('serve1InPct', 'serve2InPct', 'inPct') or key.startswith('pct '):
         hitter = key[4:] if key.startswith('pct ') else 'Player A'
         src = serves if key.startswith('serve') else [s for s in shots if not s['isServe']]
@@ -342,7 +377,7 @@ def nudge(key):
         raise SystemExit('no nudge for ' + key)
 
 
-for _ in range(3000):
+for _ in range(20000):
     bad = shown_ok()
     if not bad: break
     nudge(rng.choice(bad))

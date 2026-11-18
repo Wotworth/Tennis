@@ -73,10 +73,13 @@ q = air;  q.CD = x(9);  q.CL = 0;
 [~, P0] = tv.physics.simulate(x(1:3), x(4:6), q, 4, 1e-3, c.ballRadius);
 h0 = tv.physics.groundHit(P0);
 dirH = x(4:5) / norm(x(4:5));
-m.spinEffect = NaN;  m.spinEffectNet = NaN;
+m.spinEffect = NaN;  m.spinEffectNet = NaN;  m.spinCurve = NaN;
 if ~isempty(h0) && ~isempty(bounceEv)
     hb = segGround(x, seg.t0, air, c);
     m.spinEffect = (hb(1:2) - h0(1:2)) * dirH';           % negative: landed shorter
+    % sideways: how far spin curved it, across the flight (Chris, 17 Nov: a slice serve curves;
+    % it isn't backspin), positive to the left of the direction of flight
+    m.spinCurve = (hb(1:2) - h0(1:2)) * [-dirH(2); dirH(1)];
 end
 i0 = find(sign(P0(1:end-1, 1)) ~= sign(P0(2:end, 1)), 1);
 if ~isempty(i0) && ~isnan(m.netClearance)

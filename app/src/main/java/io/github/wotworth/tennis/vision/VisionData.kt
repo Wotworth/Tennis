@@ -58,6 +58,8 @@ data class VisionShot(
     val spinEffect: Double?,
     val spinTop: Double?,
     val spinSide: Double? = null,
+    /** How far spin curved the ball sideways at the bounce, m (Chris, 17 Nov; older files: none). */
+    val spinCurve: Double? = null,
     val rpm: Double?,
     val rpmSd: Double?,
     val spinLabel: String,
@@ -121,7 +123,7 @@ object VisionJson {
         netClearance = o.num("netClearance"), apex = o.num("apex"), flightTime = o.num("flightTime"),
         bounce = doubles(o.optJSONArray("bounce")).takeIf { it.size == 2 && it.all { v -> !v.isNaN() } },
         bounceSd = o.num("bounceSd"), depth = o.num("depth"), call = o.optString("call"),
-        spinEffect = o.num("spinEffect"), spinTop = o.num("spinTop"), spinSide = o.num("spinSide"), rpm = o.num("rpm"), rpmSd = o.num("rpmSd"),
+        spinEffect = o.num("spinEffect"), spinTop = o.num("spinTop"), spinSide = o.num("spinSide"), spinCurve = o.num("spinCurve"), rpm = o.num("rpm"), rpmSd = o.num("rpmSd"),
         spinLabel = o.optString("spinLabel"), kickAngleDeg = o.num("kickAngleDeg"), confidence = o.num("confidence"),
     )
 
@@ -167,3 +169,18 @@ object TrendJson {
         }
     }
 }
+
+/**
+ * A serve's spin, named as players do (Chris, 17 Nov): "kick" (topspin), "slice" (mostly
+ * sideways: it curves rather than dips), or "flat". The pipeline names spin by its top/back part
+ * only, so a sideways serve could read "topspin" or "slice" (backspin) by its small vertical part.
+ */
+fun serveSpinKind(s: VisionShot): String = when {
+    s.spinLabel.startsWith("flat") -> "flat"
+    s.spinSide != null && s.spinTop != null && kotlin.math.abs(s.spinSide) > kotlin.math.abs(s.spinTop) -> "slice"
+    (s.spinTop ?: 0.0) >= 0 -> "kick"
+    else -> "underspin"
+}
+
+/** The spin figure that fits the kind: how far a slice serve curved, else how much shorter it landed (m). */
+fun spinAmount(s: VisionShot): Double? = if (s.isServe && serveSpinKind(s) == "slice") s.spinCurve?.let { kotlin.math.abs(it) } else s.spinEffect?.let { -it }

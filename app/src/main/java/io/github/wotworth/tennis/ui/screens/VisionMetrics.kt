@@ -115,8 +115,9 @@ private fun FigureTile(f: Figure, h: History, modifier: Modifier, small: Boolean
         val role = if (small) TennisTokens.Type.tileNumberSmall else TennisTokens.Type.statNumber
         // a fixed height: FitText measures its width first, which the row's equal heights can't ask it
         FitText((now?.let { if (longer) f.show(-it) else f.show(it) }) ?: "–", role, Modifier.fillMaxWidth().height(zpx(role.sizeZpx * 1.35f)))
-        val kind = f.spinKind?.invoke(h.now)?.let { if (it.startsWith("flat")) "flat" else it }
-        TennisText(if (kind != null) "$kind, ${if (longer) "longer" else "shorter"}" else f.label, TennisTokens.Type.tileFigureLabel, maxLines = 2)
+        val kind = f.spinKind?.invoke(h.now)
+        TennisText(when { kind == null -> f.label; kind == "slice" -> "slice, curve"; else -> "$kind, ${if (longer) "longer" else "shorter"}" },
+            TennisTokens.Type.tileFigureLabel, maxLines = 2)
         if (now != null && avg != null) {
             val arrow = when { f.show(now) == f.show(avg) -> "="; now > avg -> "▲"; else -> "▼" }
             Spacer(Modifier.weight(1f))

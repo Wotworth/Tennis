@@ -57,6 +57,7 @@ import io.github.wotworth.tennis.ui.theme.LocalZpx
 import io.github.wotworth.tennis.ui.theme.TennisText
 import io.github.wotworth.tennis.ui.theme.TennisTokens
 import io.github.wotworth.tennis.vision.Units
+import io.github.wotworth.tennis.vision.serveSpinKind
 import io.github.wotworth.tennis.vision.VisionSession
 import io.github.wotworth.tennis.vision.VisionShot
 import java.util.Locale
@@ -557,8 +558,11 @@ fun shotStats(s: VisionShot): List<Pair<String, String>> = listOfNotNull(
     Units.ft(s.depth) to "short of the baseline",
     "± ${Units.inches(s.bounceSd)}" to "bounce ±",
     // Chris, 17 Nov: name the spin: topspin brings the ball down shorter, slice carries it longer
-    (s.spinEffect?.let { Units.ft(abs(it)) } ?: "–") to (s.spinEffect?.let { "${if (it < 0) "shorter" else "longer"} from ${s.spinLabel.ifBlank { "spin" }}" } ?: "from spin"),
-    (s.spinLabel.ifBlank { "–" }) to "spin",
+    // serves by their kind (kick, slice, flat): a slice serve curves sideways rather than dips
+    if (s.isServe && serveSpinKind(s) == "slice") (s.spinCurve?.let { Units.ft(abs(it)) } ?: "–") to "curve from slice"
+    else (s.spinEffect?.let { Units.ft(abs(it)) } ?: "–") to (s.spinEffect?.let {
+        "${if (it < 0) "shorter" else "longer"} from ${if (s.isServe) serveSpinKind(s) else s.spinLabel.ifBlank { "spin" }}" } ?: "from spin"),
+    (if (s.isServe) serveSpinKind(s) else s.spinLabel.ifBlank { "–" }) to "spin",
     (s.rpm?.let { Units.rpm(it, s.rpmSd) } ?: "–") to "spin rate",
     spinSplit(s).replace("topspin ", "").replace("slice ", "").replace(" · sidespin ", " / ") to "topspin / sidespin",
     (s.kickAngleDeg?.let { "%.0f°".format(Locale.US, it) } ?: "–") to "kick off the court",
