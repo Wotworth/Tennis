@@ -52,7 +52,7 @@ def run(train_v, val_v, epochs, out):
         net.train(); t0 = time.time(); perm = rng.permutation(len(Y)); tot = 0
         for k in range(0, len(Y), 256):
             idx = perm[k:k + 256]
-            x, m = Mdl.prepare(Mdl.augment(X[idx], rng), M[idx])
+            x, m = Mdl.prepare(Mdl.augment(X[idx], rng), M[idx]); x = Mdl.train_only(x, rng)
             loss = lossf(net(x, m), torch.from_numpy(Y[idx]))
             opt.zero_grad(); loss.backward(); opt.step(); sched.step(); tot += loss.item() * len(idx)
         msg = 'epoch %d loss %.4f (%.0f s)' % (ep + 1, tot / len(Y), time.time() - t0)

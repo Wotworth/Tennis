@@ -14,14 +14,15 @@ COND = os.environ.get('COND', 'plain')   # stress conditions: the same footage a
 def condition(F):
     """Frames (..., H, W, 3) uint8 under the stress condition COND (plain: unchanged).
     grey: no colour at all. hue: channels rotated (a yellow ball turns pink-blue, clothes change
-    colour). dark: 40% of the light. invert: light and dark swapped (a dark ball on a pale court).
+    colour). dark: 40% of the light. invert: light and dark swapped, colour kept (a dark ball on a pale court). cool: a blue cast.
     warm: a strong orange cast with less contrast."""
     if COND == 'plain': return F
     f = F.astype(np.float32)
     if COND == 'grey': f = np.repeat(f.mean(axis=-1, keepdims=True), 3, axis=-1)
     elif COND == 'hue': f = f[..., [2, 0, 1]]
     elif COND == 'dark': f = f * 0.4
-    elif COND == 'invert': f = 255 - f
+    elif COND == 'invert': f = f + (255 - 2 * f.mean(axis=-1, keepdims=True))      # brightness swapped, colour kept
+    elif COND == 'cool': f = (f - 128) * 0.8 + 128; f = f * np.array([0.75, 0.95, 1.15], np.float32)
     elif COND == 'warm': f = (f - 128) * 0.7 + 128; f = f * np.array([1.15, 0.95, 0.6], np.float32)
     else: raise ValueError(COND)
     return np.clip(f, 0, 255).astype(np.uint8)

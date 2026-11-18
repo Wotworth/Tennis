@@ -6,7 +6,15 @@ It is given no colour at all: three brightness images (shifted by the cut's own 
 its own spread, so the light does not matter) and two motion images (how much each pixel changed
 against t-K and t+K, in any colour channel). In training, light and dark are swapped at random,
 so a dark ball on a pale court is the same to it as a pale ball on a dark one."""
-import numpy as np, torch, torch.nn as nn
+import os, numpy as np, torch, torch.nn as nn
+
+# 'grey': no colour (5 channels). 'hint': the same plus two colour images of the middle frame (7
+# channels): how much redder than green, and how much yellower than blue, each pixel is than the
+# cut's average. A hint only: in training it is blanked a third of the time, so the classifier can
+# use the ball's colour where the light shows it and cannot depend on it (Chris, 18 Nov: colour is
+# brittle under changing light, but a tennis ball is never, say, red).
+INPUT = os.environ.get('MODEL_IN', 'grey')
+IN_CH = {'grey': 5, 'hint': 7}[INPUT]
 
 
 def prepare(X, M):
@@ -19,7 +27,13 @@ def prepare(X, M):
     sd = mid.std(dim=(1, 2), keepdim=True).clamp_min(0.03)
     frames = (grey - mu[:, None]) / sd[:, None]
     d1 = (x[:, 1] - x[:, 0]).abs().mean(dim=3) / sd; d2 = (x[:, 1] - x[:, 2]).abs().mean(dim=3) / sd
-    inp = torch.cat([frames, d1[:, None], d2[:, None]], dim=1)   # n, 5, h, w
+    parts = [frames, d1[:, None], d2[:, None]]
+    if INPUT == 'hint':
+        r, g, b = x[:, 1, :, :, 0], x[:, 1, :, :, 1], x[:, 1, :, :, 2]
+        o1 = r - g; o2 = (r + g) / 2 - b
+        o1 = (o1 - o1.mean(dim=(1, 2), keepdim=True)) / sd; o2 = (o2 - o2.mean(dim=(1, 2), keepdim=True)) / sd
+        parts += [o1[:, None], o2[:, None]]
+    inp = torch.cat(parts, dim=1)                                 # n, 5 or 7, h, w
     m = torch.log(torch.from_numpy(M).float().clamp(0.05, 20.0))
     return inp, m
 
@@ -29,7 +43,7 @@ class BallNet(nn.Module):
         super().__init__()
         def block(i, o):
             return nn.Sequential(nn.Conv2d(i, o, 3, padding=1), nn.BatchNorm2d(o), nn.ReLU(inplace=True))
-        self.f = nn.Sequential(block(5, 24), block(24, 24), nn.MaxPool2d(2),        # 24
+        self.f = nn.Sequential(block(IN_CH, 24), block(24, 24), nn.MaxPool2d(2),        # 24
                                block(24, 32), block(32, 32), nn.MaxPool2d(2),        # 12
                                block(32, 48), nn.MaxPool2d(2),                       # 6
                                block(48, 48))
@@ -48,13 +62,28 @@ def augment(X, rng):
     X = X.astype(np.float32)
     n = len(X)
     # a random colour transform of the whole crop (ball and court together): channel mix + gain
-    A = np.eye(3)[None] * rng.uniform(0.7, 1.3, (n, 1, 3)) + rng.normal(0, 0.12, (n, 3, 3))
+    # (with the colour hint: only what a change of light does, so the ball's colour stays learnable)
+    A = np.eye(3)[None] * rng.uniform(0.7, 1.3, (n, 1, 3)) + rng.normal(0, 0.12 if INPUT == 'grey' else 0.03, (n, 3, 3))
     X = np.einsum('nfhwc,ndc->nfhwd', X, A.astype(np.float32))
     X = X * rng.uniform(0.6, 1.4, (n, 1, 1, 1, 1)) + rng.uniform(-30, 30, (n, 1, 1, 1, 1))
     g = rng.uniform(0.7, 1.4, (n, 1, 1, 1, 1))                    # gamma
     X = 255.0 * (np.clip(X, 0, 255) / 255.0) ** g
     X += rng.normal(0, rng.uniform(0, 6), (n, 1, 1, 1, 1)) * rng.standard_normal(X.shape).astype(np.float32)
-    inv = rng.random(n) < 0.5; X[inv] = 255.0 - X[inv]             # light and dark swapped: a dark ball on a pale court
+    if INPUT == 'grey':
+        inv = rng.random(n) < 0.5; X[inv] = 255.0 - X[inv]         # light and dark swapped: a dark ball on a pale court
     flip = rng.random(n) < 0.5; X[flip] = X[flip][:, :, :, ::-1]
     flip = rng.random(n) < 0.5; X[flip] = X[flip][:, ::-1]        # time reversed: the ball flies the other way
     return np.clip(X, 0, 255).astype(np.uint8)
+
+
+def train_only(inp, rng):
+    """After prepare, in training with the colour hint: the hint is blanked for a third of the
+    examples, and for a quarter light and dark are swapped (brightness images negated) with the
+    hint blanked too: a dark ball on a pale background has no colour to go by."""
+    if INPUT != 'hint': return inp
+    n = len(inp)
+    inv = torch.from_numpy(rng.random(n) < 0.25); drop = torch.from_numpy(rng.random(n) < 0.33) | inv
+    inp = inp.clone()
+    inp[inv, 0:3] = -inp[inv, 0:3]
+    inp[drop, 5:7] = 0
+    return inp
