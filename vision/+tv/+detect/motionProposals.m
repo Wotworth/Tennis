@@ -15,9 +15,12 @@ d = struct('R', 2, 'nsig', 8, 'floor', 18, 'tile', 64);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 c = int16(cur);
-a = int16(tv.calib.steady(prev, double(cur)));
-b = int16(tv.calib.steady(nxt, double(cur)));
+[a, da] = tv.calib.steady(prev, double(cur));  a = int16(a);
+[b, db] = tv.calib.steady(nxt, double(cur));  b = int16(b);
 plain = single(min(sum(abs(c - a), 3), sum(abs(c - b), 3)));
+% the strip a shift fills from the frame's edge is not motion
+ey = max(abs([da(2) db(2)])) + opts.R;  ex = max(abs([da(1) db(1)])) + opts.R;
+plain([1:ey, end - ey + 1:end], :) = 0;  plain(:, [1:ex, end - ex + 1:end]) = 0;
 mask = sizeMap.mask;
 m = plain(mask);  m = m(1:7:end);
 med = median(m);  mad = 1.4826 * median(abs(m - med)) + 1e-3;
