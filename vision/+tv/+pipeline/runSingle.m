@@ -314,7 +314,8 @@ for r = 1:size(clips, 1)
     rows = [A(:, 1), A(:, 2) - A(:, 10), A(:, 3) - A(:, 11), A(:, 4), A(:, 8:9)];
     D.candidates{r} = rows;
     co = s.chainOpts;  if ~isfield(co, 'fps'), co.fps = rec.fps; end
-    [D.tracks{r}, ~] = tv.track.chains(rows(rows(:, 4) > 0.05, :), co);
+    [T, val] = tv.track.chains(rows(rows(:, 4) > 0.05, :), co);
+    D.tracks{r} = tv.track.inPlay(T, val);              % one ball in play at a time
 end
 end
 
