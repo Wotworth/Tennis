@@ -11,7 +11,7 @@ function [C, tau] = motionProposals(prev, cur, nxt, sizeMap, opts)
 %   C: rows [x y area length width strength], x and y 1-based pixels. tau: the threshold used.
 %   No value here depends on the court, the light or the ball's colour.
 if nargin < 5, opts = struct(); end
-d = struct('R', 2, 'nsig', 8, 'floor', 18, 'tile', 64);
+d = struct('R', 2, 'nsig', 8, 'floor', 18);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 c = int16(cur);
@@ -25,20 +25,25 @@ mask = sizeMap.mask;
 m = plain(mask);  m = m(1:7:end);
 med = median(m);  mad = 1.4826 * median(abs(m - med)) + 1e-3;
 tau = max(opts.floor, med + opts.nsig * mad);
-% the shift-tolerant difference only where the plain one is above the threshold (it can only be
-% smaller), tile by tile
-M = zeros(size(plain), 'single');
-T = opts.tile;  R = opts.R;  [H, W] = size(plain);
-hot = plain > tau;
-for ty = 1:T:H
-    for tx = 1:T:W
-        y1 = min(ty + T - 1, H);  x1 = min(tx + T - 1, W);
-        if ~any(any(hot(ty:y1, tx:x1))), continue; end
-        Y0 = max(1, ty - R);  X0 = max(1, tx - R);  Y1 = min(H, y1 + R);  X1 = min(W, x1 + R);
-        cc = c(Y0:Y1, X0:X1, :);
-        t = min(tolerant(cc, a(Y0:Y1, X0:X1, :), R), tolerant(cc, b(Y0:Y1, X0:X1, :), R));
-        M(ty:y1, tx:x1) = t(ty - Y0 + 1:ty - Y0 + 1 + y1 - ty, tx - X0 + 1:tx - X0 + 1 + x1 - tx);
+% the shift-tolerant difference can only be smaller than the plain one, so it can pass the
+% threshold only where the plain one does: it is worked out at those pixels and one pixel round
+% (closing can add those), which gives the same blobs as working it out everywhere
+[H, W] = size(plain);  R = opts.R;  HW = H * W;
+M = zeros(H, W, 'single');
+idx = find(imdilate(plain > tau, true(3)));
+if ~isempty(idx)
+    [ys, xs] = ind2sub([H W], idx);
+    cv = [c(idx), c(idx + HW), c(idx + 2 * HW)];
+    ba = Inf(numel(idx), 1);  bb = ba;
+    for dy = -R:R
+        yy = min(max(ys - dy, 1), H);
+        for dx = -R:R
+            j = yy + (min(max(xs - dx, 1), W) - 1) * H;
+            ba = min(ba, double(sum(abs(cv - [a(j), a(j + HW), a(j + 2 * HW)]), 2)));
+            bb = min(bb, double(sum(abs(cv - [b(j), b(j + HW), b(j + 2 * HW)]), 2)));
+        end
     end
+    M(idx) = min(ba, bb);
 end
 M([1:ey, end - ey + 1:end], :) = 0;  M(:, [1:ex, end - ex + 1:end]) = 0;
 B = imclose(M > tau, true(3)) & mask;
@@ -63,14 +68,3 @@ for k = 1:cc.NumObjects
 end
 end
 
-function best = tolerant(c, n, R)
-% per pixel, the smallest difference between c and n shifted by up to R px (sum over RGB)
-best = [];
-for dy = -R:R
-    for dx = -R:R
-        d = sum(abs(c - circshift(n, [dy dx 0])), 3);
-        if isempty(best), best = d; else, best = min(best, d); end
-    end
-end
-best = single(best);
-end
