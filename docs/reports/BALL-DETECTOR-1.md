@@ -159,6 +159,58 @@ Round 3 finds one more ball on each set, but adds a false spot on video 2 (a sma
 
 **Why this didn't move.** Curtain mistakes are rare enough that 48 test frames and 40 check frames hold none of them: the check set's three false spots are a blur trail and two spots near players. So the sets can't show whether a model fixed the curtain or not. Two ways forward are in my questions.
 
+## Round 4: one model for any camera, light and colour (19 Nov)
+
+You asked for the most robust method with the least compute, whatever the clothing, racquets, ball colour or light, and said colour may stay only if it proves robust.
+
+**What changed**
+
+- **Scale.** Each cut is resized so the ball is 6 px across in it, from the camera's geometry and the moving blob's width. One model then serves a phone at 1080p and a GoPro at 4K, near or far.
+- **Light.** The classifier sees brightness and motion only, each divided by the cut's own contrast, so a dim or tinted picture looks the same to it. In training, light and dark are swapped at random, so a dark ball on a pale court is as good as a pale ball on a dark one.
+- **Motion threshold.** Its floor is now 5% of the frame's own brightness, not a fixed number. Dim footage: 32 of 35 balls proposed (was 29).
+- **First pass.** A network a tenth the size looks at the middle of each cut first and throws out what is plainly not a ball. Only about one spot in eight on busy footage reaches the classifier.
+
+**Colour: measured, not needed.** I trained two versions on the same examples: no colour, and colour as a hint (blanked a third of the time in training so it couldn't lean on it).
+
+| One ball in play | Round 2 (shipped) | Round 4, no colour | Round 4, colour hint |
+| --- | --- | --- | --- |
+| Test set as filmed | 30 of 35, 0 false | 28 of 35, 2 false | 28 of 35, 3 false |
+| Check set | 27 of 36, 3 false | 27 of 36, 3 false | 27 of 36, 3 false |
+
+The colour-hint version's 3 false spots were not checked by eye; they are counted as false.
+
+**The same test frames in other lights.** Balls found of 35 by the classifier alone (score above 0.5, before the tracker), with its false spots in brackets. The tracker removes most false spots: as filmed, round 4's 33 become 2.
+
+| Condition | Round 2 | Round 4, no colour | Round 4, colour hint |
+| --- | --- | --- | --- |
+| As filmed | 31 (21) | 30 (33) | 29 (35) |
+| No colour at all | 30 (29) | 31 (31) | 31 (25) |
+| Warm cast | 29 (24) | 31 (25) | 31 (21) |
+| Cool cast | not run | 31 (28) | 31 (25) |
+| 40% of the light | 28 (12) | 30 (39) | 30 (39) |
+| Light and dark swapped | 23 (24) | 31 (32) | 31 (27) |
+
+**What this says**
+
+- **Colour adds nothing measurable.** The two round-4 versions tie on every set and condition. The no-colour one is kept: it is cheaper and has nothing to break when the light changes.
+- **Round 4 holds its level in every light** (30 or 31 of 35). Round 2 falls to 28 in dim light and 23 with light and dark swapped.
+- **As filmed, on these three videos, round 2 is still slightly ahead:** 2 more balls and 2 fewer false spots on the test set, level on the check set. Round 2 learned these videos' own colours, which helps on them and nowhere else.
+- **So nothing changes in the app.** By the rule that no video may get worse, the clay test keeps round 2. Round 4 (`vision/models/ballnet_v4.json`, with its first pass) is in the repository as the any-camera model. It is what I'll train further on your new sessions and use on the first GoPro footage.
+
+**Compute, one laptop CPU core, per frame**
+
+| | Busy footage (video 1, about 500 moving spots) | Quiet footage (clay, about 26) |
+| --- | --- | --- |
+| Round 4, classifier on every spot | 1.67 s | 0.43 s |
+| Round 4 with the first pass | 0.84 s | 0.40 s |
+
+- With the first pass, a busy frame splits into: finding moving spots 0.44 s, cutting them out 0.14 s, first pass 0.05 s, classifier 0.10 s.
+- The first pass changes no result on the test set (28 of 35, 2 false, the same per video).
+- Finding the moving spots is now the largest cost on any footage, so that is the next thing to speed up.
+- Round 2's "about 0.6 s" was measured on quieter footage than video 1; I did not time it on video 1, so I can't give a like-for-like figure.
+
+**MATLAB.** The pipeline runs round 4 with the first pass (`tv.detect.ballScores`), with the same numbers as PyTorch to six decimal places (tests). A new test draws a moving ball in four colours and lights (yellow, white on blue, dark on pale, dim) and round 4 calls each a ball.
+
 ## Rules retired
 
 Each of these patched one of the colour detector's mistakes on one video. None is needed with the new detector, so it skips them all:
@@ -181,7 +233,7 @@ These are listed in VISION-RETUNE.md for the PC's first sessions.
 
 ## Compute
 
-About 0.6 s a frame on one laptop CPU core (proposals 0.35 s, classifier 0.15 s). I made the proposals 4 times faster tonight with the same result: the expensive comparison is now done only on pixels that changed. SwingVision runs in real time on the phone's AI chip, at lower resolution. The PC's graphics card will run this classifier hundreds of times faster than a CPU.
+Rounds 1 to 3: about 0.6 s a frame on one laptop CPU core on quiet footage (proposals 0.35 s, classifier 0.15 s). The proposals were made 4 times faster on the first night with the same result: the expensive comparison is done only on pixels that changed. Round 4's figures, with its first pass, are in its section above. SwingVision runs in real time on the phone's AI chip, at lower resolution. The PC's graphics card will run the classifier hundreds of times faster than a CPU.
 
 ## Decisions I made overnight
 
@@ -202,7 +254,7 @@ You asked me to take the recommended option and tell you in the morning. All are
 
 ## What's next
 
-1. **Pre-serve bounces.** Tell them from bounces in play (a serve follows), and start each point at its serve. That fixes both the extra bounces and the points that run together.
-2. **The curtain.** Self-train on this court's own footage, so the dome's swaying folds stop scoring as balls.
-3. **Tracker thresholds** for the surer, self-trained model, set on footage outside the test set.
-4. **The full 85-minute clay video,** if you want it: about 5 hours of computing here, minutes on the PC.
+1. **Your SwingVision exports.** Their bounce dots become weak labels (docs/reports/OVERLAY-READER-1.md): the detector's own tracks near each dot give new ball examples from new courts and lights, with the guard that stops real balls being taught as "not a ball".
+2. **A bigger test set.** Hand-checked frames from the new courts, two or three courts kept out of training altogether.
+3. **Finding moving spots faster,** now the largest cost.
+4. **The first GoPro footage:** a short self-training round on its own backgrounds, since everything so far is filmed from behind the baseline.

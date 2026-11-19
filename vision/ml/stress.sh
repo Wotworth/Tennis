@@ -1,7 +1,7 @@
 #!/bin/bash
 # the classifier alone at each test frame under each stress condition: $1 weights, $2 tag
 cd "$(dirname "$0")"; export PYTHONPATH=$PWD; PY=${PY:-python3}
-for c in plain grey hue dark invert warm; do
+for c in ${CONDS:-plain grey warm cool dark invert}; do
   COND=$c $PY quickscore.py $1 ${2}_${c}q > /dev/null 2>&1
   $PY - <<PYEOF
 import numpy as np, common

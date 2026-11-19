@@ -1,7 +1,7 @@
 """Run proposals + classifier over a stretch of a video, reading it straight through.
 Writes rows [frame, x, y, score, area, length, width, dmin, dmax] (raw frame pixels) for every
 proposal (score included, so the threshold can be chosen later)."""
-import numpy as np, subprocess, sys, torch, time, common, proposals as P, gen_data as G, model as Mdl
+import os, numpy as np, subprocess, sys, torch, time, common, proposals as P, gen_data as G, model as Mdl
 
 torch.set_num_threads(1)
 
@@ -20,6 +20,12 @@ def stream(v, first, count):
 
 def main(v, first, last, step, weights, out):
     net = Mdl.BallNet(); net.load_state_dict(torch.load(weights)); net.eval()
+    # the first pass (env PRE: PreNet weights; its threshold sits beside them): what it throws out never reaches the classifier
+    pre = None; T = {'proposals': 0.0, 'cut': 0.0, 'first pass': 0.0, 'classifier': 0.0}; nsp = [0, 0]
+    if os.environ.get('PRE'):
+        import json
+        pre = Mdl.PreNet(); pre.load_state_dict(torch.load(os.environ['PRE'])); pre.eval()
+        pre_thr = json.load(open(os.environ['PRE'] + '.json'))['threshold']
     dmin, dmax = common.geom(v); mask = P.mask_full(v)
     from PIL import Image
     bg = common.condition(np.asarray(Image.open(f'{common.ROOT}/ml/bg_v{v}.png').convert('RGB')))
@@ -31,15 +37,23 @@ def main(v, first, last, step, weights, out):
         buf.pop(c - P.K - 1, None)
         if c < first or (c - first) % step or c - P.K not in buf: continue
         prev, cur, nxt = buf[c - P.K], buf[c], buf[c + P.K]
-        props, _ = P.proposals(prev, cur, nxt, dmin, dmax, mask)
+        t1 = time.time(); props, _ = P.proposals(prev, cur, nxt, dmin, dmax, mask); T['proposals'] += time.time() - t1
         if len(props):
             pa = P.moved(prev, *P.shift(cur, prev)); na = P.moved(nxt, *P.shift(cur, nxt))
             hy = np.minimum(props[:, 1].astype(int) // 2, dmin.shape[0] - 1); hx = np.minimum(props[:, 0].astype(int) // 2, dmin.shape[1] - 1)
             M = np.stack([dmin[hy, hx], dmax[hy, hx]], axis=1).astype(np.float32)
             sc = np.array([G.scale_of(p[4], m[0], m[1]) for p, m in zip(props, M)], np.float32)
-            X = G.crop_batch((pa, cur, na), props[:, 0], props[:, 1], sc)
+            t1 = time.time(); X = G.crop_batch((pa, cur, na), props[:, 0], props[:, 1], sc); T['cut'] += time.time() - t1
+            Mn = M / sc[:, None]; go = np.arange(len(X)); s = np.zeros(len(X), np.float32)
             with torch.no_grad():
-                s = torch.cat([torch.sigmoid(net(*Mdl.prepare(X[j:j + 512], M[j:j + 512] / sc[j:j + 512, None]))) for j in range(0, len(X), 512)]).numpy()
+                if pre is not None:
+                    t1 = time.time()
+                    sp = torch.cat([torch.sigmoid(pre(*Mdl.prepare_pre(X[j:j + 2048], Mn[j:j + 2048]))) for j in range(0, len(X), 2048)]).numpy()
+                    go = np.nonzero(sp >= pre_thr)[0]; T['first pass'] += time.time() - t1
+                t1 = time.time()
+                if len(go): s[go] = torch.cat([torch.sigmoid(net(*Mdl.prepare(X[go[j:j + 512]], Mn[go[j:j + 512]]))) for j in range(0, len(go), 512)]).numpy()
+                T['classifier'] += time.time() - t1
+            nsp[0] += len(X); nsp[1] += len(go)
             # the frame's shift against the empty court, as tv.calib.steady's d: raw = court + d
             dy, dx = P.shift(bg, cur)
             rows.append(np.column_stack([np.full(len(props), c), props[:, :2], s, props[:, 2:5], M, np.full(len(props), -dx), np.full(len(props), -dy)]))
@@ -48,6 +62,7 @@ def main(v, first, last, step, weights, out):
     R = np.concatenate(rows) if rows else np.zeros((0, 11))
     np.save(out, R.astype(np.float32))
     print('done', out, len(R), '%.2f s/frame' % ((time.time() - t0) / max(done, 1)))
+    print('  per frame: ' + ', '.join('%s %.3f s' % (k, t / max(done, 1)) for k, t in T.items()) + '; %d spots, %d to the classifier' % (nsp[0] / max(done, 1), nsp[1] / max(done, 1)), flush=True)
 
 
 if __name__ == '__main__':

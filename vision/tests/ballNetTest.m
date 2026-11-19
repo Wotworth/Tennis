@@ -74,3 +74,31 @@ for q = 1:size(cases, 1)
     p = tv.detect.ballNet(net4, X, [0.8 1.4]);
     assert(p > 0.9, sprintf('case %d: moving ball scored %.2f', q, p));
 end
+
+%% round 4's first pass (vision/models/ballnet_v4_pre.json) matches PyTorch to 1e-6 and carries its threshold
+pre = tv.detect.loadBallNet(fullfile(fileparts(here), 'models', 'ballnet_v4_pre.json'));
+Cp = jsondecode(fileread(fullfile(here, 'fixtures', 'ballnet', 'v4_pre_check.json')));
+assert(pre.threshold > 0 && pre.threshold < 0.5);
+p = tv.detect.ballNet(pre, permute(uint8(Cp.X), [3 4 5 2 1]), Cp.M);
+assert(max(abs(p(:) - Cp.p(:))) < 1e-6, sprintf('max difference %.3g', max(abs(p(:) - Cp.p(:)))));
+
+%% tv.detect.ballScores: what the first pass lets through gets the classifier's score, the rest 0; a moving ball passes
+net4 = tv.detect.loadBallNet(fullfile(fileparts(here), 'models', 'ballnet_v4.json'));
+pre = tv.detect.loadBallNet(fullfile(fileparts(here), 'models', 'ballnet_v4_pre.json'));
+C4 = jsondecode(fileread(fullfile(here, 'fixtures', 'ballnet', 'v4_check.json')));
+X = permute(uint8(C4.X), [3 4 5 2 1]);
+[xx, yy] = meshgrid(0:47, 0:47);
+yellow = [225 230 90];
+for k = 1:3                                             % spot 1 becomes a yellow ball crossing a grey court
+    img = repmat(reshape([120 115 105], 1, 1, 3), 48, 48);
+    on = hypot(xx - (24 + (k - 2) * 9), yy - 24) <= 3;
+    for c = 1:3, ch = img(:, :, c); ch(on) = yellow(c); img(:, :, c) = ch; end
+    X(:, :, :, k, 1) = uint8(img);
+end
+M = C4.M;  M(1, :) = [0.8 1.4];
+full = tv.detect.ballNet(net4, X, M);
+q = tv.detect.ballNet(pre, X(13:36, 13:36, :, :, :), M);
+p = tv.detect.ballScores(net4, pre, X, M);
+assert(q(1) >= pre.threshold && p(1) > 0.9, sprintf('the ball: first pass %.3f, score %.2f', q(1), p(1)));
+assert(all(p(q < pre.threshold) == 0) && max(abs(p(q >= pre.threshold) - full(q >= pre.threshold))) < 1e-12);
+assert(isequal(tv.detect.ballScores(net4, [], X, M), full(:)));

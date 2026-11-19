@@ -42,7 +42,7 @@ d = struct('overlayBoxes', zeros(0, 4), 'lineOpts', struct('minContrast', 20, 'm
            'playerHz', 2, 'clipOpts', struct(), 'hfovStart', 65, 'wholeFile', false, 'bounceMinPx', 1.5, ...
            'detectOpts', struct(), 'clipList', [], 'detectOnly', false, 'stillMps', 1.5, 'stillWindowS', 0.25, ...
            'bounceSkipHits', true, 'personMinArea', 1500, 'hitReach', 0.6, 'bounceMergeS', 0.3, ...
-           'detector', 'classical', 'ballNetFile', '', 'precomputed', '', 'chainOpts', struct(), ...
+           'detector', 'classical', 'ballNetFile', '', 'ballPreFile', '', 'precomputed', '', 'chainOpts', struct(), ...
            'bounceKindOpts', struct(), 'pointNeedsPlay', true, 'pointSplitS', 0.5, 'offBounceS', 0.75, 'pointTrackMinS', 0.5, ...
            'steady', true, 'steadyMaxPx', 40, 'windowS', 30, 'maxWindows', 0, 'maxJerkPx', 0, 'pointGapS', 4, 'pointMinS', 1.5, 'dropPlayerTracks', true, 'playerTrackStepS', 1 / 6, ...
            'playerTrackShare', 1, 'follow', true, 'followOpts', struct());
@@ -69,7 +69,8 @@ if learned
     % and the ball's path as the best chain of scored detections. None of the rule stages below
     % (still balls, racquets, steered search, jumps, frame edge) are needed: each was a patch on
     % the colour detector's mistakes
-    D = tv.pipeline.stage(outDir, 'detect', k(C.clips, s.overlayBoxes, cfg.court, K.cam.pos, 'learned', s.ballNetFile, s.precomputed, s.chainOpts), ...
+    preKey = {};  if ~isempty(s.ballPreFile), preKey = {s.ballPreFile}; end      % earlier runs' saved stages stay valid
+    D = tv.pipeline.stage(outDir, 'detect', k(C.clips, s.overlayBoxes, cfg.court, K.cam.pos, 'learned', s.ballNetFile, s.precomputed, s.chainOpts, preKey{:}), ...
         @() detectLearned(rec, C.clips, K, cfg, s, outDir));
     s.dropPlayerTracks = false;  s.follow = false;  s.maxJerkPx = 0;
     nStill = 0;
@@ -294,7 +295,7 @@ function D = detectLearned(rec, clips, K, cfg, s, outDir)
 S = tv.detect.ballSizeMap(K.cam, tv.court.interest(cfg.court));
 ov = blank(ones(rec.height, rec.width), s.overlayBoxes) ~= 1;
 S.mask = S.mask & ~ov;  S.dmax(ov) = 0;
-net = [];
+net = [];  pre = [];
 D.candidates = cell(size(clips, 1), 1);  D.tracks = cell(size(clips, 1), 1);
 for r = 1:size(clips, 1)
     f0 = clips(r, 1);  f1 = clips(r, 2);
@@ -302,7 +303,10 @@ for r = 1:size(clips, 1)
     if ~isempty(s.precomputed) && exist(pc, 'file')
         A = dlmread(pc, ',', 1, 0);
     else
-        if isempty(net), net = tv.detect.loadBallNet(s.ballNetFile); end
+        if isempty(net)
+            net = tv.detect.loadBallNet(s.ballNetFile);
+            if ~isempty(s.ballPreFile), pre = tv.detect.loadBallNet(s.ballPreFile); end     % round 4's first pass
+        end
         A = zeros(0, 11);  K2 = max(1, round(2 * rec.fps / 60));    % neighbours 1/30 s away
         for a = f0:30:f1
             first = max(0, a - K2);  n = min(30 + 2 * K2, rec.nFrames - first);
@@ -318,7 +322,7 @@ for r = 1:size(clips, 1)
                 M = [S.dmin(ix), S.dmax(ix)];
                 if size(net.conv(1).W, 3) == 5     % round 4: cut at the ball's scale, no colour
                     sc = tv.detect.ballScale(C(:, 5), M);
-                    p = tv.detect.ballNet(net, tv.detect.ballCrops(prev, cur, nxt, C, 48, sc), M ./ sc);
+                    p = tv.detect.ballScores(net, pre, tv.detect.ballCrops(prev, cur, nxt, C, 48, sc), M ./ sc);
                 else
                     p = tv.detect.ballNet(net, tv.detect.ballCrops(prev, cur, nxt, C), M);
                 end

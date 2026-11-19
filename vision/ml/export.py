@@ -10,7 +10,9 @@ def fold(conv, bn):
 
 
 def main(weights, out, check=None):
-    net = Mdl.BallNet()
+    # a file name ending _pre.json exports the first pass (model.PreNet) with its threshold
+    pre = out.endswith('_pre.json')
+    net = Mdl.PreNet() if pre else Mdl.BallNet()
     if weights != 'random': net.load_state_dict(torch.load(weights))
     else:
         torch.manual_seed(0)
@@ -30,11 +32,15 @@ def main(weights, out, check=None):
     J = {'note': 'Ball classifier (TV-DET-04), trained on Chris\'s footage with drawn balls; batch norm folded.',
          'conv': convs, 'fc1': {'W': fc1.weight.detach().numpy().tolist(), 'b': fc1.bias.detach().numpy().tolist()},
          'fc2': {'W': fc2.weight.detach().numpy().tolist(), 'b': fc2.bias.detach().numpy().tolist()}}
+    if pre:
+        J['note'] = 'First pass of the ball classifier (TV-DET-04, round 4): the middle 24 x 24 of each cut; spots under the threshold are not a ball.'
+        J['threshold'] = json.load(open(weights + '.json'))['threshold']
     json.dump(J, open(out, 'w'))
     if check:
         rng = np.random.default_rng(3)
-        X = rng.integers(0, 255, (6, 3, 48, 48, 3), dtype=np.uint8)
-        X[:, 1, 20:26, 20:26] = 230                                # a pale blob in the middle frame
+        n = 24 if pre else 48
+        X = rng.integers(0, 255, (6, 3, n, n, 3), dtype=np.uint8)
+        X[:, 1, n // 2 - 4:n // 2 + 2, n // 2 - 4:n // 2 + 2] = 230    # a pale blob in the middle frame
         M = np.array([[3, 9], [4, 12], [3, 6], [5, 20], [3, 8], [2, 5]], np.float32)
         with torch.no_grad():
             p = torch.sigmoid(net(*Mdl.prepare(X, M))).numpy()

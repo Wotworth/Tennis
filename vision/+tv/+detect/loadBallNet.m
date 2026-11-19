@@ -10,4 +10,5 @@ for k = 1:numel(J.conv)
 end
 net.fc1.W = double(J.fc1.W);  net.fc1.b = double(J.fc1.b(:));
 net.fc2.W = double(J.fc2.W(:)');  net.fc2.b = double(J.fc2.b);
+if isfield(J, 'threshold'), net.threshold = double(J.threshold); end      % a first pass (tv.detect.ballScores)
 end

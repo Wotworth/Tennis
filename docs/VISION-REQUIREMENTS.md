@@ -286,6 +286,8 @@ t₁ = t₂ + Δ + ε (t₂ − t_ref);  t_pixel = t_frame + (v/H) τᵣ
     - The motion threshold's floor is a share (5%) of the frame's own brightness, not a fixed number, so dim footage is not penalised.
     - Colour (Chris, 18 Nov): it is brittle under changing light, but need not be ignored where it proves robust. Two versions are trained on the same examples: no colour (brightness and motion only, light and dark swapped at random in training), and colour as a hint (the same plus how each pixel's colour differs from the cut's average, blanked a third of the time in training). The version with the better worst case over realistic conditions ships; on a tie, the one without colour (less compute).
     - Every model is scored on the test and check sets as filmed and under stress conditions made from the same frames: grey, a warm cast, a cool cast, 40% of the light, and brightness swapped (a dark ball on a pale court).
+    - **[19 Nov, result]** The two versions tie on every set and condition, so colour is not used. Round 4 finds 30 or 31 of 35 test balls in every light (round 2: 23 to 31) but, as filmed on the three videos, 28 of 35 with 2 false spots against round 2's 30 and 0, so round 2 stays where it is shipped and round 4 (`ballnet_v4`) is the any-camera model for new footage and further training.
+    - **[19 Nov]** A first pass (5,281 weights, the middle 24 px of each cut) throws out plain non-balls before the classifier; its threshold passes 99.8% of ball examples. Busy footage: 0.84 s a frame on one CPU core instead of 1.67 s, with the same test-set result (`tv.detect.ballScores`).
 - TV-DET-05 Training labels:
   - Most come free: v1 detections that survive the stereo and physics checks become labels.
   - Corrections are made in Video Labeler.
@@ -323,6 +325,7 @@ t₁ = t₂ + Δ + ε (t₂ − t_ref);  t_pixel = t_frame + (v/H) τᵣ
   - Minimise reprojection error with a robust loss (`lsqnonlin`).
   - Initialise from linear triangulation of time-interpolated 2D tracks.
 - TV-REC-02 Match tracks between cameras by epipolar consistency and by timing.
+  - **[19 Nov, Chris 18 Nov]** Stretches only one camera saw: joined to the flight before or after when that flight explains them; otherwise fitted from the one camera's sight lines and the physics, pinned to where the neighbouring flights end or begin (on the ground at a bounce). Such a flight is marked one-camera (`oneCam`). Accuracy against both cameras: tools/blockStudy.m.
 - TV-REC-03 Output 3D positions sampled at 200 Hz with covariance, plus the fit's RMS reprojection error. Reject or flag fits above 2 px RMS.
 
 ### Events
