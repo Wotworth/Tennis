@@ -357,3 +357,32 @@ You asked me to take the recommended option and tell you in the morning. All are
 2. **A bigger test set.** Hand-checked frames from the new courts, two or three courts kept out of training altogether.
 3. **Finding moving spots faster,** now the largest cost.
 4. **The first GoPro footage:** a short self-training round on its own backgrounds, since everything so far is filmed from behind the baseline.
+
+## Round 5 in the two-camera pipeline (19 Nov, evening)
+
+Chris: "wire the learned detector into the two-camera pipeline before my first GoPro footage. Anything two-camera tested before that measures the wrong detector." Done: `tv.pipeline.run` detects with round 5 by default, on the court's part of the picture only. The indoor switch to round 4 is gone: the only indoor footage is the clay court, and on its hand-labelled frames round 5 finds 7 of 9 balls in play against round 4's 5 of 9, so there is no evidence for it.
+
+**First run of the two-camera tests with it (CI run 52), on synthetic footage:**
+
+| | First (colour) detector, run 51 | Round 5, run 52 |
+| --- | --- | --- |
+| Plain session: shots found, calls right | 9 of 9, 9 of 9 | 9 of 9, 9 of 9 |
+| Cameras placed, timing | within 5 cm, 0.5 ms | 1.1 and 0.5 cm, 0.06 ms |
+| Bounces | within target | 0.3 to 2.7 cm |
+| Speed within 2 mph for 90% of shots (AC-07) | met | **missed**: 8 of 9 (the ninth 2.06 mph off) |
+| Spin effect, median within 10 cm (AC-10) | met | **missed**: 10.6 cm |
+| Neighbours playing: their balls accepted (AC-14) | none | none (0 of 2,241) |
+| Neighbours playing: Chris's ball rejected (AC-15, limit 2%) | 14.3% | **25.3%** |
+| Neighbours playing: Chris's shots found (AC-06) | 7 of 9 | **5 of 9**: the second rally's flights are all dropped at the flight fit |
+
+**Cause of the two narrow misses, found and fixed.** The learned detector placed each ball on the middle of what changed between frames. Where the ball overlaps its own place a moment earlier or later, that part is cut away, and the middle sits off the ball's. Measured against the synthetic footage's known ball positions (181 frames, camera 1):
+
+| | Centre error, median | 90% under |
+| --- | --- | --- |
+| First (colour) detector | 0.16 px | 0.36 px |
+| Round 5 as wired at first | 0.30 px | 0.78 px |
+| Round 5 with the new centre (`tv.detect.ballCentre`) | **0.14 px** | 0.23 px |
+
+The new centre is the middle of what differs from the empty court round the spot, with no colour test, and with limits tied to the spot's own size so that it cannot latch onto a player or the net (seen on the first real clip tried, and guarded against). On the real clay clip, where there is no known answer, a 94-point ball track is steadier with it: each point's distance from the midpoint of its neighbours falls from 0.67 px to 0.49 px (median).
+
+**Not yet known:** whether AC-07 and AC-10 pass again with the new centre, and what it does for the neighbours case. That is CI run 53; docs/STATUS.md has the result. The neighbours case (the second rally dropped at the flight fit) is not explained yet: the test now prints what the pipeline made of each rally so the next run shows where it goes wrong.

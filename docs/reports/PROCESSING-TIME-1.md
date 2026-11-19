@@ -30,6 +30,49 @@ After step 3 the detector is no longer the largest cost. What remains, roughly: 
 
 Not in the plan: finding spots on a half-size picture. At the planned mounting the ball is about 4 px across at the far corners in 4K (docs/reports/TV-PH-0a.md); at half size it would be 2 px, too small to find.
 
+## How rally windows are found today, and what a miss costs (Chris, 19 Nov evening)
+
+Chris asked how rally windows are found without running the detector, what happens when the first pass misses a rally, and whether decoding is inside the 5 to 8 hours.
+
+**Today the first pass is sound only** (`tv.rally.fromAudio`, camera 1's microphone). The sound is high-pass filtered and its loudness followed in 1 ms steps; a jump above 8 times the usual level is a hit; three or more hits 0.3 to 3 s apart make a rally; the window runs from 1.5 s before the first hit to 2 s after the last, and windows less than 4 s apart are joined (TV-RAL-02). The second half of the spec's first pass (TV-RAL-01: fast ball-sized spots inside the court on small frames) **is not built**.
+
+**A missed rally is lost silently.** Detection runs only inside the windows, so a rally the sound missed gives no shots and no rally in the app, and nothing reports it.
+
+**On the one real recording with a camera microphone that I have, sound alone misses about half the play.** The GoPro Hero 7 clip (532.5 s): 203 hits heard, 12 windows covering 124.6 s (23% of the clip). In the 100 s where I had already run the detector over every frame, it found the ball confidently in 2,420 frames, and only 1,270 of them (52%) lie inside a sound window. Play at 30 to 33 s and 60 to 68 s has no window at all. Dropping the three-hits rule (a window at every hit) covers 50% of the clip and still does not promise every rally. One clip, one microphone, so this is a warning and not a measurement of the Mission 1 Pro; but the spec's target is 98% of rallies captured (TV-RAL-03), and sound alone is nowhere near it here.
+
+**The plan for the first pass** (not built; my recommendation is to build it before the first full session):
+
+1. **Sound or motion, whichever fires.** Motion is the spec's check: ball-sized moving spots inside the court volume, on small frames. A window opens when either says "play", with TV-RAL-02's rule: when in doubt, keep footage.
+2. **One sweep through the file, not two.** The cheap check looks at every decoded frame; the detector runs on the frames inside windows, a couple of seconds behind. The full file is then decoded once (see below), not once for the first pass and again for the detector. If the camera writes a low-resolution copy of each recording (GoPro's LRV, one of the camera checks in the manual), the cheap check can use that and the 4K file is decoded only inside windows.
+3. **A safety net for what was skipped:** the full detector on one second in every ten of the skipped footage. A ball in play found there opens a window, and `session.json` counts "rallies the first pass missed", so a miss is caught and seen instead of lost. It costs about a tenth of the skipped footage.
+4. **Coverage on every session:** how much of the recording was inside windows, how many windows, and the safety net's count.
+5. **Scored before it is trusted:** SwingVision's export of the 3 Oct match is an answer key for which parts of a recording were points. The first pass must put 98% of those inside a window (TV-RAL-03) before it gates anything.
+
+Until that is built and scored, short test recordings (the Hero 7 side clips, the first Mission 1 Pro files) are processed whole.
+
+## Decoding 4K at 120 frames a second: inside the 5 to 8 hours, and now measured
+
+Yes, it was included: 1.5 to 2.5 h of the 5 to 8 h was decoding, for the frames inside rally windows only. That figure was an estimate. Measured since, on this session's 4 cores (software decoding, no graphics card), 180 frames of 4K 120 fps HEVC:
+
+| | Frames a second |
+| --- | --- |
+| 240 Mbit/s, 10-bit: decode only | 32 |
+| The same, converted to colour pixels and handed over through memory | 25 |
+| 120 Mbit/s, 8-bit: decode only | 47 |
+| Half size, every fourth frame only | 32 (no faster: each frame is built from the ones before it, so skipping frames saves nothing) |
+
+Scaled to the Legion's processor (taken as 6 times this session's; an assumption until the benchmark runs): about 150 frames a second. One session is 1,728,000 frames, so:
+
+| | Decoding | Whole session |
+| --- | --- | --- |
+| Rally windows from sound and a low-resolution copy; 4K decoded only inside windows (29% of the time) | about 1 h | **about 5 to 8 h** (as planned) |
+| No low-resolution copy: one sweep, every frame decoded once, the detector only inside windows | about 3.2 h | about 5.5 to 7.5 h |
+| No first pass at all: every frame decoded and searched | about 3.2 h | about 8 to 12 h, at or over the limit |
+
+What this does not settle: the test file was made here by re-encoding existing footage to 4K 120, not by a GoPro; the factor of 6 is an assumption; the graphics card's own decoder should be faster and is unmeasured; the spot-finding on the graphics card (1 to 2 h of the total) is not built or measured.
+
+**One thing to fix before the first full session:** `tv.media.readFrames` hands frames to MATLAB through a temporary file on disk. A 4K frame is about 25 MB, so the windows of one session alone would write about 12.5 TB to the SSD. Frames must go through memory instead (a pipe or a RAM disk). It does not matter for the short test clips.
+
 ## Toolboxes: nothing to buy
 
 - Graphics-card arithmetic in MATLAB (`gpuArray`) and running the cameras' windows in parallel (`parfor`) both need the **Parallel Computing Toolbox. It is in the Home Suite** the spec already lists (TV-ARCH-03), so Chris has it.
@@ -38,8 +81,10 @@ Not in the plan: finding spots on a half-size picture. At the planned mounting t
 
 ## What has to be built first
 
-1. **The learned detector is not in the two-camera pipeline yet.** `tv.pipeline.run` still uses the first colour-based detector; rounds 2 to 5 run in the one-camera path only (`tv.pipeline.runSingle`). Wiring it in (spots, classifier, one ball in play per camera, then the existing sync, gate and flight fit) is the next build step, and steps 2 and 3 above belong to it.
-2. The benchmark then measures all of this on the Legion per capture mode, which the spec already makes part of the capture-mode choice (TV-OPS-04, TV-PH-2).
+1. ~~The learned detector is not in the two-camera pipeline yet.~~ **Done, 19 Nov:** `tv.pipeline.run` detects with round 5 (`tv.detect.learnedCandidates`), on the court's part of the picture only (step 2 above).
+2. The first pass (sound or motion, one sweep, the safety net) and frames through memory: the two sections above.
+3. Spot-finding on the graphics card (step 3 above).
+4. The benchmark then measures all of this on the Legion per capture mode, which the spec already makes part of the capture-mode choice (TV-OPS-04, TV-PH-2).
 
 ## What could make it worse or better
 

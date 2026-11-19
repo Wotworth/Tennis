@@ -422,6 +422,15 @@ Back-fence corners (layout 2) also work; see the report.
 5. **When it's done,** the session appears in the app (Sessions), and your phone gets a message. If it fails, the message says why (section 12), and the light goes red.
 6. **Racquet switches:** open the session > racquets > review. You can move a switch to another break, change a racquet or reason, add a switch you forgot, or delete a wrong one. Each rally shows its first frame, so you can see which racquet you held. If a tap fell mid-point and was a close call, the app asks "before or after this rally?" once. TBD: comes with Part F.
 7. If the app asks "Which one is you?", tap your picture. If it asks "Who did you play?", pick your opponent.
+8. **If your phone says "Camera 1 court lines" (or camera 2) and that processing waits:** the PC could not place that camera from the court's lines with confidence, and has stopped before the long part. In the app:
+   1. Open **Sessions**. A row **court corners** is at the top. Tap it.
+   2. You see the camera's picture of the empty court, with yellow-green lines where the PC thinks the court is.
+   3. If the lines sit on the court's own lines, tap **the lines are right**.
+   4. If not, tap the **four corners of the doubles court**: where each baseline meets the outer sideline. Any order. Pinch to zoom in first so the tap is exact; when zoomed, one finger moves the picture; a tap near a ring moves that ring; **undo last tap** takes the last one away.
+   5. Tap **use these corners**. If both cameras are asked about, the next picture follows.
+   6. The PC picks the answer up within a few minutes and carries on by itself. Nothing else is needed.
+
+   All four corners must be in the picture; that is what the framing check in section 6 is for. If a corner is cut off, tell me. This needs the cloud service (section 2.3); until that is deployed the app only shows a sample of the page.
 
 ---
 
@@ -473,6 +482,8 @@ Back-fence corners (layout 2) also work; see the report.
 |---|---|---|
 | "Waiting for lens calibration: camera 2, 4K240 Wide" | A camera recorded in a preset with no calibration | Check the camera's preset. If you meant to use that mode, calibrate it (section 4); the session then processes by itself. |
 | "Poorly calibrated" | The court lines or posts didn't fit well: camera moved, lines worn, view blocked | Check the clamp. Next time, check the framing (section 6). The session's results stay, marked less certain. |
+| "Camera 1 court lines ... Processing waits" | The PC doubts where it placed that camera: too little of the court it fitted has paint under it | Sessions > court corners: say the lines are right, or tap the four corners of the doubles court (section 9, step 8). The session then carries on by itself. |
+| "The four tapped corners miss a court's corners" | The taps don't make a court from that camera: one was on the wrong line or too far off | Open court corners again, zoom in, and tap the four doubles corners once more. |
 | "Left post: top obstructed" | Something on the post, or someone in front | Nothing needed. Next time, clear the post if you can. |
 | "Timing uncertain" | Camera timing check failed | Redo Timecode Sync before recording next time. If it keeps happening, tell me. |
 | "Slow card reader" | A reader is on a USB 2.0 port | Move it to a top port. |
