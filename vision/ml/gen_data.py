@@ -160,9 +160,62 @@ def positive(F, dmin, dmax, cam, ok_px):
     return np.clip(out + 0.5, 0, 255).astype(np.uint8), (lo / sc, hi / sc)
 
 
+def draw_shadow(img, cx, cy, D, strength, vx, vy, blur, ang, flat):
+    """Darkens img (float) under a soft flattened blob the size of a ball's shadow, smeared along
+    its motion: the surface keeps its colour and loses light."""
+    n = max(1, int(np.ceil(blur * np.hypot(vx, vy) / 0.4)) + 1)
+    yy, xx = np.mgrid[0:img.shape[0], 0:img.shape[1]].astype(float)
+    acc = np.zeros(img.shape[:2]); ca, sa = np.cos(ang), np.sin(ang)
+    for k in range(n):
+        f = (k / max(n - 1, 1) - 0.5) * blur
+        u = (xx - cx - f * vx) * ca + (yy - cy - f * vy) * sa; w = -(xx - cx - f * vx) * sa + (yy - cy - f * vy) * ca
+        acc += np.clip(1.5 - (np.hypot(u / (0.5 * D), w / (0.5 * D * flat)) - 1) * 0.5 * D / 1.2, 0, 1) / n     # 1 inside, soft edge about 1.2 px
+    # skylight fills a real shadow: it is a little bluer than the lit surface, never an exact dimmed copy
+    tint = np.clip(np.asarray(strength, float) * np.ones(3), 0, 0.95)
+    return img * (1 - np.clip(acc, 0, 1)[..., None] * tint[None, None, :])
+
+
+def drawn(F, dmin, dmax, cam, ok_px, kind):
+    """As positive(), for round 5. kind 'shadow': only a ball's shadow moving like a ball (not a
+    ball). kind 'both': a ball with its shadow somewhere beside it (a ball)."""
+    for _ in range(50):
+        p, vel = flight3d()
+        dt = P.K / common.FPS
+        Ps = np.array([p - vel * dt + [0, 0, -0.5 * 9.81 * dt * dt], p, p + vel * dt + [0, 0, -0.5 * 9.81 * dt * dt]])
+        q, ok = cam.project(Ps)
+        if not ok.all(): continue
+        x, y = q[1]
+        if not (30 <= x < common.W - 30 and 30 <= y < common.H - 30) or not ok_px(x, y): continue
+        dist = np.linalg.norm(Ps - cam.pos, axis=1)
+        if dist.min() < 4: continue
+        Ds = 2 * 0.0335 / dist * cam.fpx
+        break
+    else:
+        return None, None
+    lo, hi = dmin[int(y) // 2, int(x) // 2], dmax[int(y) // 2, int(x) // 2]
+    grow = rng.uniform(1.0, 1.8)                          # a shadow is as wide as the ball or wider (low sun)
+    sc = scale_of(Ds[1] * (grow if kind == 'shadow' else 1.0) * rng.uniform(0.75, 1.3), lo, hi); side = side_of(sc)
+    cx0, cy0 = x + rng.uniform(-0.2, 0.2) * sc, y + rng.uniform(-0.2, 0.2) * sc
+    n = int(round(side)) if side <= S else S
+    g = n / side
+    vimg = (q[2] - q[0]) / (2 * P.K) * g
+    blur = rng.uniform(0.05, 0.9); col = ball_colour()
+    strength = rng.uniform(0.25, 0.75) * (1 + rng.normal(0, 0.08, 3)) * np.array([1.0, 1 - 0.15 * rng.random(), 1 - 0.5 * rng.random()])   # red, green, blue
+    ang = rng.uniform(0, np.pi); flat = rng.uniform(0.35, 0.9)
+    off = np.array([0.0, 0.0]) if kind == 'shadow' else rng.uniform(1.0, 5.0) * Ds[1] * g * np.array([np.cos(a := rng.uniform(0, 2 * np.pi)), np.sin(a)])
+    out = np.empty((3, S, S, 3), np.float32)
+    for k in range(3):
+        patch = resample(F[k], cx0, cy0, side, n).astype(float)
+        px = (q[k][0] - cx0) * g + n / 2 - 0.5; py = (q[k][1] - cy0) * g + n / 2 - 0.5
+        patch = draw_shadow(patch, px + off[0], py + off[1], Ds[k] * g * grow, strength, vimg[0], vimg[1], blur, ang, flat)
+        if kind == 'both': patch = draw(patch, px, py, Ds[k] * g * rng.uniform(0.95, 1.05), col * rng.uniform(0.92, 1.08), vimg[0], vimg[1], blur)
+        out[k] = patch if n == S else resample(patch, n / 2 - 0.5, n / 2 - 0.5, n)
+    return np.clip(out + 0.5, 0, 255).astype(np.uint8), (lo / sc, hi / sc)
+
+
 def frames_for(v, n):
     if v == 3: lo, hi = 10, 21600 - 10
-    else: lo, hi = 10, len(common.pts(v)) - 10
+    else: lo, hi = 10, min(len(common.pts(v)) - 10, int(os.environ.get('FRAME_MAX', 10 ** 9)))   # FRAME_MAX: keep clear of a held-out stretch
     test = [lab['frame'] for (vv, i), lab in common.labels().items() if vv == v]
     pick = []
     while len(pick) < n:
@@ -193,10 +246,15 @@ def main(v, n_frames, seed, out):
             hi = dmax[min(int(p[1]) // 2, dmin.shape[0] - 1), min(int(p[0]) // 2, dmin.shape[1] - 1)]
             sc = scale_of(p[4], lo, hi)
             X.append(crop(F, p[0], p[1], sc)); Y.append(0); M.append((lo / sc, hi / sc))
-        for _ in range(int(os.environ.get('POSONLY', 0)) or max(60, len(props))):
+        for _ in range(0 if os.environ.get('SHADOWS') and os.environ.get('POSONLY') == '0' else int(os.environ.get('POSONLY', 0)) or max(60, len(props))):
             c, m = positive(F, dmin, dmax, cam, ok_px)
             if c is None: continue
             X.append(c); M.append(m); Y.append(1)
+        for _ in range(int(os.environ.get('SHADOWS', 0))):          # round 5: shadows alone (not a ball), and balls with their shadow beside them
+            for kind, yv in (('shadow', 0), ('both', 1)):
+                c, m = drawn(F, dmin, dmax, cam, ok_px, kind)
+                if c is None: continue
+                X.append(c); M.append(m); Y.append(yv)
     np.savez_compressed(out, X=np.array(X), M=np.array(M, np.float32), Y=np.array(Y, np.uint8))
     print(out, len(Y), int(np.sum(Y)))
 

@@ -18,6 +18,9 @@ if __name__ == '__main__':
     os.makedirs(outdir, exist_ok=True)
     step = int(os.environ.get('STEP', 2)); w = os.environ['WEIGHTS']
     P = list(csv.DictReader(open(f'{ovl}/v{v}_points.csv')))
+    # env USE (the 'use' column: train | test), FROM and UNTIL (frames) pick some of the points
+    use = os.environ.get('USE'); lo = int(os.environ.get('FROM', 0)); hi = int(os.environ.get('UNTIL', 10 ** 9))
+    P = [p for p in P if (not use or p.get('use', 'train') == use) and int(p['first']) >= lo and int(p['last']) < hi]
     jobs = [(v, int(p['point']), int(p['first']) + 4, int(p['last']) - 4, step, w, f'{outdir}/v{v}_p{int(p["point"]):03d}.npy') for p in P if int(p['last']) - int(p['first']) > 60]
     with mp.Pool(int(os.environ.get('WORKERS', 3))) as pool:
         for o in pool.imap_unordered(one, jobs, chunksize=1): print('point done', o, flush=True)

@@ -14,7 +14,7 @@ import os, numpy as np, torch, torch.nn as nn
 # use the ball's colour where the light shows it and cannot depend on it (Chris, 18 Nov: colour is
 # brittle under changing light, but a tennis ball is never, say, red).
 INPUT = os.environ.get('MODEL_IN', 'grey')
-IN_CH = {'grey': 5, 'hint': 7}[INPUT]
+IN_CH = {'grey': 5, 'hint': 7, 'chroma': 7}[INPUT]
 
 
 def prepare(X, M):
@@ -33,6 +33,15 @@ def prepare(X, M):
         o1 = r - g; o2 = (r + g) / 2 - b
         o1 = (o1 - o1.mean(dim=(1, 2), keepdim=True)) / sd; o2 = (o2 - o2.mean(dim=(1, 2), keepdim=True)) / sd
         parts += [o1[:, None], o2[:, None]]
+    if INPUT == 'chroma':
+        # round 5: did the colour change here, or only the brightness? For each neighbour frame the
+        # middle frame's pixel is compared with the best brightness-scaled copy of the neighbour's:
+        # a shadow (the same surface, darker) leaves almost nothing; a ball, with a colour of its
+        # own, leaves a remainder. Holds under any light: it compares a patch with itself.
+        def remainder(a, b):
+            k = (a * b).sum(dim=3) / ((b * b).sum(dim=3) + 3 * 0.02 ** 2)
+            return (a - k[..., None] * b).abs().mean(dim=3)
+        parts += [(remainder(x[:, 1], x[:, 0]) / sd)[:, None], (remainder(x[:, 1], x[:, 2]) / sd)[:, None]]
     inp = torch.cat(parts, dim=1)                                 # n, 5 or 7, h, w
     m = torch.log(torch.from_numpy(M).float().clamp(0.05, 20.0))
     return inp, m
@@ -91,7 +100,7 @@ def augment(X, rng):
     # (with the colour hint: only what a change of light does, so the ball's colour stays learnable)
     A = np.eye(3)[None] * rng.uniform(0.7, 1.3, (n, 1, 3)) + rng.normal(0, 0.12 if INPUT == 'grey' else 0.03, (n, 3, 3))
     X = np.einsum('nfhwc,ndc->nfhwd', X, A.astype(np.float32))
-    X = X * rng.uniform(0.6, 1.4, (n, 1, 1, 1, 1)) + rng.uniform(-30, 30, (n, 1, 1, 1, 1))
+    X = X * rng.uniform(0.6, 1.4, (n, 1, 1, 1, 1)) + rng.uniform(-30, 30, (n, 1, 1, 1, 1)) * (0.25 if INPUT == 'chroma' else 1.0)   # (a large offset would give shadows a colour change)
     g = rng.uniform(0.7, 1.4, (n, 1, 1, 1, 1))                    # gamma
     X = 255.0 * (np.clip(X, 0, 255) / 255.0) ** g
     X += rng.normal(0, rng.uniform(0, 6), (n, 1, 1, 1, 1)) * rng.standard_normal(X.shape).astype(np.float32)
@@ -103,13 +112,23 @@ def augment(X, rng):
 
 
 def train_only(inp, rng):
-    """After prepare, in training with the colour hint: the hint is blanked for a third of the
-    examples, and for a quarter light and dark are swapped (brightness images negated) with the
-    hint blanked too: a dark ball on a pale background has no colour to go by."""
-    if INPUT != 'hint': return inp
-    n = len(inp)
-    inv = torch.from_numpy(rng.random(n) < 0.25); drop = torch.from_numpy(rng.random(n) < 0.33) | inv
-    inp = inp.clone()
-    inp[inv, 0:3] = -inp[inv, 0:3]
-    inp[drop, 5:7] = 0
+    """After prepare, in training only.
+    Colour hint (round 4, not kept): the hint is blanked for a third of the examples, and for a
+    quarter light and dark are swapped (brightness images negated) with the hint blanked too.
+    Colour change (round 5): light and dark are swapped for half of the examples whose middle
+    shows a real colour change (a dark ball against a sky or a wall of another colour is still a
+    ball), never for the others: something dark with the colour of what lies under it is a shadow,
+    and the drawn and mined shadows teach exactly that. INV=0 (env) switches the swap off."""
+    if INPUT == 'hint':
+        n = len(inp)
+        inv = torch.from_numpy(rng.random(n) < 0.25); drop = torch.from_numpy(rng.random(n) < 0.33) | inv
+        inp = inp.clone()
+        inp[inv, 0:3] = -inp[inv, 0:3]
+        inp[drop, 5:7] = 0
+        return inp
+    if INPUT == 'chroma' and os.environ.get('INV', '1') != '0':
+        n = len(inp); c = slice(20, 28)
+        col = inp[:, 5:7, c, c].mean(dim=(1, 2, 3)); mov = inp[:, 3:5, c, c].mean(dim=(1, 2, 3)).clamp_min(1e-6)
+        inv = torch.from_numpy(rng.random(n) < 0.5) & (col / mov >= 0.35)
+        inp = inp.clone(); inp[inv, 0:3] = -inp[inv, 0:3]
     return inp

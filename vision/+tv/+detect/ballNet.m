@@ -8,10 +8,12 @@ function p = ballNet(net, X, M)
 %   Round 4 weights (first layer 5 channels): X cut at the ball's scale, M the geometry's
 %   diameter range divided by that scale; the classifier is given no colour, so the ball's,
 %   the clothes' and the racquets' colours cannot matter, and the light is divided out.
+%   Round 5 weights (7 channels): as round 4, plus two pictures of how much the colour changed
+%   against each neighbour frame once any change of brightness is taken out (a shadow: none).
 %   Rounds 1-3 weights (15 channels): X in the frame's pixels, M the diameter range in px.
 N = size(X, 5);  h = size(X, 1);  w = size(X, 2);     % 48 x 48, or 24 x 24 for the first pass
 x = double(X) / 255;                                        % h w c f n
-if size(net.conv(1).W, 3) == 5
+if any(size(net.conv(1).W, 3) == [5 7])
     % round 4: no colour. Three brightness images (shifted by the cut's own mean, scaled by its
     % own spread) and two motion images (how much each pixel changed against t-K and t+K, in any
     % channel). M is the geometry's diameter range over the cut's scale (tv.detect.ballScale).
@@ -21,6 +23,14 @@ if size(net.conv(1).W, 3) == 5
     d1 = reshape(mean(abs(x(:, :, :, 2, :) - x(:, :, :, 1, :)), 3), h, w, 1, N) ./ sd;
     d2 = reshape(mean(abs(x(:, :, :, 2, :) - x(:, :, :, 3, :)), 3), h, w, 1, N) ./ sd;
     A = cat(3, (g - mu) ./ sd, d1, d2);                    % h w 5 n
+    if size(net.conv(1).W, 3) == 7
+        % round 5: did the colour change, or only the brightness? The middle frame's pixel less
+        % the best brightness-scaled copy of the neighbour frame's: a shadow (the same surface,
+        % darker) leaves almost nothing, a ball with a colour of its own leaves a remainder
+        a = reshape(x(:, :, :, 2, :), h, w, 3, N);
+        r1 = remainder(a, reshape(x(:, :, :, 1, :), h, w, 3, N));  r2 = remainder(a, reshape(x(:, :, :, 3, :), h, w, 3, N));
+        A = cat(3, A, r1 ./ sd, r2 ./ sd);                 % h w 7 n
+    end
     lm = log(min(max(double(M'), 0.05), 20));
 else
     % rounds 1-3: colour kept (each channel shifted by its own mean), cuts in the frame's pixels
@@ -63,6 +73,11 @@ for dx = 0:2
 end
 Wm = reshape(permute(W, [3 1 2 4]), 9 * ci, []);          % (ci, dy, dx) to match cols
 B = permute(reshape(cols * Wm + b(:)', h, w, n, []), [1 2 4 3]);
+end
+
+function r = remainder(a, b)
+k = sum(a .* b, 3) ./ (sum(b .* b, 3) + 3 * 0.02^2);
+r = mean(abs(a - k .* b), 3);
 end
 
 function B = pool2(A)
