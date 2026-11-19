@@ -73,10 +73,13 @@ Two-camera calibration on real pictures (19 Nov): `tv.calib.searchPose` had only
 
 Sample session fix (19 Nov, Chris's screenshot of shot 29·1 drawn through the net but shown as over it and in): the spoof's shot numbers and drawn paths now come from one flight per shot (docs/reports/SPOOF-SESSION.md); `SamplePathsTest`; 165 app tests pass in the session.
 
+Chris's follow-ups (19 Nov, afternoon), all in the reports named: misses on 59 fresh SwingVision bounce marks (round 4: 32, round 5: 31; both miss 27, mostly far end) and real dark balls (3 of 71 labelled; none of 36 eye-checked dark spots a ball), with the rule for when round 4 is used (BALL-DETECTOR-1.md); the calibration check's circular part stated, the two-camera routine alone right on the two clean hard courts and wrong on clay and the taped court with a low support score, an alert under 0.6 support, and real-footage line settings in the two-camera path (NEW-FOOTAGE-1.md); Linear covers the court from every fence distance with the cameras 1 to 3.5 m behind the baselines (TV-PH-0a.md); a real session projects to 45 to 60 h as things stand and about 5 to 8 h with rally windows, the court box and spot-finding on the graphics card, no toolbox to buy (PROCESSING-TIME-1.md); adjacentTest's two failing sections marked as known shortfalls with ceilings; SwingVision's overlay found per export (OVERLAY-READER-1.md). CI run 50: 144 pass, 1 failure (the retune list lacked the new settings file, fixed). **The learned detector is not yet in the two-camera pipeline: next build step.**
+
 Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens calibration and trial sessions). The launcher needs the new "checks" tile state (LAUNCHER-REQUESTS.md), not built.
 
 ## Next
 
+- Vision, next build step: the learned detector (round 5) in the two-camera pipeline, with detection only in the court box and spot-finding on the graphics card (PROCESSING-TIME-1.md). Then the Hero 7 side clips when Chris sends them: calibration from beside the court, the lens measured from the checkerboard clips.
 - Vision, after round 5: (1) court-line fit that needs paint under every line and keeps faint clay lines, tested on a Linear-mode clip if Chris can record one; (2) finding the moving spots faster (two thirds of the time per frame); (3) the 25 Apr SwingVision export's detection (24 of 49 points done) and its column in SWINGVISION-SESSIONS-1.md; (4) more of Chris's exports as they come.
 
 - Design v2 (VIS-09): vision pages done with Chris's 17 Nov feedback (tabs summary/court/3D/health, rally pages with replay, wide court colour scale, swipeable tab names; reports DESIGN-V2-1, DESIGN-V2-2, release v0.6.28). App-wide: shared parts done (segments, square buttons, labelled app bar). Then (v0.6.33): court map pinch-zoom; summary key figures (accuracy, serves, topspin, speed) against all earlier sessions and the last ten; session trends tab with a rolling ten-session average; iPhone footage tests removed from the app. Next: whichever hub pages Chris names after testing v0.6.28.
@@ -96,10 +99,8 @@ Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens ca
 
 ## Open questions
 
-- **Round 5 trade (19 Nov):** round 5 rejects shadows and, with them, a ball darker than the court behind it. Options: A keep round 5 for new cameras with round 4 as fallback (done, recommended); B the no-colour model trained on the same new footage (about half of round 5's shadow reduction, keeps the dark ball; trained, not exported); C a round 6 that tries to keep both.
-- **Frames from the three new videos (19 Nov):** A private pages only (now); B frames with no people in the repository or app; C as with the clay video.
-- **A one-minute Hero 7 clip in Linear mode** (file straight off the card) to test court-line calibration before the Mission 1 Pros arrive: yes or wait.
-- Is SwingVision's overlay always in the same corner and size in Chris's exports?
+- **Hero 7 test clips (Chris will record before the nets come down):** one minute in Linear (2.7K, 60 fps, HyperSmooth off) from the side fence at the planned height near a baseline extension with the whole court in view, one minute in Wide, and checkerboard clips in both modes. The side clip is the real test of the two-camera calibration.
+- Round 5: Chris chose A for now (19 Nov); pictures from the new videos: private pages only.
 
 - Purchase: Claude recommends buying the two cameras now and the PC later (17 Nov); Chris to decide.
 

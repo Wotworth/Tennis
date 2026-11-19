@@ -266,6 +266,50 @@ The classifier alone at each test frame (score above 0.5, before the tracker), f
 
 So the new footage alone removes about half the shadows and a third of the false spots, and keeps a dark ball on a pale court; the colour-change input removes most of the rest of the shadows and finds three more test balls, and is what gives up the dark ball. Round 5 stays the choice for outdoor cameras; the no-colour model (`net_r5n`, not exported) is the alternative if a ball darker than the court ever matters. Chris to confirm.
 
+## Round 5 before it is final: misses, dark balls, and when round 4 is used (19 Nov)
+
+Chris: round 5 for now, but measure misses, not only false spots (frames with a ball tracked fell on every held-out stretch); use SwingVision's bounce marks as a free miss count, the same marks for both rounds; measure how often real balls in this footage are darker than the court behind them, since the light/dark swap is an artificial test; say exactly when the round-4 fallback is used.
+
+### Misses, on bounce marks neither round was trained on
+
+A further stretch of the SwingVision export of the 3 Oct match (minutes 6 to 12; training used nothing after minute 4.5 of it). Its first 46 points hold 59 bounce marks, in and out (net balls left out). A mark counts as found when the tracker's ball passes within 1 m of it on the ground within 12 frames (`vision/ml/markhits.py`).
+
+| | Round 4 | Round 5 |
+| --- | --- | --- |
+| Marks with the tracker's ball at them | 32 of 59 | 31 of 59 |
+| More found by the looser search around the mark | 19 | 19 |
+| Nothing at the mark | 8 | 9 |
+| Marks in the near half (25) | 17 | 16 |
+| Marks in the far half (34) | 15 | 15 |
+| Frames with a ball tracked | 6,987 of 10,337 | 6,161 |
+
+Round 5 has every mark round 4 has but one, and none that round 4 lacks. It tracks 12% fewer frames and loses 3% of the marks, which fits what the by-eye check of the dropped spots showed (mostly shadows and nothing, about one real ball in twelve). The larger finding is shared: **both rounds miss 27 of the 59 marks outright, 19 of them in the far half**, where one camera behind the baseline sees a ball of a few pixels against the far player and curtain. That is the two-camera system's job, not round 6's.
+
+### How often is a real ball darker than what is behind it?
+
+- **Hand-labelled balls (the fixed test set and the check set, 71 balls in play):** 3 are darker than their surround (4%), 2 about level, 66 lighter. Round 5's tracker has all 3 of the darker ones; round 4 has 2 (`vision/ml/darklabels.py`).
+- **Tracked spots on the held-out new footage, by round 4** (which takes light and dark alike), sorted by the same measure (`vision/ml/darksheet.py`):
+
+| | iPhone match | SwingVision clip | GoPro |
+| --- | --- | --- | --- |
+| Tracked spots | 868 | 1,085 | 454 |
+| Lighter than the surround | 80% | 83% | 90% |
+| Darker, with a colour change | 2.4% | 0.6% | 0% |
+| Darker, with none (what round 5 refuses) | 12.8% | 12.1% | 6.2% |
+
+- **By eye, 12 random spots from the last row per video (36 in all): none is a ball.** The iPhone ones are the ball's shadow on the far curtain and on the court, a racquet's shadow, and shade where nothing can be seen (one is unclear, at the moment of a hit); the GoPro ones are a small shadow crossing the clay, a leaf, and people beyond the court. With the 24 checked when the rule was set, that is 60 dark, colourless tracked spots looked at and no clear ball among them.
+
+So in this footage a real ball darker than its background is rare (about 4% of labelled balls), round 5 still found those, and what round 5 actually refuses is shadows. The swap test's 13 of 35 overstates the cost outdoors. It remains a real limit where there is no sun.
+
+### When round 4 is used instead of round 5 (`tv.detect.ballModel`)
+
+1. **A court marked indoor in the app.** No sun means no hard shadows, and under roof lights a ball can be darker than a pale floor or wall.
+2. **When set by hand for one session** in the PC's config (an unusual ball, or a re-run to compare).
+
+Nothing else, and nothing switches by itself during a session.
+
+**Where this stands in the code:** the rule is a function with a test, but the two-camera pipeline (`tv.pipeline.run`) does not use the learned detector yet; it still runs the first colour-based one. Rounds 2 to 5 run in the one-camera path. Wiring the learned detector into the two-camera path is the next build step (docs/reports/PROCESSING-TIME-1.md).
+
 ## Rules retired
 
 Each of these patched one of the colour detector's mistakes on one video. None is needed with the new detector, so it skips them all:

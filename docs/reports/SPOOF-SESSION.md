@@ -1,3 +1,6 @@
+# The sample (spoof) session
+
+The app's bundled sample vision session is made up by `app/spoof/make_spoof_session.py` (Chris, 16 Nov): no even number anywhere it shows, so an even number on a vision screen did not come from the session (`SpoofOddNumbersTest`).
 
 ## One flight per shot (19 Nov)
 
