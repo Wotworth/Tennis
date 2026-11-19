@@ -126,6 +126,35 @@ async function route(req: Request, env: Env): Promise<Response> {
     const r = await env.DB.prepare("SELECT id FROM ball_checks WHERE answer IS NULL").all();
     return json(r.results);
   }
+  // court corners (TV-CAL-21, 22): the PC asks, the app answers, the PC pulls
+  if (m === "POST" && p[0] === "calibration" && p.length === 1) {
+    need(req, env, "write");
+    return postCalibration(env, await body(req));
+  }
+  if (m === "GET" && p[0] === "calibration" && p[1] === "next" && p.length === 2) {
+    need(req, env, "read");
+    return nextCalibration(env, url);
+  }
+  if (m === "POST" && p[0] === "calibration" && p[2] === "answer" && p.length === 3) {
+    need(req, env, "read");
+    return answerCalibration(env, Number(p[1]), await body(req));
+  }
+  if (m === "GET" && p[0] === "calibration" && p[1] === "answered" && p.length === 2) {
+    need(req, env, "write");
+    // a session is handed over only when every camera asked about has its answer
+    const r = await env.DB.prepare(
+      `SELECT id, session_id AS sessionId, cam, scale, answer, corners, answered_utc AS answeredUtc
+         FROM calibration_checks
+        WHERE answer IS NOT NULL AND applied = 0
+          AND session_id NOT IN (SELECT session_id FROM calibration_checks WHERE answer IS NULL)
+        ORDER BY session_id, cam`).all();
+    return json((r.results as any[]).map((c) => ({ ...c, corners: c.corners ? JSON.parse(c.corners) : null })));
+  }
+  if (m === "POST" && p[0] === "calibration" && p[2] === "applied" && p.length === 3) {
+    need(req, env, "write");
+    await env.DB.prepare("UPDATE calibration_checks SET applied = 1 WHERE id = ? AND answer IS NOT NULL").bind(Number(p[1])).run();
+    return json({ ok: true });
+  }
   if (m === "POST" && p[0] === "sessions" && p[2] === "flags" && p.length === 3) {
     need(req, env, "read");
     return postFlag(env, p[1], await body(req));
@@ -469,6 +498,68 @@ async function answerCheck(env: Env, id: number, b: any): Promise<Response> {
   if (b.answer === "moved" && (x === null || y === null)) throw new HttpError(400, "moved needs x and y");
   await env.DB.prepare("UPDATE ball_checks SET answer = ?, ans_x = ?, ans_y = ?, answered_utc = ? WHERE id = ?")
     .bind(b.answer, x, y, now(), id).run();
+  return json({ ok: true });
+}
+
+// ---------- court corners (TV-CAL-21, 22) ----------
+// Asking again for a camera (the taps did not make a court) replaces its row and clears the old answer.
+async function postCalibration(env: Env, b: any): Promise<Response> {
+  const items: any[] = Array.isArray(b.checks) ? b.checks : [];
+  if (items.length === 0 || items.length > 20) throw new HttpError(400, "send 1 to 20 checks");
+  const q = items.map((c) => {
+    const cam = Number(c.cam), w = Number(c.width), h = Number(c.height), scale = Number(c.scale);
+    if (cam !== 1 && cam !== 2) throw new HttpError(400, "cam: 1 or 2");
+    if (!(w > 0 && h > 0 && scale > 0 && scale <= 1)) throw new HttpError(400, "width, height and scale are needed");
+    if (!["lines", "taps"].includes(c.reason)) throw new HttpError(400, "reason: lines or taps");
+    if (!Array.isArray(c.lines)) throw new HttpError(400, "lines: a list of lines");
+    return env.DB.prepare(
+      `INSERT INTO calibration_checks (session_id, cam, picture_path, width, height, scale, support, reason, lines, created_utc)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(session_id, cam) DO UPDATE SET picture_path = excluded.picture_path, width = excluded.width,
+         height = excluded.height, scale = excluded.scale, support = excluded.support, reason = excluded.reason,
+         lines = excluded.lines, created_utc = excluded.created_utc,
+         answer = NULL, corners = NULL, answered_utc = NULL, applied = 0`,
+    ).bind(text(c.sessionId, "sessionId"), cam, safePath(text(c.picturePath, "picturePath")), w, h, scale,
+      num(c.support), c.reason, JSON.stringify(c.lines), now());
+  });
+  await env.DB.batch(q);
+  return json({ ok: true, count: items.length });
+}
+
+async function nextCalibration(env: Env, url: URL): Promise<Response> {
+  const r = await env.DB.prepare(
+    `SELECT id, session_id AS sessionId, cam, picture_path AS picturePath, width, height, support, reason, lines
+       FROM calibration_checks WHERE answer IS NULL ORDER BY session_id, cam LIMIT 20`).all();
+  const out = [];
+  for (const c of r.results as any[]) {
+    out.push({ ...c, lines: JSON.parse(c.lines), url: await link(env, url, "get", c.sessionId, c.picturePath) });
+  }
+  return json(out);
+}
+
+// body must be exactly {"answer": "accepted"} or {"answer": "corners", "corners": [[x, y] x 4]} with every
+// corner inside the picture: nothing else (a name, a photo) can be stored here.
+async function answerCalibration(env: Env, id: number, b: any): Promise<Response> {
+  const bad = () => new HttpError(400, "send {\"answer\": \"accepted\"} or {\"answer\": \"corners\", \"corners\": four [x, y] inside the picture}");
+  if (typeof b !== "object" || b === null) throw bad();
+  const c: any = await env.DB.prepare("SELECT width, height FROM calibration_checks WHERE id = ?").bind(id).first();
+  if (!c) throw new HttpError(404, "no such check");
+  let corners: string | null = null;
+  if (b.answer === "accepted") {
+    if (Object.keys(b).length !== 1) throw bad();
+  } else if (b.answer === "corners") {
+    const pts = b.corners;
+    if (Object.keys(b).length !== 2 || !Array.isArray(pts) || pts.length !== 4) throw bad();
+    for (const pt of pts) {
+      if (!Array.isArray(pt) || pt.length !== 2 || !pt.every((v: unknown) => typeof v === "number" && Number.isFinite(v))) throw bad();
+      if (pt[0] < 0 || pt[0] > c.width || pt[1] < 0 || pt[1] > c.height) throw bad();
+    }
+    corners = JSON.stringify(pts);
+  } else {
+    throw bad();
+  }
+  await env.DB.prepare("UPDATE calibration_checks SET answer = ?, corners = ?, answered_utc = ?, applied = 0 WHERE id = ?")
+    .bind(b.answer, corners, now(), id).run();
   return json({ ok: true });
 }
 

@@ -190,6 +190,64 @@ describe("ball checks (Chris, 15 Nov)", () => {
   });
 });
 
+describe("court corners (Chris, 19 Nov; TV-CAL-21, 22)", () => {
+  const line = [[10, 500], [900, 480]];
+  const check = (cam: number, extra: object = {}) => ({
+    sessionId: "held", cam, picturePath: `calibration/cam${cam}.jpg`, width: 1920, height: 1080, scale: 0.5,
+    support: 0.21, reason: "lines", lines: [line], ...extra,
+  });
+  const taps = [[101, 903], [1805, 911], [1403, 305], [509, 301]];
+
+  it("the PC asks about a held session, the app taps the corners, the PC pulls the answer", async () => {
+    // the session is not in the list yet: it is held before processing
+    expect((await call("POST", "/calibration", W, { checks: [check(1), check(2)] })).status).toBe(200);
+    expect((await call("POST", "/calibration", R, { checks: [check(1)] })).status).toBe(401);   // only the PC asks
+    const next: any = await (await call("GET", "/calibration/next", R)).json();
+    expect(next).toHaveLength(2);
+    expect(next[0]).toMatchObject({ sessionId: "held", cam: 1, width: 1920, height: 1080, support: 0.21, reason: "lines", lines: [line] });
+    expect(next[0].url).toContain("calibration/cam1.jpg");
+    expect(next[0].url).toContain("sig=");
+    expect((await call("POST", `/calibration/${next[0].id}/answer`, R, { answer: "corners", corners: taps })).status).toBe(200);
+    // one camera still open: the PC is not handed half an answer
+    expect(await (await call("GET", "/calibration/answered", W)).json()).toHaveLength(0);
+    expect((await call("POST", `/calibration/${next[1].id}/answer`, R, { answer: "accepted" })).status).toBe(200);
+    const got: any = await (await call("GET", "/calibration/answered", W)).json();
+    expect(got).toHaveLength(2);
+    expect(got[0]).toMatchObject({ sessionId: "held", cam: 1, scale: 0.5, answer: "corners", corners: taps });
+    expect(got[1]).toMatchObject({ cam: 2, answer: "accepted", corners: null });
+    expect(await (await call("GET", "/calibration/next", R)).json()).toHaveLength(0);
+    await call("POST", `/calibration/${got[0].id}/applied`, W);
+    await call("POST", `/calibration/${got[1].id}/applied`, W);
+    expect(await (await call("GET", "/calibration/answered", W)).json()).toHaveLength(0);
+  });
+
+  it("asking again about a camera clears its old answer", async () => {
+    await call("POST", "/calibration", W, { checks: [check(1)] });
+    const first: any = await (await call("GET", "/calibration/next", R)).json();
+    await call("POST", `/calibration/${first[0].id}/answer`, R, { answer: "corners", corners: taps });
+    await call("POST", "/calibration", W, { checks: [check(1, { reason: "taps" })] });
+    const again: any = await (await call("GET", "/calibration/next", R)).json();
+    expect(again).toHaveLength(1);
+    expect(again[0].reason).toBe("taps");
+    expect(await (await call("GET", "/calibration/answered", W)).json()).toHaveLength(0);
+  });
+
+  it("takes four corners inside the picture, or 'accepted', and nothing else", async () => {
+    await call("POST", "/calibration", W, { checks: [check(1)] });
+    const [c]: any = await (await call("GET", "/calibration/next", R)).json();
+    const post = (b: unknown) => call("POST", `/calibration/${c.id}/answer`, R, b);
+    expect((await post({ answer: "corners", corners: taps.slice(0, 3) })).status).toBe(400);          // three corners
+    expect((await post({ answer: "corners", corners: [[101, 903], [1805, 911], [1403, 305], [2509, 301]] })).status).toBe(400);  // outside
+    expect((await post({ answer: "corners", corners: [[101, 903], [1805, 911], [1403, 305], ["a", 1]] })).status).toBe(400);
+    expect((await post({ answer: "corners", corners: taps, courtName: "home" })).status).toBe(400);    // nothing rides along
+    expect((await post({ answer: "accepted", photo: "x" })).status).toBe(400);
+    expect((await post({ answer: "maybe" })).status).toBe(400);
+    expect((await call("POST", "/calibration/9999/answer", R, { answer: "accepted" })).status).toBe(404);
+    expect((await call("POST", "/calibration", W, { checks: [check(3)] })).status).toBe(400);          // no camera 3
+    expect(await (await call("GET", "/calibration/answered", W)).json()).toHaveLength(0);
+  });
+});
+
 describe("flags (Chris, 15 Nov)", () => {
   it("logs 'looks wrong' with a reason and 'missed shot' with a time; the PC lists and closes them", async () => {
     await readySession("a");
