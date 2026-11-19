@@ -36,6 +36,20 @@ fprintf('identity swaps %d (hits %d, track switches %d, neighbours kept %d; limi
 disp(M.byKind); disp(struct2table(M.mineRejectedWhy)); disp(rep.calls');
 counts = jsondecode(fileread(fullfile(root, 'out', 'session.json'))).rejects.counts;
 disp(struct2table(counts))
+% what the pipeline made of each rally, for diagnosis (19 Nov: with the learned detector the second
+% rally's flights were all dropped at the flight fit)
+for r = 1:numel(R.result.segs)
+    for kk = 1:2
+        tk = R.result.ballTracks{r, kk};
+        fprintf('rally %d camera %d: %d tracks kept, %d points\n', r, kk, numel(tk), sum(arrayfun(@(t) numel(t.frames), tk)));
+    end
+    for g = R.result.segs{r}'
+        fprintf('rally %d flight %.3f-%.3f rms %.2f px n %d/%d\n', r, g.t0, max(g.t), g.rmsPx, g.n);
+    end
+    for g = R.result.dropped{r}'
+        fprintf('rally %d DROPPED part %.3f-%.3f rms %.2f px n %d/%d\n', r, g.t0, max(g.t), g.rmsPx, g.n);
+    end
+end
 if ~isempty(getenv('CI'))
     keep = fullfile(pwd, 'out', 'adjacent');
     if ~exist(keep, 'dir'), mkdir(keep); end

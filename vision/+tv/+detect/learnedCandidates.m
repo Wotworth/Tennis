@@ -15,12 +15,19 @@ function rows = learnedCandidates(rec, bg, f0, f1, S, net, pre, opts)
 %   Only the part of the picture a ball can be in is worked on: the mask's bounding box, widened
 %   by half a cut so the classifier's cuts never run off it. From beside the court that is most of
 %   the frame; the pixels outside it cost nothing.
+%   Where the spot is: the moving-spot finder gives the middle of what changed between frames,
+%   which is cut short wherever the ball overlaps its own place a moment earlier or later. Each
+%   spot scoring over opts.refineCut (0.02) is therefore placed again on the middle of what
+%   differs from the empty court there (tv.detect.ballCentre), with no colour test. On the synthetic
+%   session that halves the error: 0.30 px to 0.14 px median (19 Nov; the first detector: 0.16). opts.refine false keeps the moving-spot finder's own middle.
 %   opts.chunk: frames decoded at a time (30). opts.steadyMaxPx: the largest camera shift taken
 %   as real (40 px). The three frames looked at are 1/30 s apart, whatever the frame rate.
 %   Nothing to tune here: the detector's own settings are in the functions it calls.
 if nargin < 8, opts = struct(); end
 if ~isfield(opts, 'chunk'), opts.chunk = 30; end
 if ~isfield(opts, 'steadyMaxPx'), opts.steadyMaxPx = 40; end
+if ~isfield(opts, 'refine'), opts.refine = true; end
+if ~isfield(opts, 'refineCut'), opts.refineCut = 0.02; end
 rows = zeros(0, 9);
 [rr, cc] = find(S.mask);
 if isempty(rr), return; end
@@ -49,9 +56,15 @@ for a = f0:opts.chunk:f1
         M = double([Sb.dmin(ix), Sb.dmax(ix)]);
         sc = tv.detect.ballScale(C(:, 5), M);
         p = tv.detect.ballScores(net, pre, tv.detect.ballCrops(prev, cur, nxt, C, 48, sc), M ./ sc);
-        [~, d] = tv.calib.steady(cur, bgb, opts.steadyMaxPx);
+        [curA, d] = tv.calib.steady(cur, bgb, opts.steadyMaxPx);    % this frame in the empty court's pixels
         m = size(C, 1);
-        out{end+1, 1} = [repmat(t, m, 1), C(:, 1) + c0 - 1 - d(1), C(:, 2) + r0 - 1 - d(2), p(:), M, C(:, 3:5)]; %#ok<AGROW>
+        xy = [C(:, 1) - d(1), C(:, 2) - d(2)];
+        if opts.refine
+            for i = find(p(:)' > opts.refineCut)
+                xy(i, :) = tv.detect.ballCentre(curA, bgb, xy(i, :), C(i, 3:5), M(i, 2));
+            end
+        end
+        out{end+1, 1} = [repmat(t, m, 1), xy(:, 1) + c0 - 1, xy(:, 2) + r0 - 1, p(:), M, C(:, 3:5)]; %#ok<AGROW>
     end
 end
 if ~isempty(out), rows = vertcat(out{:}); end
