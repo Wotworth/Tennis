@@ -85,10 +85,11 @@ def main(v, ovl, det):
     rd = lambda name: list(csv.DictReader(open(f'{ovl}/v{v}_{name}.csv')))
     P, S, B = rd('points'), rd('shots'), rd('bounces')
     rows = []; tot = dict(points=0, frames=0, tracked=0, shots=0, marks=0, near=0, at_event=0, events=0, shot_event=0, extra=0, sv=0, unclear=0, missed=0, missed_prop=0, missed_scored=0)
-    dts = []; lags = []
+    dts = []; lags = []; log = []
+    only = [int(x) for x in os.environ.get('POINTS', '').split(',') if x]
     for p in P:
         i = int(p['point']); path = f'{det}/v{v}_p{i:03d}.npy'
-        if not os.path.exists(path): continue
+        if not os.path.exists(path) or (only and i not in only): continue
         Dall = np.load(path); D = Dall[Dall[:, 3] > 0.05]
         D, ch = tracker.chains(D) if len(D) else (D, [])
         tracks = in_play(D, ch); ev = events(cam, tracks)
@@ -108,6 +109,8 @@ def main(v, ovl, det):
                 d = [np.hypot(*(ground(cam, *ball[f]) - g)) for f in range(fb - 12, fb + 13) if f in ball]
                 hit_near = bool(d) and min(d) < 1.0; near += hit_near
                 if not hit_near:
+                    qq, _ = cam.project(np.array([[g[0], g[1], 0.033]])); log.append((i, fb, 'bounce not tracked', qq[0, 0], qq[0, 1]))
+                if not hit_near:
                     # the tracker has no ball there: did the motion step at least propose something at the spot?
                     # (then the classifier or the tracker lost it, and the mark can teach it)
                     q, _ = cam.project(np.array([[g[0], g[1], 0.033], [g[0], g[1] + 1.0, 0.033], [g[0] + 1.0, g[1], 0.033]]))
@@ -124,11 +127,17 @@ def main(v, ovl, det):
             c = [(fs - e[0], k) for k, e in enumerate(ev) if 0 <= fs - e[0] <= 60 and e[1] in ('turn', 'start') and k not in used]
             if c: lag, k = min(c); used.add(k); hit += 1; lags.append(lag)
         n_ev = sum(e[1] == 'turn' for e in ev); extra = sum(e[1] == 'turn' and k not in used for k, e in enumerate(ev))
+        for k, e in enumerate(ev):
+            if e[1] == 'turn':
+                fr = min(ball, key=lambda f: abs(f - e[0])); log.append((i, e[0], 'event, SwingVision has one' if k in used else 'event, SwingVision has none', ball[fr][0], ball[fr][1]))
         n_frames = w1 - w0 + 1; seen = sum(w0 <= f <= w1 for f in ball)
         rows.append(dict(point=i, seconds=round(n_frames / FPS, 1), tracked=round(seen / n_frames, 2), shots=len(shots), bounces=len(marks), nets=len(allm) - len(marks), bouncesNear=near, bouncesAtTurn=at,
                          shotsWithTurn=hit, turns=n_ev, turnsUnmatched=extra, unclear=sum(e[1] == 'unclear' for e in ev), lost=max(sum(e[1] == 'end' for e in ev) - 1, 0)))
         for k, val in (('points', 1), ('frames', n_frames), ('tracked', seen), ('shots', len(shots)), ('marks', len(marks)), ('near', near), ('at_event', at), ('events', n_ev), ('shot_event', hit),
                        ('extra', extra), ('sv', len(shots) + len(allm)), ('unclear', sum(e[1] == 'unclear' for e in ev))): tot[k] += val
+    with open(f'{ovl}/v{v}_events{"_part" if only else ""}.csv', 'w', newline='') as fh:
+        w = csv.writer(fh); w.writerow(['point', 'frame', 'what', 'u', 'v']); w.writerows([(a, b, c, round(float(d), 1), round(float(e), 1)) for a, b, c, d, e in log])
+    if only: return print(len(log), 'events logged')
     with open(f'{ovl}/v{v}_report.csv', 'w', newline='') as fh:
         w = csv.DictWriter(fh, fieldnames=list(rows[0].keys())); w.writeheader(); w.writerows(rows)
     dts, lags = np.array(dts), np.array(lags)

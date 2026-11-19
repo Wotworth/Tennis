@@ -59,10 +59,35 @@ Around each bounce mark the search looks for a smooth path among all proposals, 
 - **Bounces: about 4 in 5 are found as events, within a few frames.**
 - **Hits: about 3 in 5.** From behind the baseline a hit by the near player happens against the player's own body in the picture, and many flights between a bounce and the next hit are shorter than the 8 detections a flight needs here. The 67 unclear stretches are mostly a bounce and a hit close together.
 - **This does not carry over as a number.** With two cameras at the side, a hit is a change of the ball's 3D velocity seen across the view, and the pipeline's synthetic tests find every hit within 30 ms.
-- **SwingVision has gaps too:** 45 of its shots on this export have no bounce mark, and 57 events found here have none of its shots or marks beside them. Nobody has checked those 57 by eye yet.
+- **SwingVision has gaps too:** 45 of its shots on this export have no bounce mark, and 57 events found here have none of its shots or marks beside them. A sample of those is checked by eye below.
+
+## A by-eye check of the disagreements
+
+I looked at frame strips for a sample from 10 of the 38 points (the frames stay private).
+
+**12 events found here that SwingVision does not list:**
+
+| What the frames show | Count |
+| --- | --- |
+| A real hit (4) or bounce (3) | 7 |
+| The serve itself, found at the toss | 1 |
+| No event: the ball flies on smoothly (2), or it is the top of a serve toss (1) | 3 |
+| Can't tell (no ball in the crop) | 1 |
+
+So about two in three of these are real events missing from SwingVision's overlay, and about one in four is a false split of mine.
+
+**All 6 bounces in those points that the tracked ball does not pass:**
+
+| What the frames show | Count |
+| --- | --- |
+| A real bounce right at the far player's feet or racket, which the tracker lost against the player | 4 |
+| No ball anywhere near the mark: SwingVision's mark looks wrong | 1 |
+| The bounce is hidden behind SwingVision's own overlay box | 1 |
+
+So the tracker's real misses are balls against the far player, which is where more training examples are needed. Two of the six were not the tracker's fault.
 
 ## Next
 
 1. The 25 Apr export's column.
-2. A by-eye check of 20 disagreements (events with no SwingVision counterpart, and bounces missed), so the yardstick itself is trusted.
+2. Fewer false splits (the serve toss, smooth flights cut in two), and the ball kept against the far player.
 3. The new sessions: the same run on each, then training on the weak labels from courts kept for training, and the scores above on courts kept for testing.
