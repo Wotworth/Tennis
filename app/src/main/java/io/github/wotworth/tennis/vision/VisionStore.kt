@@ -31,6 +31,22 @@ class VisionStore(private val context: Context) {
 
     fun flag(session: String, body: org.json.JSONObject) = outbox.add("/sessions/$session/flags", body)
 
+    private val cornersAnswered = androidx.compose.runtime.mutableStateListOf<Int>()
+
+    /** "Court corners" (TV-CAL-21): cameras whose court-line fit the PC doubts (the sample's synthetic one until the cloud exists). */
+    fun cornerChecks(showSample: Boolean): List<CornerCheck> = if (!showSample) emptyList() else runCatching {
+        CornerJson.read(context.assets.open("vision/sample/corners.json").bufferedReader().use { it.readText() })
+    }.getOrDefault(emptyList()).filter { it.id !in cornersAnswered }
+
+    fun cornerImage(c: CornerCheck): android.graphics.Bitmap? = runCatching {
+        context.assets.open("vision/sample/corners/${c.file}").use { android.graphics.BitmapFactory.decodeStream(it) }
+    }.getOrNull()
+
+    fun answerCorners(c: CornerCheck, a: CornerAnswer) {
+        outbox.add("/calibration/${c.id}/answer", CornerJson.body(a))
+        cornersAnswered += c.id
+    }
+
     fun sessions(showSample: Boolean): List<VisionSession> = if (showSample) listOfNotNull(sample) else emptyList()
 
     fun session(id: String): VisionSession? = sample?.takeIf { it.id == id }

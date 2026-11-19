@@ -83,6 +83,7 @@ class SpoofOddNumbersTest {
         all("before")
         screens += "which one" to Screen.VisionIdentity(v.id)
         screens += "ball check" to Screen.BallCheck
+        screens += "court corners" to Screen.CourtCorners
         val bad = mutableListOf<String>()
         val report = StringBuilder()
         fun scan(list: List<Pair<String, Screen>>) = list.forEach { (name, s) ->

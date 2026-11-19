@@ -85,6 +85,8 @@ object VisionDefaults {
     var courtColour = "speed"
     /** The shot card's side view: heights stretched (after a tap) or true proportion. Kept while flipping through shots. */
     var sideStretched by mutableStateOf(false)
+    /** Court corners already tapped when the page opens: for the design screenshots only. */
+    var cornerPreview: List<androidx.compose.ui.geometry.Offset> = emptyList()
 }
 
 /** Court constants, as in the vision pipeline's tv.court.constants (ITF). */
@@ -115,6 +117,10 @@ fun VisionTiles() {
     FootageTestTiles()
     val checks = app.vision.checks(app.prefs.visionSample).size
     if (checks > 0) TextRow("ball check", "$checks frames to look at: a few taps teach the detector") { nav.open(Screen.BallCheck) }
+    // TV-CAL-21: a session the PC is holding because a camera's court-line fit is doubtful
+    if (app.vision.cornerChecks(app.prefs.visionSample).isNotEmpty()) {
+        TextRow("court corners", "a session is waiting: tap the four corners of its court") { nav.open(Screen.CourtCorners) }
+    }
     val d = io.github.wotworth.tennis.ui.appData()
     app.vision.sessions(app.prefs.visionSample).forEach { v ->
         val fastest = v.shots.mapNotNull { it.speedContact }.maxOrNull()

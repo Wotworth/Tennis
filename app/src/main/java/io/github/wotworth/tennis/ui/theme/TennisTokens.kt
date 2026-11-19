@@ -225,6 +225,12 @@ object TennisTokens {
         var courtMaxZoom by mutableFloatStateOf(6f)          // pinch zoom on the court map, at most
         var frameMaxZoom by mutableFloatStateOf(6f)          // pinch zoom on a footage test's sample frame, at most (Chris, 18 Nov)
         var frameSwipePx by mutableFloatStateOf(40f)         // sideways drag that turns to the next sample frame
+        // court corners (TV-CAL-21, 22): the picture where the four corners of the court are tapped
+        var cornerMaxZoom by mutableFloatStateOf(9f)         // pinch zoom at most: a 4K picture at about its own pixels on a phone
+        var cornerRing by mutableFloatStateOf(9f)            // radius of a tapped corner's ring (zpx)
+        var cornerDot by mutableFloatStateOf(1.2f)           // radius of its centre dot (zpx)
+        var cornerStroke by mutableFloatStateOf(1f)          // the ring's width (zpx)
+        var cornerLine by mutableFloatStateOf(0.6f)          // the fitted lines' width (zpx): thin, so the paint beside them shows
         var rallyThumbHeight by mutableFloatStateOf(150f)    // zpx, each rally on the 3D tab
         var rallyViewDistanceM by mutableFloatStateOf(15f)   // closest camera for the rally pictures and replay (it backs off until the court fits)
         var rallyViewSideDeg by mutableFloatStateOf(25f)     // camera this far round from behind your end

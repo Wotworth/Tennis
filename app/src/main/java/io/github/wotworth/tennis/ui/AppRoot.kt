@@ -50,6 +50,8 @@ sealed interface Screen {
     data class VisionIdentity(val id: String) : Screen
     data object VisionTrends : Screen
     data object BallCheck : Screen
+    /** TV-CAL-21: tap the four corners of the court for a camera whose line fit is doubtful. */
+    data object CourtCorners : Screen
     data class OpponentPrompt(val sessionId: String) : Screen
     data object Opponents : Screen
     data class Opponent(val id: Int) : Screen
@@ -97,6 +99,7 @@ fun AppRoot(app: TennisApp, nav: Navigator = remember { Navigator() }, overlays:
                     is Screen.VisionShot -> io.github.wotworth.tennis.ui.screens.VisionShotScreen(s.id, s.rally, s.index)
                     is Screen.VisionRally -> io.github.wotworth.tennis.ui.screens.VisionRallyScreen(s.id, s.rally)
                     Screen.BallCheck -> io.github.wotworth.tennis.ui.screens.BallCheckScreen()
+                    Screen.CourtCorners -> io.github.wotworth.tennis.ui.screens.CourtCornersScreen()
                     is Screen.OpponentPrompt -> io.github.wotworth.tennis.ui.screens.OpponentPromptScreen(s.sessionId)
                     Screen.Opponents -> io.github.wotworth.tennis.ui.screens.OpponentsScreen()
                     is Screen.Opponent -> io.github.wotworth.tennis.ui.screens.OpponentScreen(s.id)

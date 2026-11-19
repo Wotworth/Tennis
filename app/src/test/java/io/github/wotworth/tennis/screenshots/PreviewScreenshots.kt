@@ -30,6 +30,7 @@ import io.github.wotworth.tennis.ui.theme.TennisText
 import io.github.wotworth.tennis.ui.theme.TennisTheme
 import io.github.wotworth.tennis.ui.theme.TennisTokens
 import io.github.wotworth.tennis.vision.VisionStore
+import androidx.compose.ui.geometry.Offset
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
@@ -67,6 +68,12 @@ class PreviewScreenshots {
     @Test fun p04ShotCardServeStretched() {
         VisionDefaults.sideStretched = true
         try { screen("04c-shot-card-serve-heights-stretched", Screen.VisionShot(id, 29, 1), identified()) } finally { VisionDefaults.sideStretched = false }
+    }
+    // Chris, 19 Nov (TV-CAL-21, 22): the fallback when a camera's court-line fit is doubtful
+    @Test fun p14CourtCorners() = screen("14a-court-corners", Screen.CourtCorners)
+    @Test fun p14CourtCornersTapped() {
+        VisionDefaults.cornerPreview = listOf(Offset(724.2f, 963.7f), Offset(666.6f, 557.6f), Offset(1479.6f, 486.5f), Offset(1822.7f, 562.6f))
+        try { screen("14b-court-corners-tapped", Screen.CourtCorners) } finally { VisionDefaults.cornerPreview = emptyList() }
     }
     @Test fun p05Rallies() = screen("05-3d-rallies", Screen.Vision(id, 2), identified())
     @Test fun p06Replay() = screen("06-3d-rally-replay", Screen.VisionRally(id, 1), identified())
