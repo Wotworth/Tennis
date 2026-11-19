@@ -45,3 +45,4 @@ raw/
 # ...except the one public GoPro sample-telemetry file the tests use (GoPro's own sample, no people)
 !vision/tests/fixtures/gopro/hero8.mp4
 __pycache__/
+octave-workspace
