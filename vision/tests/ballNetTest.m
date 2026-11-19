@@ -102,3 +102,48 @@ p = tv.detect.ballScores(net4, pre, X, M);
 assert(q(1) >= pre.threshold && p(1) > 0.9, sprintf('the ball: first pass %.3f, score %.2f', q(1), p(1)));
 assert(all(p(q < pre.threshold) == 0) && max(abs(p(q >= pre.threshold) - full(q >= pre.threshold))) < 1e-12);
 assert(isequal(tv.detect.ballScores(net4, [], X, M), full(:)));
+
+%% round 5's model (vision/models/ballnet_v5.json, 7 input channels: round 4's five and two colour-change pictures) matches PyTorch to 1e-6
+net5 = tv.detect.loadBallNet(fullfile(fileparts(here), 'models', 'ballnet_v5.json'));
+C5 = jsondecode(fileread(fullfile(here, 'fixtures', 'ballnet', 'v5_check.json')));
+assert(size(net5.conv(1).W, 3) == 7);
+p = tv.detect.ballNet(net5, permute(uint8(C5.X), [3 4 5 2 1]), C5.M);
+assert(max(abs(p(:) - C5.p(:))) < 1e-6, sprintf('max difference %.3g', max(abs(p(:) - C5.p(:)))));
+
+%% round 5's model: a moving ball with a colour of its own is a ball; the same patch only darker (a shadow) is not
+net5 = tv.detect.loadBallNet(fullfile(fileparts(here), 'models', 'ballnet_v5.json'));
+[xx, yy] = meshgrid(0:47, 0:47);
+% balls: yellow on grey clay, white on blue, yellow on blue in dim light
+balls = {[225 230 90], [120 115 105]; [245 245 240], [70 110 160]; [90 92 36], [28 44 64]};
+for q = 1:size(balls, 1)
+    X = zeros(48, 48, 3, 3, 'uint8');
+    for k = 1:3
+        img = repmat(reshape(balls{q, 2}, 1, 1, 3), 48, 48);
+        on = hypot(xx - (24 + (k - 2) * 9), yy - 24) <= 3;          % 6 px across, as the cuts are scaled
+        for c = 1:3, ch = img(:, :, c); ch(on) = balls{q, 1}(c); img(:, :, c) = ch; end
+        X(:, :, :, k) = uint8(img);
+    end
+    p = tv.detect.ballNet(net5, X, [0.8 1.4]);
+    assert(p > 0.9, sprintf('ball %d scored %.2f', q, p));
+end
+% shadows: the court at 30 to 75% of its brightness, colour unchanged, moving as a ball does. With a
+% soft edge and stretched along the ground (as a real shadow is) it is plainly not a ball; even as a
+% crisp disc it stays on the "not a ball" side. (Round 4's model, with no colour, scores all of
+% these above 0.9: that is the mistake round 5 was trained to stop.)
+courts = {[70 110 160], [150 120 100], [120 115 105], [90 140 90]};
+for q = 1:numel(courts)
+    for f = [0.3 0.45 0.6 0.75]
+        for soft = [0 1]
+            X = zeros(48, 48, 3, 3, 'uint8');
+            for k = 1:3
+                d = hypot((xx - (24 + (k - 2) * 9)) / (1 + soft), yy - 24);
+                a = double(d <= 3);
+                if soft, a = min(max((4 - d) / 2, 0), 1); end
+                X(:, :, :, k) = uint8(repmat(reshape(courts{q}, 1, 1, 3), 48, 48) .* (1 - a * (1 - f)));
+            end
+            p = tv.detect.ballNet(net5, X, [0.8 1.4]);
+            if soft, assert(p < 0.1, sprintf('soft shadow on court %d at %.2f scored %.2f', q, f, p));
+            else, assert(p < 0.5, sprintf('crisp shadow on court %d at %.2f scored %.2f', q, f, p)); end
+        end
+    end
+end

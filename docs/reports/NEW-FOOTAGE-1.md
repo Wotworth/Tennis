@@ -61,3 +61,31 @@ I'd add that as two extra input pictures for the classifier and train it with sh
 ## Speed on these
 
 One CPU core, with other jobs running beside it: 0.7 to 0.8 s a frame on the iPhone clip, 1.4 s a frame on the GoPro at 2.7K. Finding the moving spots is two thirds of that.
+
+## Round 5, judged on stretches it never saw (19 Nov, overnight)
+
+Chris asked for the new videos to be used for training, with a review document instead of the app. The detector was trained on the earlier part of each video and judged on a later stretch: frames 14,400 to 16,199 of the iPhone match clip, points 52 to 55 of the SwingVision clip, and two 10-second chunks of the GoPro clip. The pictures are in a private review page sent to Chris; none are here.
+
+| Held-out stretch | Frames with a ball tracked: round 4, round 5 | Tracked spots that are shadows: round 4, round 5 | By eye, 12 random tracked spots are the ball: round 4, round 5 |
+| --- | --- | --- | --- |
+| iPhone match, 30 s | 868, 611 of 1,776 | 12.8%, 2.5% | 8, 9 |
+| SwingVision clip, 4 points | 1,085, 968 of 1,450 | 12.1%, 1.9% | 9, 10 |
+| GoPro, 20 s | 454, 391 of 1,184 | 6.2%, 0.3% | 7, 9 |
+
+What round 5 still gets wrong on these: the far player's racquet head when it is the ball's colour (one stretch between points), a fast serve going away from the camera (lost at the far end by both models), and on the GoPro a faint streak across the clay near the camera that I cannot identify. Details and the test-set results: docs/reports/BALL-DETECTOR-1.md, round 5.
+
+## The SwingVision export of the same match ("Dmetri 1", first 6 minutes)
+
+Calibrated at 1.03 px to the same camera position as the iPhone match. Overlay read: 65 points, 175 shot labels, no unread ink. Of 59 bounce marks the tracker (round 4) had the ball at 29, a looser search found it at 27 more, nothing at 3. Ball tracked in 84% of in-play frames; an event at 68% of SwingVision's bounces and 70% of its shots.
+
+## GoPro against iPhone: resolution and frame rate
+
+Chris asked whether the GoPro clip's higher resolution and frame rate help. The frame rate is the same (59.94 against 60). The picture has 2.6 times the pixels (2704x2028 against 1920x1080), but in Wide mode they are spread over about twice the angle, so the tracked ball is **smaller**: 5.0 px across (median) against 8.0 px on the iPhone match and 7.5 px on the 16 Apr video. This copy is also 5 Mbit/s H.264 for 5.5 million pixels, against 5 Mbit/s HEVC for 2.1 million. So it does not help here. What matters is pixels across the ball (picture width over lens angle); Linear mode at the highest resolution is the setting to measure on the Mission 1 Pros.
+
+## What carries over to the two GoPros
+
+- The detector needed no change for a new camera, picture size, surface or light: it scales every candidate to the ball's expected size first.
+- Shadows were the main new mistake outdoors; round 5 removes most, and with two cameras the 3D check is a second defence.
+- Most wrong spots on the GoPro clip were outside the court until its area was known: the court mask (from calibration) matters as much as the detector.
+- Calibration from court lines worked at once on hard courts and failed on clay through a fisheye. Linear mode removes the fisheye, not the faintness of clay lines against the net tape; the fit should require paint under every court line. To do before the trials, ideally on a Linear-mode clip.
+- Fast serves going away from one camera are lost at the far end: the case for the second camera, with the one-camera fit (docs/reports/ONE-CAMERA-1.md) bridging the gaps.

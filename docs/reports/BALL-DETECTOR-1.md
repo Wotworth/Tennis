@@ -211,6 +211,47 @@ The colour-hint version's 3 false spots were not checked by eye; they are counte
 
 **MATLAB.** The pipeline runs round 4 with the first pass (`tv.detect.ballScores`), with the same numbers as PyTorch to six decimal places (tests). A new test draws a moving ball in four colours and lights (yellow, white on blue, dark on pale, dim) and round 4 calls each a ball.
 
+## Round 5: the ball's shadow (19 Nov, overnight)
+
+**Why.** On Chris's new footage in strong low sun (docs/reports/NEW-FOOTAGE-1.md), round 4 followed the ball's shadow: 12.8% of its tracked spots on a held-out stretch of the 3 Oct iPhone match. Round 4 was trained to take a dark thing on a pale court as readily as a pale thing on a dark one, and a shadow is exactly that.
+
+**What changed.**
+
+- Two more input pictures for the classifier (7 channels instead of 5): how much the colour of each pixel changed against each neighbour frame once any change of brightness is taken out. A shadow (the same surface, darker) leaves almost nothing; a ball with a colour of its own leaves a remainder. It compares the same patch with and without the thing on it, so it does not depend on the light or on what colour the ball is (`tv.detect.ballNet`, `vision/ml/model.py`).
+- Training data: everything from round 4, plus stretches of the three new videos (the GoPro clip, the iPhone match, the SwingVision export of the same match; a later stretch of each held out), plus SwingVision's bounce marks as weak "the ball was here" hints, plus drawn shadows on every court. Mined shadows (darker than their surround, colour unchanged; checked by eye, 24 of 24) are "not a ball" examples. 306,336 examples, 124,398 of them balls.
+- Light and dark are swapped in training only for examples whose colour does change, so a dark colourless spot is never taught as a ball.
+- The first pass is unchanged (round 4's).
+
+**Results.** Round 4 against round 5, tracker with one ball in play unless stated.
+
+| | Round 4 | Round 5 |
+| --- | --- | --- |
+| Fixed test set: balls found / false spots | 28 of 35 / 2 | 30 of 35 / 2 |
+| per video (1, 2, clay) | 10 of 13 / 1, 13 of 13 / 1, 5 of 9 / 0 | 10 of 13 / 2, 13 of 13 / 0, 7 of 9 / 0 |
+| Check set | 27 of 36 / 3 | 28 of 36 / 3 |
+| Held-out iPhone match (30 s): frames tracked; shadows among them | 868 of 1,776; 12.8% | 611; 2.5% |
+| Held-out SwingVision clip (4 points): same | 1,085 of 1,450; 12.1% | 968; 1.9% |
+| Held-out GoPro (20 s): same | 454 of 1,184; 6.2% | 391; 0.3% |
+| By eye, 12 random tracked spots per held-out stretch: the ball | 24 of 36 (1 shadow) | 28 of 36 (0 shadows) |
+
+The classifier alone at each test frame (score above 0.5, before the tracker), found / false:
+
+| Condition | Round 4 | Round 5 |
+| --- | --- | --- |
+| As filmed | 30 of 35 / 33 | 30 / 13 |
+| Grey | 31 / 31 | 29 / 10 |
+| Warm | 31 / 25 | 32 / 12 |
+| Dark | 30 / 39 | 30 / 9 |
+| Light and dark swapped | 31 / 32 | **13 / 16** |
+
+- **Fewer tracked frames is mostly fewer mistakes.** On the held-out iPhone stretch round 5 tracks 257 fewer frames. Of 12 random spots only round 4 tracked: 4 shadows, 7 nothing visible (trees, shade), 1 real ball. Of 12 random spots only round 5 tracked (63 in all): 4 balls, 4 the far player's racquet head (one two-second stretch between points), 4 nothing clear.
+- **The price: a ball darker than the court behind it.** With light and dark swapped round 5 finds 13 of 35. A very dark spot is "the court, only darker" whatever its real colour, which is what a shadow is; one camera's picture cannot tell the two apart. Outdoors a tennis ball is among the brightest things on the court, so this was accepted for the new cameras; round 4 stays in the repository as the fallback.
+- Video 1 has one more false spot on the test set (a cap logo as a head turns, and a shirt, both at low confidence) and video 2 one fewer; the total is level.
+- Drawn shadows (the court at 30 to 75% of its brightness, moving as a ball does): round 4 scores them 0.95 to 1.00, round 5 under 0.1 with a soft edge and under 0.4 as a crisp disc (`tests/ballNetTest.m`).
+- Against SwingVision's 8 bounce marks in the held-out points both models have the ball at 5.
+
+**Adopted** as the model for new cameras (`vision/models/ballnet_v5.json`, with round 4's first pass). Round 2 stays where it is shipped in the app's footage tests. A comparison model with the same data and no colour-change input is training as this is written.
+
 ## Rules retired
 
 Each of these patched one of the colour detector's mistakes on one video. None is needed with the new detector, so it skips them all:

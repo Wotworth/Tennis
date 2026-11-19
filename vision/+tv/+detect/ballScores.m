@@ -5,7 +5,8 @@ function p = ballScores(net, pre, X, M)
 %   not a ball (0) and never reaches the classifier; the threshold was set so that 99.8% of the
 %   ball examples pass. On busy footage about seven spots in eight stop there, and the frame takes
 %   half the time with the same balls found (docs/reports/BALL-DETECTOR-1.md, round 4).
-%   X, M: as tv.detect.ballNet, round 4 form (48-by-48 cuts at the ball's scale).
+%   X, M: as tv.detect.ballNet, round 4 or 5 form (48-by-48 cuts at the ball's scale). The first pass is
+%   round 4's (no colour) for both.
 N = size(X, 5);
 p = zeros(N, 1);
 go = true(N, 1);

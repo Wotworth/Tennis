@@ -320,7 +320,7 @@ for r = 1:size(clips, 1)
                 prev = tv.calib.steady(F(:, :, :, j - K2), double(cur));  nxt = tv.calib.steady(F(:, :, :, j + K2), double(cur));
                 ix = sub2ind(size(S.dmax), min(max(round(C(:, 2)), 1), rec.height), min(max(round(C(:, 1)), 1), rec.width));
                 M = [S.dmin(ix), S.dmax(ix)];
-                if size(net.conv(1).W, 3) == 5     % round 4: cut at the ball's scale, no colour
+                if any(size(net.conv(1).W, 3) == [5 7])     % rounds 4 and 5: cut at the ball's scale (round 5 adds the colour-change pictures)
                     sc = tv.detect.ballScale(C(:, 5), M);
                     p = tv.detect.ballScores(net, pre, tv.detect.ballCrops(prev, cur, nxt, C, 48, sc), M ./ sc);
                 else

@@ -3,7 +3,7 @@ Picks N frames at random among those where the tracker has a ball in play (from 
 chunks or one detect_video file) and draws, per pick, five crops (frames -4, -2, 0, +2, +4)
 centred on the tracked spot, with the spot ringed in the middle crop.
 Usage: eyesheet.py V N OUT.png FILE_OR_GLOB [SEED]   (env VIDEO_W, VIDEO_H for other frame sizes)"""
-import sys, glob, numpy as np, common, tracker
+import sys, glob, os, numpy as np, common, tracker
 from PIL import Image, ImageDraw
 
 v, n, out, pat = int(sys.argv[1]), int(sys.argv[2]), sys.argv[3], sys.argv[4]
@@ -22,6 +22,15 @@ for path in sorted(glob.glob(pat)):
             if f in ball and abs(Ds[i, 1] - ball[f][0]) < 0.6: val[f] = (value, 0.5 * (Ds[i, 7] + Ds[i, 8]))
     total += len(ball)
     cand += [(f, ball[f][0], ball[f][1], val.get(f, (0, 6))[0], val.get(f, (0, 6))[1]) for f in ball]
+# env NOT_IN: another model's detection files (same names, another folder): keep only the spots
+# the other model's tracker does not have within 15 px (what this model tracks and the other doesn't)
+if os.environ.get('NOT_IN'):
+    other = {}
+    for path in sorted(glob.glob(os.environ['NOT_IN'])):
+        D = np.load(path); D = D[D[:, 3] > 0.05]
+        if len(D): Ds, ch = tracker.chains(D); other.update(tracker.ball_per_frame(Ds, ch))
+    cand = [c for c in cand if c[0] not in other or np.hypot(c[1] - other[c[0]][0], c[2] - other[c[0]][1]) > 15]
+    print('tracked here and not by the other model:', len(cand), 'of', total)
 print('frames', frames, 'with a ball tracked', total, '(%.0f%%)' % (100 * total / max(frames, 1)))
 pick = [cand[i] for i in sorted(rng.choice(len(cand), min(n, len(cand)), replace=False))]
 S = 96; Z = 3; offs = [-4, -2, 0, 2, 4]; cols = 2; rows = (len(pick) + cols - 1) // cols
