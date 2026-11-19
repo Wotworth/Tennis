@@ -42,7 +42,7 @@ I looked at a random sample of the spots the tracker called the ball, five frame
 
 - **It finds the ball on both.** Different court surface, light and camera, and at 2.7K with a fisheye lens, with no change to any setting. On the GoPro stretch it followed this court's ball almost throughout, including when it was a few pixels across at the far end.
 - **On the GoPro, 7 of the 8 wrong spots are outside the court.** With no fitted camera there was no court mask, so the next court and the road counted. With the camera fitted they are excluded before the detector runs.
-- **The shadow is a new mistake, and round 4 made it possible.** Round 4 was trained to accept a dark ball on a pale court as readily as a pale ball on a dark one. In strong sun the ball's shadow is exactly that: a small dark thing moving like a ball. The earlier models would not have taken it.
+- **The shadow is a new mistake, and round 4 made it possible.** Round 4 was trained to accept a dark ball on a pale court as readily as a pale ball on a dark one. In strong sun the ball's shadow is exactly that: a small dark thing moving like a ball. The earlier model rejected most dark-on-pale balls (it found 23 of 35 with light and dark swapped), so it would probably have rejected most shadows too; I have not run it on these clips.
 - **Two of the 13 balls on the iPhone clip are not in play** (bounced before a serve, and in the server's hand). That is the tracker's "one ball in play" doing its job loosely, not a detector fault.
 - These are precision figures only. I have not hand-labelled balls on these videos, so I can't yet say how many it misses.
 
