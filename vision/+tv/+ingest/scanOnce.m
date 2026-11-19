@@ -24,7 +24,8 @@ tv.ingest.resumeArchive(icfg);
 % the app's answers (indoor flags, "which one is you?"), every few minutes
 if ~isempty(cfg.client) && (~isfield(state, 'lastAnswers') || etime(clock, state.lastAnswers) > cfg.answersSeconds)
     state.lastAnswers = clock;
-    tv.ops.applyAnswers(cfg, cfg.client, @tv.pipeline.run, @(o, id, r) tv.upload.session(o, id, r, cfg.client));
+    % a held session that runs on from here (court corners answered) is a full run: lights and temperatures as below
+    tv.ops.applyAnswers(cfg, cfg.client, @(f, o, p) watched(cfg, f, o, p), @(o, id, r) tv.upload.session(o, id, r, cfg.client));
 end
 % pair and process one waiting session
 R = tv.ingest.recordings(cfg.archive, cfg.cameras);
@@ -35,6 +36,8 @@ for s = sessions(:)'
     if any(strcmp(state.done, id)), continue; end
     out = fullfile(cfg.sessions, id);
     if exist(fullfile(out, 'session.json'), 'file'), state.done{end+1} = id; continue; end
+    % TV-CAL-21: held for a doubtful court-line fit; it runs on when the corners are answered (tv.ops.applyAnswers)
+    if exist(fullfile(out, 'calibration', 'calibration.json'), 'file'), continue; end
     if strcmp(s.mode, 'reduced')
         cfg.notify('One camera only', sprintf('%s: only one camera''s footage arrived; reduced processing is not built yet.', id));
         state.done{end+1} = id;
@@ -43,21 +46,52 @@ for s = sessions(:)'
     cfg.lightFn('processing');
     cfg.notify('Processing started', id);
     files = {R(s.cam1).files{1}, R(s.cam2).files{1}};
-    tl = [];                                  % temperatures every minute while processing (Chris, 16 Nov)
-    if isfield(cfg, 'tempLogS') && ispc(), tl = tv.ops.tempLogger(cfg); end
+    pcfg = keepCalibrationAnswer(cfg.pipeline, out);
+    if isempty(cfg.client), pcfg.doubtfulCalibration = 'continue'; end   % no cloud, so nobody to ask: process with the alert
     try
-        res = tv.pipeline.run(files, out, cfg.pipeline);
+        res = watched(cfg, files, out, pcfg);
     catch err
-        if ~isempty(tl), stop(tl); delete(tl); end
+        if strcmp(err.identifier, 'tv:calib:doubtful')
+            % TV-CAL-21: the session waits (the pipeline has said so on the phone); its calibration
+            % pictures go to the app's "court corners" page
+            tv.ops.calibrationCheck(out, id, cfg.client);
+            break
+        end
         rethrow(err)
     end
-    if ~isempty(tl), stop(tl); delete(tl); end
     if ~isempty(cfg.client), tv.upload.session(out, id, res, cfg.client); end
     cfg.notify('Session ready', sprintf('%s: %s.', id, res.dataForUpload.session.headline));
     cfg.lightFn('off');
     state.done{end+1} = id;
     break                                     % one session per pass (TV-OPS-04)
 end
+end
+
+function res = watched(cfg, files, out, pcfg)
+% one pipeline run with the light on and the temperatures logged every minute (Chris, 16 Nov)
+cfg.lightFn('processing');
+tl = [];
+if isfield(cfg, 'tempLogS') && ispc(), tl = tv.ops.tempLogger(cfg); end
+try
+    res = tv.pipeline.run(files, out, pcfg);
+catch err
+    if ~isempty(tl), stop(tl); delete(tl); end
+    cfg.lightFn('off');
+    rethrow(err)
+end
+if ~isempty(tl), stop(tl); delete(tl); end
+cfg.lightFn('off');
+end
+
+function pcfg = keepCalibrationAnswer(pcfg, out)
+% corners tapped or lines accepted for this session earlier (TV-CAL-22) stay in force when it is run
+% again from here, for instance after a power cut part-way through (tv.pipeline.run saves them in run.mat)
+f = fullfile(out, 'run.mat');
+if ~exist(f, 'file'), return; end
+S = load(f);
+if ~isfield(S, 'cfg'), return; end
+if isfield(S.cfg, 'corners'), pcfg.corners = S.cfg.corners; end
+if isfield(S.cfg, 'calibAccepted'), pcfg.calibAccepted = S.cfg.calibAccepted; end
 end
 
 function id = sessionId(R, s)

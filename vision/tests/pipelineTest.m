@@ -48,6 +48,59 @@ if ~isempty(getenv('CI'))
     end
     tv.util.writeJson(fullfile(keep, 'compare.json'), rep);
 end
+% A doubtful court-line fit (TV-CAL-21, 22): the session is held before detection and the question
+% for the app is written; then the app's answer comes back. Run in a folder of its own, starting
+% from the main run's saved probe and calibration stages (the same files and settings, so they
+% are reused), with the alert level set above any fit so that both cameras are doubted.
+hold0 = fullfile(root, 'out_hold');
+if ~exist(fullfile(hold0, 'done.mat'), 'file')
+    if exist(hold0, 'dir'), rmdir(hold0, 's'); end
+    mkdir(fullfile(hold0, 'stages'));
+    for nm = {'probe', 'calib'}
+        for f = dir(fullfile(root, 'out', 'stages', [nm{1} '.*']))'
+            copyfile(fullfile(root, 'out', 'stages', f.name), fullfile(hold0, 'stages'));
+        end
+    end
+    H = struct();
+    cfgH = cfg;  cfgH.minLineSupport = 1.01;
+    H.id1 = '';
+    try, tv.pipeline.run(files, hold0, cfgH); catch err, H.id1 = err.identifier; end
+    H.check1 = tv.readJson(fullfile(hold0, 'calibration', 'calibration.json'));
+    H.pics1 = [exist(fullfile(hold0, 'calibration', 'cam1.jpg'), 'file'), exist(fullfile(hold0, 'calibration', 'cam2.jpg'), 'file')] == 2;
+    H.stages1 = arrayfun(@(d) d.name, dir(fullfile(hold0, 'stages', '*.manifest.json')), 'UniformOutput', false);
+    % the answer: camera 1's four corners tapped a few pixels off; camera 2's taps nowhere near a court
+    cc = tv.court.constants();
+    X4 = [-cc.halfLength -cc.halfDoubles 0; -cc.halfLength cc.halfDoubles 0; cc.halfLength cc.halfDoubles 0; cc.halfLength -cc.halfDoubles 0];
+    tv.util.seed(11);
+    px4 = tv.camera.project(T.cams(1), X4);
+    cfgC = cfgH;  cfgC.corners = {px4(randperm(4), :) + 4 * (2 * rand(4, 2) - 1), [100 40; 300 45; 310 120; 90 130]};
+    H.id2 = '';
+    try, tv.pipeline.run(files, hold0, cfgC); catch err, H.id2 = err.identifier; end
+    S = load(fullfile(hold0, 'stages', 'calib.mat'));
+    H.cams = S.out.cams;  H.report = rmfield(S.out.report, 'detail');
+    H.check2 = tv.readJson(fullfile(hold0, 'calibration', 'calibration.json'));
+    H.stages2 = arrayfun(@(d) d.name, dir(fullfile(hold0, 'stages', '*.manifest.json')), 'UniformOutput', false);
+    save(fullfile(hold0, 'done.mat'), 'H');
+end
+H = load(fullfile(hold0, 'done.mat'));  H = H.H;
+
+%% A doubtful court-line fit holds the session before detection and writes the question for the app (TV-CAL-21)
+assert(strcmp(H.id1, 'tv:calib:doubtful'))
+k1 = H.check1.checks;  if ~iscell(k1), k1 = num2cell(k1(:)'); end
+assert(numel(k1) == 2 && all(H.pics1))                             % both cameras asked about, each with its picture
+assert(strcmp(k1{1}.reason, 'lines') && k1{1}.width == T.cams(1).width && k1{1}.scale == 1)
+assert(~any(ismember({'rallies.manifest.json', 'detect.manifest.json', 'recon.manifest.json'}, H.stages1)))   % nothing after calibration ran
+
+%% Tapped corners place the camera within 0.1 m; taps that make no court are asked for again (TV-CAL-22)
+assert(strcmp(H.id2, 'tv:calib:doubtful'))                         % camera 2 is still open, so the session still waits
+assert(strcmp(H.report(1).source, 'corners') && isempty(H.report(1).tapError))
+tw1 = tv.calib.rotate180(H.cams(1));
+off1 = min(norm(H.cams(1).pos - T.cams(1).pos), norm(tw1.pos - T.cams(1).pos));
+fprintf('camera 1 from four tapped corners: %.3f m from the truth, corners %.1f px from the taps\n', off1, H.report(1).tapRmsPx);
+assert(off1 < 0.1)
+k2 = H.check2.checks;  if ~iscell(k2), k2 = num2cell(k2(:)'); end
+assert(numel(k2) == 1 && k2{1}.cam == 2 && strcmp(k2{1}.reason, 'taps'))   % only camera 2 is asked again
+assert(~any(ismember({'rallies.manifest.json', 'detect.manifest.json'}, H.stages2)))
 
 %% Camera poses from the court lines: within 5 cm and 0.2 degrees
 assert(all(rep.cameraPosM < 0.05) && all(rep.cameraRotDeg < 0.2))

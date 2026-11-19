@@ -1,7 +1,7 @@
 function [c, log] = fakeClient(pending, existing)
 %FAKECLIENT  A stand-in for the cloud API that records every call (tests).
-%   pending: struct with fields conditions and identity (lists the PC would
-%   fetch). existing: cell of file paths the "Worker" already holds.
+%   pending: struct with fields conditions and identity, and optionally calibration
+%   (lists the PC would fetch). existing: cell of file paths the "Worker" already holds.
 %   log: containers.Map (a handle) from call kind to a cell of requests.
 if nargin < 1, pending = struct('conditions', [], 'identity', []); end
 if nargin < 2, existing = {}; end
@@ -29,6 +29,7 @@ c.putBytes = @(url, b) bytes(url, b);
         add('get', {path});
         if strcmp(path, '/conditions/pending'), r = pending.conditions;
         elseif strcmp(path, '/identity/pending'), r = pending.identity;
+        elseif strcmp(path, '/calibration/answered') && isfield(pending, 'calibration'), r = pending.calibration;
         else, r = []; end
     end
     function r = urlput(url, s)

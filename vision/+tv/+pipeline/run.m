@@ -16,6 +16,10 @@ function result = run(files, outDir, cfg)
 %     metrics  shots, rallies, session summary (section 5)
 %     outputs  session.json, shots, trajectories, rallies, plots, reel (TV-OUT)
 if nargin < 3 || isempty(cfg), cfg = tv.pipeline.defaults(); end
+% settings added after a session's cfg was saved (an app answer reruns it from run.mat) take their defaults
+dflt = struct('corners', {{[], []}}, 'calibAccepted', [false false], 'doubtfulCalibration', 'hold', 'maxTapRms', 0.01, 'checkPictureWidth', 3840);
+fn = fieldnames(dflt);
+for i = 1:numel(fn), if ~isfield(cfg, fn{i}), cfg.(fn{i}) = dflt.(fn{i}); end, end
 if ~exist(outDir, 'dir'), mkdir(outDir); end
 key0 = [files{1} '|' files{2} '|' fileStamp(files{1}) '|' fileStamp(files{2})];
 % what this session was run with, so an app answer can rerun it later (tv.ops.applyAnswers)
@@ -31,15 +35,28 @@ rec = S.rec;  sync = S.sync;  sync.readout = cfg.readoutPrior * [1 1];  sync.shu
 
 % --- calibration ------------------------------------------------------------------------
 guard();
-C = tv.pipeline.stage(outDir, 'calib', k('search', cfg.lensName, cfg.aspect, 'corners', 'lines-19nov', cfg.lineOpts), @() calibrate(rec, cfg));
-for kk = 1:numel(C.report)                            % TV-CAL-11: a fit the court's own lines do not back
-    % (19 Nov: on real pictures a wrong pose had 18 to 55% of its near-half lines on paint, the
-    % right one 54 to 97%; under cfg.minLineSupport the pose may be wrong, so say so)
-    if isfield(C.report(kk), 'support') && C.report(kk).support < cfg.minLineSupport
-        cfg.notify(sprintf('Camera %d court lines', kk), sprintf(['Only %.0f%% of the court''s lines have paint under the fitted court ' ...
-            '(line error %.1f px). The camera position may be wrong: check the session''s calibration picture.'], ...
-            100 * C.report(kk).support, C.report(kk).rmsPx));
-    end
+% each stage's key carries the keys of the stages it is built on (h: their short form), so a change
+% upstream (tapped corners, another detector, indoor air) reruns everything that used it
+h = @tv.util.hashText;
+kCal = k('search', cfg.lensName, cfg.aspect, 'corners', 'lines-19nov', cfg.lineOpts, cfg.corners);
+C = tv.pipeline.stage(outDir, 'calib', kCal, @() calibrate(rec, cfg));
+% TV-CAL-11, 21: a fit the court's own lines do not back. On real pictures (19 Nov) the pose the search
+% settled on had 16 to 18% of its near-half lines on paint when it was wrong and 54 to 97% when it was
+% right; under cfg.minLineSupport it is doubtful. The picture and the fit are written for the app, and
+% with cfg.doubtfulCalibration 'hold' the session stops here, before the hours of detection, until the
+% four corners are tapped (cfg.corners) or Chris says the lines are right (cfg.calibAccepted).
+doubt = tv.calib.doubt(C.report, [rec.width], cfg);
+tv.calib.writeCheck(outDir, C, doubt, cfg);
+held = any([doubt.is]) && strcmp(cfg.doubtfulCalibration, 'hold');
+for kk = find([doubt.is])
+    more = ' Check the session''s calibration picture.';
+    if held, more = ' Processing waits: open court corners in the app and tap the four corners of the doubles court.'; end
+    if strcmp(doubt(kk).reason, 'taps'), more = ''; end
+    cfg.notify(sprintf('Camera %d court lines', kk), [doubt(kk).text more]);
+end
+if held
+    error('tv:calib:doubtful', 'Calibration is doubtful for camera %s: waiting for the four court corners (%s).', ...
+        mat2str(find([doubt.is])), fullfile(outDir, 'calibration', 'calibration.json'));
 end
 for kk = 1:numel(C.report)                            % TV-CAL-20: framing warning
     if isfield(C.report(kk), 'corners') && ~isempty(C.report(kk).corners.text)
@@ -52,18 +69,20 @@ R = tv.pipeline.stage(outDir, 'rallies', k(), @() findRallies(rec));
 
 % --- detection and 2D tracks -----------------------------------------------------------------
 guard();
-D = tv.pipeline.stage(outDir, 'detect', k(R.windows, cfg.ballApparentScale, cfg.detector, cfg.ballNetFile, cfg.ballCut, cfg.chainOpts), ...
-    @() detectAll(rec, C, R.windows, sync, cfg));
+kDet = k(R.windows, cfg.ballApparentScale, cfg.detector, cfg.ballNetFile, cfg.ballCut, cfg.chainOpts, h(kCal));
+D = tv.pipeline.stage(outDir, 'detect', kDet, @() detectAll(rec, C, R.windows, sync, cfg));
 
 % --- sync ---------------------------------------------------------------------------------------
 guard();
-Y = tv.pipeline.stage(outDir, 'sync', k(R.windows, cfg.minCrossDeg), @() syncAll(D, C, R, rec, sync, cfg));
+kSync = k(R.windows, cfg.minCrossDeg, h(kDet));
+Y = tv.pipeline.stage(outDir, 'sync', kSync, @() syncAll(D, C, R, rec, sync, cfg));
 sync = Y.sync;  cams = Y.cams;  C.cams = cams;
 if ~isempty(Y.crossing.low), cfg.notify('Camera angle', Y.crossing.text); end
 
 % --- only Chris's court: stereo pairing, court of interest, track filter (TV-ADJ-02 to 04) ---------
 guard();
-G = tv.pipeline.stage(outDir, 'gate', k(sync, Y.symmetry.chosen, cfg.court, cfg.gate), @() gateAll(D, cams, rec, sync, cfg));
+kGate = k(sync, Y.symmetry.chosen, cfg.court, cfg.gate, h(kSync));
+G = tv.pipeline.stage(outDir, 'gate', kGate, @() gateAll(D, cams, rec, sync, cfg));
 
 % --- reconstruction ---------------------------------------------------------------------------------
 air0 = tv.physics.defaultParams();
@@ -74,16 +93,17 @@ end
 air0.wind = [0.5 * cfg.weather.wind10, 0];            % TV-PHY-04: half the 10 m forecast
 if cfg.indoor, air0.wind = [0 0 0]; end
 guard();
-X = tv.pipeline.stage(outDir, 'recon', k(sync, Y.symmetry.chosen, cfg.weather, cfg.indoor, cfg.CDprior, cfg.refineRounds), ...
-    @() reconstruct(G, cams, rec, sync, air0, cfg));
+kRec = k(sync, Y.symmetry.chosen, cfg.weather, cfg.indoor, cfg.CDprior, cfg.refineRounds, h(kGate));
+X = tv.pipeline.stage(outDir, 'recon', kRec, @() reconstruct(G, cams, rec, sync, air0, cfg));
 
 % --- players ----------------------------------------------------------------------------------
 guard();
-P = tv.pipeline.stage(outDir, 'players', k(cfg.playerHz, Y.symmetry.chosen, cfg.court, cfg.gate), @() trackPlayers(rec, C, X.sync, cfg));
+kPly = k(cfg.playerHz, Y.symmetry.chosen, cfg.court, cfg.gate, h(kCal));    % not the physics: an indoor answer does not track the players again
+P = tv.pipeline.stage(outDir, 'players', kPly, @() trackPlayers(rec, C, X.sync, cfg));
 
 % --- metrics ------------------------------------------------------------------------------------
 if isfield(cfg, 'chrisLabel') && ~isempty(cfg.chrisLabel), P = relabel(P, cfg.chrisLabel); end
-M = tv.pipeline.stage(outDir, 'metrics', k(cfg.lines, P.info.chris), @() measure(X, R, cams, P));
+M = tv.pipeline.stage(outDir, 'metrics', k(cfg.lines, P.info.chris, h(kRec), h(kPly)), @() measure(X, R, cams, P));
 
 % --- outputs ----------------------------------------------------------------------------------------
 [up.summary, up.data] = tv.upload.payload(struct('rec', rec, 'shots', M.shots, 'rallies', M.rallies, ...
@@ -111,7 +131,8 @@ S.sync = struct('startOffset', [0 off], 'delta', 0, 'drift', 0, ...
 end
 
 function C = calibrate(rec, cfg)
-% Every session, from the lines alone: no camera layout is assumed.
+% Every session, from the lines alone: no camera layout is assumed. A camera whose four doubles-court
+% corners were tapped in the app (cfg.corners, TV-CAL-22) is placed from those instead.
 lensCfg = tv.readJson(cfg.placementFile);
 lens = tv.lens.build(lensCfg.lenses, cfg.lensName, cfg.aspect);
 for k = 1:2
@@ -121,10 +142,33 @@ for k = 1:2
     % line-pixel settings for real footage, scaled to this picture (cfg.lineOpts overrides them)
     lo = tv.calib.lineOptsFor(rec(k).width);
     if isfield(cfg, 'lineOpts') && ~isempty(cfg.lineOpts), lo = cfg.lineOpts; end
-    [cam, rep] = tv.calib.searchPose(bg, L, struct('lineOpts', lo));
+    taps = [];  tapError = '';
+    if isfield(cfg, 'corners') && numel(cfg.corners) >= k, taps = cfg.corners{k}; end
+    r0 = [];
+    if ~isempty(taps)
+        try
+            [cam, r0] = tv.calib.fromCorners(bg, L, taps, struct('lineOpts', lo));
+        catch err
+            if ~strcmp(err.identifier, 'tv:calib:corners'), rethrow(err); end
+            tapError = err.message;                   % the taps cannot be a court here: back to the lines, and ask again
+        end
+    end
+    if isempty(r0)
+        [cam, r0] = tv.calib.searchPose(bg, L, struct('lineOpts', lo));
+        r0.source = 'lines';
+    end
+    % one shape of report whichever way the pose was found
+    rep = struct('source', r0.source, 'rmsPx', r0.rmsPx, 'inliers', r0.inliers, 'points', pick(r0, 'points', 0), ...
+        'support', r0.support, 'tapRmsPx', pick(r0, 'tapRmsPx', NaN), 'tapError', tapError, ...
+        'candidates', pick(r0, 'candidates', zeros(0, 7)), 'detail', {r0});
     rep.corners = tv.calib.corners(cam);              % TV-CAL-20: which court corners this camera sees
     C.cams(k) = cam;  C.bg{k} = bg;  C.report(k) = rep;
 end
+end
+
+function v = pick(s, name, default)
+v = default;
+if isfield(s, name), v = s.(name); end
 end
 
 function R = findRallies(rec)

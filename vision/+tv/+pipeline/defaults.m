@@ -34,7 +34,16 @@ cfg.gate = struct('epipolarPx', 4, ...      % TV-ADJ-02: summed reprojection err
                   'playerInsideFrac', 0.6); % TV-ADJ-05: share of a person's time inside
 cfg.adjacentTest = struct('maxFalsePos', 0.005, 'maxFalseNeg', 0.02, 'maxSwaps', 0);   % AC-14 to AC-16
 cfg.lineOpts = [];                  % court-line pixel settings: empty = real footage, scaled to the picture (tv.calib.lineOptsFor)
-cfg.minLineSupport = 0.6;           % alert when a camera's fitted court has paint under less than this share of its lines; RETUNE(real footage)
+cfg.minLineSupport = 0.35;          % a camera's fitted court with paint under less than this share of its lines is doubtful (TV-CAL-11).
+                                    % PROVISIONAL (Chris, 19 Nov: set it from the Hero 7 side clip): midway between the highest wrong fit
+                                    % seen on real pictures since the 19 Nov fix (0.18) and the lowest right one (0.54). RETUNE(real footage)
+cfg.doubtfulCalibration = 'hold';   % TV-CAL-21: 'hold' stops the session before detection and asks for the four corners (the watcher
+                                    % sends the picture to the app); 'continue' processes with the alert only
+cfg.corners = {[], []};             % TV-CAL-22: per camera, the four doubles-court corners tapped on its calibration picture
+                                    % (4-by-2, the full picture's pixels, any order); empty = fit from the lines
+cfg.calibAccepted = [false false];  % TV-CAL-22: Chris looked at the drawn fit and said the lines are right
+cfg.maxTapRms = 0.01;               % taps that miss the fitted corners by more than this share of the picture's width are asked for again; RETUNE(real footage)
+cfg.checkPictureWidth = 3840;       % the calibration picture sent to the app is no wider than this (px)
 cfg.minCrossDeg = 20;               % usable stereo crossing angle; RETUNE(real footage)
 cfg.alerts = struct('ntfyServer', 'https://ntfy.sh');
 cfg.notify = @(title, text) tv.ops.notify(cfg, title, text);
