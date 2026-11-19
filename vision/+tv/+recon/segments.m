@@ -17,10 +17,11 @@ function [segs, dropped] = segments(P, cams, rec, sync, air, prior, opts)
 %   RETUNE(real footage): opts.clusterMs, opts.edgeMs, opts.minPerCam, the
 %   merge test, its 3 px cap and the 5 px junk limit; opts.oneMin (6 detections, pinned at
 %   both ends), opts.oneMinLoose (15, pinned at one end), opts.oneJoinS (the longest gap to a
-%   neighbour that still pins, 0.08 s) and opts.oneRms (1.5 px).
+%   neighbour that still pins, 0.08 s), opts.oneRms (1.5 px) and opts.oneJumpMps (the change
+%   of velocity that makes a real event between a one-camera flight and its neighbour, 4 m/s).
 if nargin < 7, opts = struct(); end
 d = struct('clusterMs', 25, 'edgeMs', 4, 'minPerCam', 4, 'mergeRms', 1.5, 'splitRms', 0.6, 'splitGain', 0.6, ...
-           'mergeCapPx', 3, 'junkPx', 5, 'oneCam', true, 'oneMin', 6, 'oneMinLoose', 15, 'oneJoinS', 0.08, 'oneRms', 1.5);
+           'mergeCapPx', 3, 'junkPx', 5, 'oneCam', true, 'oneMin', 6, 'oneMinLoose', 15, 'oneJoinS', 0.08, 'oneRms', 1.5, 'oneJumpMps', 4);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 segs = [];  dropped = [];
@@ -119,6 +120,23 @@ for r = runs(o)
     if any(off > 3) || min(Pf(1:20, 3)) < -0.05 || max(Pf(1:20, 3)) > 15 || any(abs(Pf(1:20, 1)) > 30) || any(abs(Pf(1:20, 2)) > 20)
         continue                                    % misses a pin, or no place a ball can be
     end
+    % a flight of its own only between real events: where it meets a neighbour the ball's
+    % velocity must change (a bounce or a hit). If it carries on at the neighbour's velocity it
+    % is that neighbour's flight, which the join above refused for a reason (the blurred first
+    % frames after a hit, seen by one camera): adding it would put an event where there is
+    % none (a phantom hit 90 ms after a real one in pipelineTest, 19 Nov)
+    same = false;
+    if ~isempty(iPrev) && ta - t2(iPrev) <= opts.oneJoinS
+        [~, Vn] = tv.recon.segmentModel(segs(iPrev).x, segs(iPrev).t0, t2(iPrev), air);
+        [~, Vf] = tv.recon.segmentModel(f.x, f.t0, ta, air);
+        same = same || norm(Vn - Vf) < opts.oneJumpMps;
+    end
+    if ~isempty(iNext) && t1(iNext) - tb <= opts.oneJoinS
+        [~, Vn] = tv.recon.segmentModel(segs(iNext).x, segs(iNext).t0, t1(iNext), air);
+        [~, Vf] = tv.recon.segmentModel(f.x, f.t0, tb, air);
+        same = same || norm(Vn - Vf) < opts.oneJumpMps;
+    end
+    if same, continue; end
     segs = [segs; f]; %#ok<AGROW>
     [~, s] = sort(arrayfun(@(g) min(g.t), segs));  segs = segs(s);
 end

@@ -14,7 +14,9 @@ The fit needed at least 4 detections from each camera in every stretch between t
 2. **A whole flight blocked in one camera:** the flight is fitted from the other camera's sight lines and the physics, and pinned to its neighbours:
    - at a bounce, to the point on the ground where the flight before came down or the flight after left (to 3 cm);
    - at a hit, to where the neighbouring flight was at that moment (looser, by how far the ball travels in the gap between them).
-3. **A safeguard:** a one-camera flight needs pins at both ends, or at least 15 detections with one pin. Without it, a 6-detection stub at the end of a rally (the ball running on into the back fence, seen by one camera) became a phantom hit in the existing pipeline test.
+3. **Two safeguards,** each added after the existing pipeline test caught a phantom hit:
+   - a one-camera flight needs pins at both ends, or at least 15 detections with one pin (a 6-detection stub at the end of a rally, the ball running on into the back fence, had become a hit);
+   - where it meets a neighbour, the ball's velocity must change by at least 4 m/s, as it does at any bounce or hit (the blurred first frames after a hit, seen by one camera, had become a flight of their own, with a second "hit" 90 ms after the real one).
 4. Such a flight is marked one-camera in the results, so its speed and bounce can be shown with more caution.
 
 ## First check: one rally, four cases
