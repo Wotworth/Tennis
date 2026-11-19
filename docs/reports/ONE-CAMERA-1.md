@@ -35,7 +35,24 @@ A serve-like drive, its bounce, the rise to the next hit, and the reply (`vision
 
 ## The study over a session
 
-To follow: about 80 shots, each blocked shot compared with itself unblocked, for half a flight, a whole flight before the bounce, the bounce to the next hit, and the whole shot (`vision/tools/blockStudy.m`, the block-study job in the Vision tests).
+49 shots in 7 rallies, with the truth the fitter does not share (wind gusts, spin decay, per-shot drag), clock and pose errors, and misses. In each row one camera, picked at random, is blind for the stretch named, for 28 of the shots. Each blocked shot is compared with itself unblocked. A shot counts as found when its hit is found within 30 ms. `vision/tools/blockStudy.m`, run in CI with MATLAB (run 47, 109 minutes).
+
+With both cameras throughout, those 28 shots: all 28 found, bounce error 2.8 cm (median) and 8.8 cm (90th percentile), speed error 0.9 and 2.4 mph.
+
+| One camera blind for | Shots found, of 28 | Bounce error, cm (median / 90th) | Speed error, mph (median / 90th) |
+| --- | --- | --- | --- |
+| Half of the flight to the bounce | 28 | 3.2 / 8.4 | 0.8 / 2.4 |
+| The whole flight to the bounce | 17 (was 0 without the new step) | 6.6 / 20.9 | 1.1 / 3.2 |
+| The bounce to the next hit | 26 (was 15) | 4.3 / 12.6 | 1.0 / 2.4 |
+| The whole shot, hit to next hit | 8 | 22.3 / 127.8 | 0.6 / 7.5 |
+
+**Reading it**
+
+- **Half a flight hidden costs nothing measurable.** The fit uses what each camera saw.
+- **A whole flight hidden in one camera:** before, the shot was lost (0 of 28 when it was the flight to the bounce, 15 of 28 when it was the rise after the bounce). Now 17 and 26 of 28 are found, with the bounce about 4 to 7 cm off instead of 3.
+- **The 11 still lost** when the whole flight to the bounce is hidden are flights the safeguards turned down (no pin on one side, or a fit that missed its pin). I chose to lose a shot over inventing a hit.
+- **A whole shot hidden in one camera** (two flights in a row) is mostly not recovered, and when it is the bounce is poor (22 cm median). The pins then hang on each other. This should be shown as low confidence or not at all.
+- The numbers are from 28 shots, so they are indications, not precise rates.
 
 ## Limits
 
