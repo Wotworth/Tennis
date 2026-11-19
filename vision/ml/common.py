@@ -4,10 +4,10 @@ import os, subprocess, numpy as np, csv
 
 ROOT = '/home/user/private-footage'
 VIDEO = {1: f'{ROOT}/video.bin', 2: f'{ROOT}/video2.bin', 3: f'{ROOT}/v3/video3_mid.mp4', 4: f'{ROOT}/v3/video3.bin',
-         5: f'{ROOT}/s5/gopro7.mp4', 6: f'{ROOT}/s6/clip6.mp4', 7: f'{ROOT}/s7/clip7a.mp4'}   # 4: the whole clay recording (3 is its 36:00-51:00 cut)
+         5: f'{ROOT}/s5/gopro7.mp4', 6: f'{ROOT}/s6/clip6.mp4', 7: f'{ROOT}/s7/clip7a.mp4', 8: f'{ROOT}/s7/clip7b.mp4'}   # 4: the whole clay recording (3 is its 36:00-51:00 cut)
 # frame size: 1920 x 1080 unless the run says otherwise (env VIDEO_W, VIDEO_H; video 5 is a GoPro at 2704 x 2028)
 W, H, FPS = int(os.environ.get('VIDEO_W', 1920)), int(os.environ.get('VIDEO_H', 1080)), 60.0
-OVERLAYS = {1: [(1630, 10, 1915, 470), (1430, 925, 1915, 1070)], 2: [(1630, 10, 1915, 470), (1430, 925, 1915, 1070)], 3: [], 4: [], 5: [], 6: [], 7: [(1630, 10, 1915, 470), (1430, 925, 1915, 1070)]}
+# SwingVision overlay boxes are found per export (overlay.py prep writes TAG_layout.json); nothing here assumes where they are
 
 
 COND = os.environ.get('COND', 'plain')   # stress conditions: the same footage as another camera, light or ball colour would show it

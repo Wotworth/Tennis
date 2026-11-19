@@ -61,6 +61,7 @@ G = tv.synth.generate(fullfile(dir0, 'synth'), sc);
 r.genS = toc(t);
 fprintf('footage made in %.0f s (not timed below)\n', r.genS);
 cfg = tv.pipeline.defaults();
+cfg.lineOpts = tv.calib.lineOptsFor('synthetic');     % the generator's clean lines; real footage uses lineOptsFor(width)
 cfg.ballApparentScale = sc.ballDrawScale;
 cfg.weather = struct('tempC', sc.weather.tempC, 'relHumidity', sc.weather.relHumidity, ...
     'pressurePa', sc.weather.pressurePa, 'wind10', 2 * sc.wind(1:2));

@@ -6,34 +6,147 @@ a bounce SwingVision called in, a ring = out, a ring on the net line = a net bal
 Deliberately minimal: the layout is found from the mini court's own lines, and words and digits are
 matched against the few SwingVision uses (overlay_words.json), not read by general OCR.
 
-  overlay.py prep VIDEO TAG   one pass over the export: TAG_ovl.mp4 (the corner, near-lossless) and
-                              TAG_thumb.gray (a tiny grey picture of every frame)
+  overlay.py find VIDEO       where the overlay is in this export (printed; nothing written)
+  overlay.py prep VIDEO TAG   finds the overlay (TAG_layout.json), then one pass over the export: TAG_ovl.mp4
+                              (the panel, near-lossless) and TAG_thumb.gray (a tiny grey picture of every frame)
   overlay.py read TAG         TAG_points.csv, TAG_shots.csv, TAG_bounces.csv (TAG_scan.pkl caches the scan)
 
 What the two exports of Nov 2025 showed (docs/reports/OVERLAY-READER-1.md): the label's colour is the
 stroke (green forehand, orange backhand or second serve, blue first serve, yellow volley, white
 feed), not the player; a mark appears on the frame of the bounce, give or take a frame, but drifts
 early when the export is not exactly 60 fps; an unknown word or digit reads as '?' and is counted.
-Written for 1920x1080 exports with the overlay in the top-right corner (CX0, CY0, the templates).
+The overlay is found in each video, not assumed (Chris, 19 Nov: app updates may move it):
+find_layout() looks over the whole picture for the mini court's line pattern at any place and size
+and for the "Shots Tracked by" watermark (its logo), and prep() cuts the panel out so that the mini
+court sits where the templates expect it. TAG_layout.json records what was found: the cut, and the
+boxes (in the export's own pixels) to keep the ball detector and the court-line fit out of.
 """
 import pickle
 import os, sys, subprocess, json, csv, numpy as np
 from scipy import ndimage
 
-CW, CH = 300, 480                 # the corner cut out of a 1920x1080 export, at (1620, 0)
-CX0, CY0 = 1620, 0
+CW, CH = 300, 480                 # the panel cut the reader works on
+REF = (57.64, 63.45, 239.45, 305.18)   # where the mini court's doubles rectangle sits in that cut (the Nov 2025 exports)
 TW, TH = 64, 36                   # thumbnail of the whole frame, for cuts
 COURT_W, COURT_L = 10.97, 23.77   # doubles court, metres
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
+def probe(video):
+    """Width, height and duration (s) of a video."""
+    j = json.loads(subprocess.run(['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height:format=duration',
+                                   '-of', 'json', video], capture_output=True, text=True, check=True).stdout)
+    return int(j['streams'][0]['width']), int(j['streams'][0]['height']), float(j['format']['duration'])
+
+
+def rect_in(m):
+    """The mini court's doubles rectangle (xL, yT, xR, yB), sub-pixel, in a whiteness picture m (the
+    minimum of R, G, B of a median over time): thin bright lines at a real court's proportions.
+    None when there is none."""
+    ridge = m - ndimage.median_filter(m, 9)                                   # thin and brighter than its surroundings
+    L = ridge * (ridge > 35)
+    if L.max() <= 0: return None
+
+    def lines(count, need):
+        idx = np.where(count >= need)[0]
+        out = []
+        for g in np.split(idx, np.where(np.diff(idx) > 1)[0] + 1):
+            if len(g): out.append(float((g * count[g]).sum() / count[g].sum()))
+        return out
+    need = 0.2 * L.max() * 90 * m.shape[0] / CH
+    xs = lines(L.sum(axis=0), need); ys = lines(L.sum(axis=1), need)
+    # singles lines 1.37 m in from each side, service lines 6.40 m from the net, the net halfway
+    expect_x = [0, 1.372 / COURT_W, 0.5, 1 - 1.372 / COURT_W, 1]
+    expect_y = [0, 0.5 - 6.401 / COURT_L, 0.5, 0.5 + 6.401 / COURT_L, 1]
+
+    def fit(c, expect):
+        """The first and last of the candidate lines that put a line at every expected place."""
+        best = None
+        for i in range(len(c)):
+            for j in range(i + 1, len(c)):
+                err = [min(abs((x - c[i]) / (c[j] - c[i]) - e) for x in c) for e in expect]
+                if max(err) < 0.015 and (best is None or c[j] - c[i] > best[1] - best[0]): best = (c[i], c[j], max(err))
+        return best
+    if len(xs) > 40 or len(ys) > 40: return None
+    fx, fy = fit(xs, expect_x), fit(ys, expect_y)
+    if fx is None or fy is None: return None
+    shape = (fy[1] - fy[0]) / (fx[1] - fx[0])                                # a doubles court is 2.17 times as long as wide
+    if not 0.55 * COURT_L / COURT_W < shape < 1.6 * COURT_L / COURT_W: return None   # the exports draw it squashed: per-axis, loosely
+    return (fx[0], fy[0], fx[1], fy[1]), max(fx[2], fy[2])
+
+
+def find_layout(video, n=24):
+    """Where SwingVision drew its overlay in this export. Returns a dict:
+    court: the mini court's doubles rectangle in the export's pixels; cut: (x, y, w, h), the panel
+    around it, laid out as the reader expects (REF); scale: what the cut is resized by to CW x CH;
+    boxes: [x0, y0, x1, y1] regions to keep the detector and the line fit out of (the panel, and
+    the watermark when there is one). Raises when no mini court is found anywhere."""
+    w, h, dur = probe(video); F = []
+    for k in range(n):
+        raw = subprocess.run(['ffmpeg', '-v', 'error', '-ss', '%.3f' % (dur * (k + 0.5) / n), '-i', video, '-frames:v', '1',
+                              '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'], stdout=subprocess.PIPE).stdout
+        if len(raw) == w * h * 3: F.append(np.frombuffer(raw, np.uint8).reshape(h, w, 3))
+    F = np.stack(F)
+    m = np.median(F, axis=0).min(axis=-1).astype(np.float32)
+    # the mini court: windows of several sizes over the whole picture, each tried for the pattern
+    best = None
+    for wh in (0.30, 0.45, 0.65, 0.22):
+        H = int(wh * h); W = int(H * CW / CH); step = max(8, H // 6)
+        for y0 in list(range(0, h - H, step)) + [h - H]:
+            for x0 in list(range(0, w - W, step)) + [w - W]:
+                got = rect_in(m[y0:y0 + H, x0:x0 + W])
+                if got is None: continue
+                r, err = got; r = (r[0] + x0, r[1] + y0, r[2] + x0, r[3] + y0)
+                if best is None or err < best[1] - 1e-4: best = (r, err)
+        if best is not None: break
+    if best is None: raise RuntimeError('no mini court found anywhere in the picture')
+    r = best[0]; k = (REF[2] - REF[0]) / (r[2] - r[0])                        # resize so the court is as wide as in REF
+    cut = (r[0] - REF[0] / k, r[1] - REF[1] / k, CW / k, CH / k)
+    boxes = [[int(max(0, cut[0])), int(max(0, cut[1])), int(min(w, cut[0] + cut[2])), int(min(h, cut[1] + cut[3]))]]
+    logo = find_logo(F)
+    if logo: boxes.append(logo)
+    return {'width': w, 'height': h, 'court': [float(v) for v in r], 'cut': [float(v) for v in cut], 'scale': float(k), 'boxes': boxes}
+
+
+def find_logo(F):
+    """The "Shots Tracked by SWINGVISION" watermark, when the export has one: a yellow disc inside
+    a green square that never changes, with white writing beside it. [x0, y0, x1, y1] or None."""
+    n, h, w, _ = F.shape
+    lo = F.min(axis=0).astype(np.int16); hi = F.max(axis=0).astype(np.int16); mean = F.mean(axis=0)
+    still = (hi - lo).max(axis=-1) < 45
+    R, G, B = mean[..., 0], mean[..., 1], mean[..., 2]
+    yellow = still & (R > 170) & (G > 160) & (B < 120)
+    green = still & (G > R + 20) & (G > B + 20)
+    lab, cnt = ndimage.label(yellow)
+    for i, sl in enumerate(ndimage.find_objects(lab), 1):
+        bh, bw = sl[0].stop - sl[0].start, sl[1].stop - sl[1].start
+        if min(bh, bw) < 0.02 * h or not 0.6 < bw / bh < 1.6: continue
+        if (lab[sl] == i).mean() < 0.5: continue
+        y0, y1 = max(0, sl[0].start - bh // 3), min(h, sl[0].stop + bh // 3); x0, x1 = max(0, sl[1].start - bw // 3), min(w, sl[1].stop + bw // 3)
+        around = green[y0:y1, x0:x1] & ~(lab[y0:y1, x0:x1] == i)
+        if around.sum() < 0.5 * ((y1 - y0) * (x1 - x0) - (lab[sl] == i).sum()): continue
+        # the writing: still, white, on the logo's rows, to its left or right
+        size = max(y1 - y0, x1 - x0); white = still & (mean.min(axis=-1) > 200)
+        band = np.zeros((h, w), bool); band[max(0, y0 - size // 5):min(h, y1 + size // 5), max(0, x0 - 5 * size):min(w, x1 + 5 * size)] = True
+        ys, xs = np.where(white & band)
+        if len(xs): x0, x1, y0, y1 = min(x0, xs.min()), max(x1, xs.max() + 1), min(y0, ys.min()), max(y1, ys.max() + 1)
+        pad = size // 8
+        return [int(max(0, x0 - pad)), int(max(0, y0 - pad)), int(min(w, x1 + pad)), int(min(h, y1 + pad))]
+    return None
+
+
 def prep(video, tag):
+    L = find_layout(video)
+    json.dump(L, open(f'{tag}_layout.json', 'w'))
+    w, h = L['width'], L['height']; x, y, cw, ch = L['cut']; P = int(max(w, h) // 2)       # padded, so a panel at any edge can be cut whole
+    cutf = f'pad={w + 2 * P}:{h + 2 * P}:{P}:{P}:black,crop={int(round(cw))}:{int(round(ch))}:{int(round(x)) + P}:{int(round(y)) + P},scale={CW}:{CH}:flags=bicubic'
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', video, '-filter_complex',
-                    f'[0:v]split=2[a][b];[a]crop={CW}:{CH}:{CX0}:{CY0}[o1];[b]scale={TW}:{TH},format=gray[o2]',
+                    f'[0:v]split=2[a][b];[a]{cutf}[o1];[b]scale={TW}:{TH},format=gray[o2]',
                     '-map', '[o1]', '-an', '-fps_mode', 'passthrough', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '12', '-pix_fmt', 'yuv444p',
                     f'{tag}_ovl.mp4', '-map', '[o2]', '-fps_mode', 'passthrough', '-f', 'rawvideo', f'{tag}_thumb.gray'], check=True)
     # passthrough: every source frame exactly once, so frame numbers match the footage (without it
     # ffmpeg dropped 12 of video 2's 20,462 frames and the dots drifted up to 10 frames early)
+    return L
 
 
 def frames(tag, chunk=240):
@@ -78,36 +191,13 @@ def sample(tag, step=240):
 
 
 def court_rect(tag):
-    """The mini court's doubles rectangle (xL, yT, xR, yB), sub-pixel, from the thin bright lines
-    of the picture's median over time (dots and labels come and go; the lines stay); checked
-    against a real court's proportions."""
+    """The mini court's doubles rectangle (xL, yT, xR, yB), sub-pixel, in the panel cut: from the
+    thin bright lines of the cut's median over time (dots and labels come and go; the lines stay),
+    checked against a real court's proportions."""
     m = np.median(sample(tag), axis=0).min(axis=-1).astype(np.float32)        # whiteness
-    ridge = m - ndimage.median_filter(m, 9)                                   # thin and brighter than its surroundings
-    L = ridge * (ridge > 35)
-
-    def lines(count, need):
-        idx = np.where(count >= need)[0]
-        out = []
-        for g in np.split(idx, np.where(np.diff(idx) > 1)[0] + 1):
-            if len(g): out.append(float((g * count[g]).sum() / count[g].sum()))
-        return out
-    need = 0.2 * L.max() * 90
-    xs = lines(L.sum(axis=0), need); ys = lines(L.sum(axis=1), need)
-    # singles lines 1.37 m in from each side, service lines 6.40 m from the net, the net halfway
-    expect_x = [0, 1.372 / COURT_W, 0.5, 1 - 1.372 / COURT_W, 1]
-    expect_y = [0, 0.5 - 6.401 / COURT_L, 0.5, 0.5 + 6.401 / COURT_L, 1]
-
-    def fit(c, expect):
-        """The first and last of the candidate lines that put a line at every expected place."""
-        best = None
-        for i in range(len(c)):
-            for j in range(i + 1, len(c)):
-                err = [min(abs((x - c[i]) / (c[j] - c[i]) - e) for x in c) for e in expect]
-                if max(err) < 0.015 and (best is None or c[j] - c[i] > best[1] - best[0]): best = (c[i], c[j], max(err))
-        return best
-    fx, fy = fit(xs, expect_x), fit(ys, expect_y)
-    if fx is None or fy is None: raise RuntimeError(f'mini court not found among lines at x {xs}, y {ys}')
-    return (fx[0], fy[0], fx[1], fy[1]), {'worst': max(fx[2], fy[2])}
+    got = rect_in(m)
+    if got is None: raise RuntimeError('mini court not found in the panel cut')
+    return got[0], {'worst': got[1]}
 
 
 def to_metres(r, px, py):
@@ -222,10 +312,16 @@ def new_dots(dots, near=4.0, min_len=8, settle=(12, 40)):  # colour: a hue name
 
 
 def thumb_jumps(tag):
-    """How much the picture changes from each frame to the next, away from the right-hand side
-    (the overlay's own boxes pop in and out there, a second into each point)."""
-    T = np.fromfile(f'{tag}_thumb.gray', np.uint8).reshape(-1, TH, TW)[:, :, :int(TW * 0.72)].astype(np.int16)
-    return np.concatenate([[0], np.abs(np.diff(T, axis=0)).reshape(len(T) - 1, -1).mean(1)])
+    """How much the picture changes from each frame to the next, away from the overlay (its own
+    boxes pop in and out, a second into each point)."""
+    T = np.fromfile(f'{tag}_thumb.gray', np.uint8).reshape(-1, TH, TW).astype(np.int16)
+    keep = np.ones((TH, TW), bool)
+    if os.path.exists(f'{tag}_layout.json'):
+        L = json.load(open(f'{tag}_layout.json'))
+        for x0, y0, x1, y1 in L['boxes']:
+            keep[max(0, int(y0 * TH / L['height']) - 1):int(np.ceil(y1 * TH / L['height'])) + 1, max(0, int(x0 * TW / L['width']) - 1):int(np.ceil(x1 * TW / L['width'])) + 1] = False
+    else: keep[:, int(TW * 0.72):] = False                                    # preps made before 19 Nov: the overlay was top right
+    return np.concatenate([[0], np.abs(np.diff(T, axis=0))[:, keep].mean(1)])
 
 
 def unpack(bits, box):
@@ -379,7 +475,8 @@ def read(tag, fps=60.0, templates=None):
 
 
 if __name__ == '__main__':
-    if sys.argv[1] == 'prep': prep(sys.argv[2], sys.argv[3])
+    if sys.argv[1] == 'prep': print(json.dumps(prep(sys.argv[2], sys.argv[3])))
+    elif sys.argv[1] == 'find': print(json.dumps(find_layout(sys.argv[2])))
     elif sys.argv[1] == 'read':
         pts, shots, bounces = read(sys.argv[2])
         print(f'{len(pts)} points, {len(shots)} shots, {sum(b["mark"] == "dot" for b in bounces)} bounces in, {sum(b["mark"] == "ring" for b in bounces)} out, '

@@ -31,7 +31,16 @@ rec = S.rec;  sync = S.sync;  sync.readout = cfg.readoutPrior * [1 1];  sync.shu
 
 % --- calibration ------------------------------------------------------------------------
 guard();
-C = tv.pipeline.stage(outDir, 'calib', k('search', cfg.lensName, cfg.aspect, 'corners'), @() calibrate(rec, cfg));
+C = tv.pipeline.stage(outDir, 'calib', k('search', cfg.lensName, cfg.aspect, 'corners', 'lines-19nov', cfg.lineOpts), @() calibrate(rec, cfg));
+for kk = 1:numel(C.report)                            % TV-CAL-11: a fit the court's own lines do not back
+    % (19 Nov: on real pictures a wrong pose had 18 to 55% of its near-half lines on paint, the
+    % right one 54 to 97%; under cfg.minLineSupport the pose may be wrong, so say so)
+    if isfield(C.report(kk), 'support') && C.report(kk).support < cfg.minLineSupport
+        cfg.notify(sprintf('Camera %d court lines', kk), sprintf(['Only %.0f%% of the court''s lines have paint under the fitted court ' ...
+            '(line error %.1f px). The camera position may be wrong: check the session''s calibration picture.'], ...
+            100 * C.report(kk).support, C.report(kk).rmsPx));
+    end
+end
 for kk = 1:numel(C.report)                            % TV-CAL-20: framing warning
     if isfield(C.report(kk), 'corners') && ~isempty(C.report(kk).corners.text)
         cfg.notify(sprintf('Camera %d framing', kk), C.report(kk).corners.text);
@@ -109,7 +118,10 @@ for k = 1:2
     L = tv.lens.atResolution(lens, rec(k).width, rec(k).height);
     % RETUNE(real footage): the background should come from a quiet minute
     bg = tv.calib.background(rec(k), 61);
-    [cam, rep] = tv.calib.searchPose(bg, L);
+    % line-pixel settings for real footage, scaled to this picture (cfg.lineOpts overrides them)
+    lo = tv.calib.lineOptsFor(rec(k).width);
+    if isfield(cfg, 'lineOpts') && ~isempty(cfg.lineOpts), lo = cfg.lineOpts; end
+    [cam, rep] = tv.calib.searchPose(bg, L, struct('lineOpts', lo));
     rep.corners = tv.calib.corners(cam);              % TV-CAL-20: which court corners this camera sees
     C.cams(k) = cam;  C.bg{k} = bg;  C.report(k) = rep;
 end

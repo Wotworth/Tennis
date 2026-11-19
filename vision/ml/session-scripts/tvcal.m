@@ -1,12 +1,13 @@
-% a phone video's camera from its court lines (env VID, FILE; OVL=1 when SwingVision's overlay boxes are in the picture)
+% a phone video's camera from its court lines (env VID, FILE; OVL = the export's TAG_layout.json from overlay.py prep, when
+% SwingVision's overlay is in the picture: its boxes are found per video, not assumed, Chris 19 Nov)
 addpath('/tmp/claude-0/scratchpad/vsnap'); pkg load image; pkg load optim; pkg load statistics
 v = getenv('VID');  out = ['/home/user/private-footage/run' v];
 rec = tv.media.probe(getenv('FILE'));  printf('%d x %d, %.3f fps, %d frames\n', rec.width, rec.height, rec.fps, rec.nFrames);
 save('-binary', [out '/stages/probe.mat'], 'rec');
 tic; bg = tv.calib.background(rec, 61, [], 40);  printf('background %.0f s\n', toc);
-if strcmp(getenv('OVL'), '1')        % the overlay boxes carry lines of their own: paint them out with the picture's middle colour
-  B = [1630 10 1915 470; 1430 925 1915 1070];
-  for k = 1:2, for c = 1:3, ch = bg(:, :, c); ch(B(k, 2):B(k, 4), B(k, 1):B(k, 3)) = median(ch(:)); bg(:, :, c) = ch; end, end
+if ~isempty(getenv('OVL'))           % the overlay boxes carry lines of their own: paint them out with the picture's middle colour
+  B = jsondecode(fileread(getenv('OVL'))).boxes;  B = reshape(B, [], 4);  B(:, 1:2) = B(:, 1:2) + 1;   % [x0 y0 x1 y1], MATLAB's 1-based pixels
+  for k = 1:size(B, 1), for c = 1:3, ch = bg(:, :, c); ch(B(k, 2):B(k, 4), B(k, 1):B(k, 3)) = median(ch(:)); bg(:, :, c) = ch; end, end
 end
 imwrite(uint8(bg), [out '/bg.png']);
 h = 65;

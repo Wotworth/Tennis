@@ -110,3 +110,28 @@ The PC setup script (`vision/setup/Setup-ClosetPC.ps1`) is written but untested.
 1. Buy the kit. Check each court's fence distance against the table before choosing clamps or light stands.
 2. Record the lens calibration: 60 s of the checkerboard per camera, in each mode you'll use. Then I re-run this check with the measured lens.
 3. Record the trial sessions: 4K120 16:9, 4K120 4:3 Open Gate, 4K240 and 8K60, each on external power, to test heat.
+
+## Linear lens (19 Nov 2026)
+
+Chris plans to record in Linear, and asked for the placement check to confirm that Linear still covers the court from the fence before it is recommended. The same check, with the lens set to Linear (100° across; `tv.placement.lookupTable` with `recommendLens` = Linear, run in the session; the table above is Wide):
+
+| Side fence from doubles sideline | Mount | Spot along the fence (both cameras, same side) | Height | Frame | Aim | Far-corner bounce error | Ball at far corner | Worst spot in the air |
+|---|---|---|---|---|---|---|---|---|
+| 2 m | fence | 3.5 m behind each baseline | 3.5 m | 4:3 | turned 42° toward the net, tilted 24° down | 1.5 cm | 4.2 px | 2.8 cm |
+| 3 m | fence | 3.5 m behind each baseline | 3.5 m | 16:9 | turned 38° toward the net, tilted 21° down | 1.5 cm | 4.1 px | 1.9 cm |
+| 4 m | fence | 2.5 m behind each baseline | 3.5 m | 16:9 | turned 37° toward the net, tilted 20° down | 1.6 cm | 4.1 px | 1.9 cm |
+| 5 m | fence | 1.5 m behind each baseline | 2.5 m | 16:9 | turned 31° toward the net, tilted 4° down | 1.7 cm | 4.0 px | 2.0 cm |
+| 6 m | fence | 1.0 m behind each baseline | 2.5 m | 16:9 | turned 30° toward the net, level | 1.9 cm | 4.0 px | 2.1 cm |
+| 7 m | light stand, 5.0 m from the sideline | 1.5 m behind each baseline | 2.5 m | 16:9 | turned 31° toward the net, tilted 4° down | 1.7 cm | 4.0 px | 2.0 cm |
+| 8 m | fence | 0.5 m in from each baseline, toward the net | 3.5 m | 16:9 | turned 25° toward the net, level | 2.2 cm | 4.0 px | 2.4 cm |
+| 9 m | fence | 1.5 m in from each baseline, toward the net | 3.5 m | 16:9 | turned 22° toward the net, tilted 3° down | 2.4 cm | 4.0 px | 2.7 cm |
+| 10 m | fence | 2.5 m in from each baseline, toward the net | 3.5 m | 16:9 | turned 19° toward the net, level | 2.8 cm | 4.1 px | 3.0 cm |
+
+What it shows:
+
+1. **Linear does cover the court from every fence distance, but not from the same spots as Wide.** The cameras go further back along the fence: 2.5 m behind each baseline for a fence 4 m out, where Wide sits level with the baseline; 3.5 m behind for a fence 2 or 3 m out. The side fence has to run that far behind the baseline (it normally runs to the back fence, 6.4 m behind).
+2. **The cameras turn further toward the net** (about 30° to 40° instead of 20° to 25°), so each looks more along the court.
+3. **Accuracy is a little better than Wide** (1.5 to 1.9 cm against 1.8 to 2.5 cm for fences 2 to 6 m out), and the ball is the same size at the far corner, about 4 px: the narrower lens gives more pixels per degree but the camera sits further away.
+4. At 7 m the fence spot fails by a hair on ball size (under 4 px at the far corners) and a light stand is given; 8 m passes again. The ball-size limit is being met to the decimal, so treat 7 to 8 m as borderline in either lens.
+
+Still provisional: GoPro's published angles, not a measured lens (TV-CAL-01).

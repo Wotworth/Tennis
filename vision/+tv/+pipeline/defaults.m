@@ -29,6 +29,8 @@ cfg.gate = struct('epipolarPx', 4, ...      % TV-ADJ-02: summed reprojection err
                   'perBall', false, ...     % fit a second ball in view at once apart (tv.recon.ballGroups); off: CI 17 Nov lost more flights with it
                   'playerInsideFrac', 0.6); % TV-ADJ-05: share of a person's time inside
 cfg.adjacentTest = struct('maxFalsePos', 0.005, 'maxFalseNeg', 0.02, 'maxSwaps', 0);   % AC-14 to AC-16
+cfg.lineOpts = [];                  % court-line pixel settings: empty = real footage, scaled to the picture (tv.calib.lineOptsFor)
+cfg.minLineSupport = 0.6;           % alert when a camera's fitted court has paint under less than this share of its lines; RETUNE(real footage)
 cfg.minCrossDeg = 20;               % usable stereo crossing angle; RETUNE(real footage)
 cfg.alerts = struct('ntfyServer', 'https://ntfy.sh');
 cfg.notify = @(title, text) tv.ops.notify(cfg, title, text);

@@ -15,7 +15,7 @@ th = tv.lens.angleAt(cam.lens, hypot(uu(:) - (W + 1) / 2, vv(:) - (H + 1) / 2) /
 f = (tv.lens.radius(cam.lens, th + 1e-4) - tv.lens.radius(cam.lens, th)) / 1e-4 * W / 2;
 dmax = 2 * c.ballRadius * f ./ tin;  dmin = 2 * c.ballRadius * f ./ tout;
 dmax(~in) = 0; dmin(~in) = 0;
-if strcmp(getenv('OVL'), '1'), ov = false(H, W); ov(10:470, 1630:1915) = true; ov(925:1070, 1430:1915) = true; ov = ov(1:2:end, 1:2:end); dmax(ov(:)) = 0; dmin(ov(:)) = 0; end   % SwingVision's boxes
+if ~isempty(getenv('OVL')), B = jsondecode(fileread(getenv('OVL'))).boxes; B = reshape(B, [], 4); ov = false(H, W); for b = 1:size(B, 1), ov(B(b, 2) + 1:B(b, 4), B(b, 1) + 1:B(b, 3)) = true; end, ov = ov(1:2:end, 1:2:end); dmax(ov(:)) = 0; dmin(ov(:)) = 0; end   % OVL: the export's TAG_layout.json (overlay.py prep): SwingVision's boxes as found in this video
 fid = fopen(sprintf('/home/user/private-footage/ml/geom_v%d.f32', v), 'w');
 fwrite(fid, [size(uu,1) size(uu,2)], 'float32'); fwrite(fid, reshape(dmin, size(uu))', 'float32'); fwrite(fid, reshape(dmax, size(uu))', 'float32'); fclose(fid);
 printf('v%d: %.0f%% of the frame; ball diameter %.1f-%.1f px\n', v, 100*mean(in), min(dmin(in & dmin > 0)), max(dmax(in)));

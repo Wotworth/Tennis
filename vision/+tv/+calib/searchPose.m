@@ -27,7 +27,7 @@ function [cam, report] = searchPose(bg, lens, opts)
 if nargin < 3, opts = struct(); end
 d = struct('xStep', 3, 'yStep', 2, 'maxRange', 27, 'heights', [2.5 3.5], ...
            'yawFan', -45:15:45, 'pitchFan', -12:6:12, 'rollFan', 0, 'cap', 12, 'keep', 24, 'nPixels', 250, ...
-           'xGrid', -24:3:24, 'yGrid', -18:2:0, 'supportOk', 0.85, 'supportTie', 0.1, 'hopFrom', 3);
+           'xGrid', -24:3:24, 'yGrid', -18:2:0, 'supportOk', 0.85, 'supportTie', 0.1, 'hopFrom', 3, 'crossings', true);
 % rollFan: a hand-mounted phone is not level (first real footage, 17 Nov); xGrid/yGrid narrow
 % or refine the positions tried (defaults: xStep/yStep over the whole surround)
 fn = fieldnames(d);
@@ -78,10 +78,13 @@ end
 % (tv.calib.courtFromLines, the one-camera routine); it is refined and judged with the rest. On
 % a clay court seen from behind the baseline the grid search above found no start that
 % converged (19 Nov); from beside the court it finds no pattern and adds nothing.
-try
-    refine(tv.calib.courtFromLines(bg, lens, struct('lineOpts', opts.lineOpts)));
-catch err
-    if ~strcmp(err.identifier, 'tv:calib:noCourt'), rethrow(err); end
+% opts.crossings = false leaves it out (to check this routine by itself against that one).
+if opts.crossings
+    try
+        refine(tv.calib.courtFromLines(bg, lens, struct('lineOpts', opts.lineOpts)));
+    catch err
+        if ~strcmp(err.identifier, 'tv:calib:noCourt'), rethrow(err); end
+    end
 end
 % look-alike shifts: a court moved by one of its own line spacings puts most lines on other
 % lines. Seen from the camera that is the camera moved the other way, aim unchanged.

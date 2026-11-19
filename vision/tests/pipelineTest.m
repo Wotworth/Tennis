@@ -11,6 +11,7 @@ T = load(fullfile(gen, 'truth.mat'));
 files = {fullfile(gen, 'card1', 'DCIM', '100GOPRO', 'GX010011.MP4'), ...
          fullfile(gen, 'card2', 'DCIM', '100GOPRO', 'GX010012.MP4')};
 cfg = tv.pipeline.defaults();
+cfg.lineOpts = tv.calib.lineOptsFor('synthetic');     % the generator's clean lines; real footage uses lineOptsFor(width)
 cfg.ballApparentScale = T.sc.ballDrawScale;
 cfg.weather = struct('tempC', T.sc.weather.tempC, 'relHumidity', T.sc.weather.relHumidity, ...
     'pressurePa', T.sc.weather.pressurePa, 'wind10', 2 * T.sc.wind(1:2) + [0.8 -0.5]);  % a forecast, not the truth
