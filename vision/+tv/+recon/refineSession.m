@@ -34,7 +34,8 @@ for round = 1:opts.rounds
         for s = 1:numel(segsByRally{r})
             seg = segsByRally{r}(s);
             a = airAt(air, wind, seg.t0, t0w, opts.windowS);
-            f = tv.recon.fitSegment(seg.obs, cams, rec, sync, a, prior, seg.x);
+            pr = prior;  if isfield(seg, 'anchors') && ~isempty(seg.anchors), pr.anchors = seg.anchors; end   % a one-camera flight keeps its pins
+            f = tv.recon.fitSegment(seg.obs, cams, rec, sync, a, pr, seg.x);
             if f.ok, segsByRally{r}(s) = f; end
         end
     end

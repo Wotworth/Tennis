@@ -51,3 +51,26 @@ assert(max(d(:)) <= 1 && mean(d(:) > 0) < 0.01, sprintf('largest difference %d l
 %% the scale stays within the camera's range
 s = tv.detect.ballScale([1; 5; 40], [3 9; 3 9; 3 9]);
 assert(isequal(s, [3; 5; 9]), mat2str(s'));
+
+%% round 4's model (vision/models/ballnet_v4.json, no colour) matches PyTorch to 1e-6
+net4 = tv.detect.loadBallNet(fullfile(fileparts(here), 'models', 'ballnet_v4.json'));
+C4 = jsondecode(fileread(fullfile(here, 'fixtures', 'ballnet', 'v4_check.json')));
+assert(size(net4.conv(1).W, 3) == 5);
+p = tv.detect.ballNet(net4, permute(uint8(C4.X), [3 4 5 2 1]), C4.M);
+assert(max(abs(p(:) - C4.p(:))) < 1e-6, sprintf('max difference %.3g', max(abs(p(:) - C4.p(:)))));
+
+%% round 4's model calls a moving ball a ball whatever its colour or the light: yellow, white, dark on a pale court, dim
+net4 = tv.detect.loadBallNet(fullfile(fileparts(here), 'models', 'ballnet_v4.json'));
+[xx, yy] = meshgrid(0:47, 0:47);
+cases = {[225 230 90], [120 115 105], 1; [245 245 240], [70 110 160], 1; [60 55 50], [200 195 185], 1; [225 230 90], [120 115 105], 0.4};
+for q = 1:size(cases, 1)
+    X = zeros(48, 48, 3, 3, 'uint8');
+    for k = 1:3
+        img = repmat(reshape(cases{q, 2}, 1, 1, 3), 48, 48);
+        on = hypot(xx - (24 + (k - 2) * 9), yy - 24) <= 3;          % 6 px across, as the cuts are scaled
+        for c = 1:3, ch = img(:, :, c); ch(on) = cases{q, 1}(c); img(:, :, c) = ch; end
+        X(:, :, :, k) = uint8(cases{q, 3} * img);
+    end
+    p = tv.detect.ballNet(net4, X, [0.8 1.4]);
+    assert(p > 0.9, sprintf('case %d: moving ball scored %.2f', q, p));
+end

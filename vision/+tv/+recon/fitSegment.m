@@ -13,6 +13,12 @@ function seg = fitSegment(obs, cams, rec, sync, air, prior, x0)
 %   error on a 0.19 s flight after a bounce, 16 Nov).
 %   obs rows: [cam frame u v]. x0: starting values (tv.recon.initSegment).
 %   Returns seg: x, t0, rmsPx, n (detections per camera), obs, t, weights.
+%   One camera only (Chris, 18 Nov): when the other camera is blocked for a whole flight, one
+%   camera's sight lines and the physics still give the path, but its distance from the camera
+%   only weakly. prior.anchors pins it: rows [t x y z sd], points the flight must pass at
+%   those times (where the neighbouring flight ended or began; on the ground at a bounce),
+%   each to within sd metres. Without x0 the start then comes from tv.recon.initOneCam.
+%   seg.oneCam says only one camera saw it; seg.anchors keeps the pins for later refits.
 %   RETUNE(real footage): the Huber limit (2 px), the number of passes, and the
 %   lift priors (0.25; 0.05 below 0.3 s), the 6 px outlier cut (at most 10% of a flight).
 if nargin < 6 || isempty(prior), prior = struct('CD', 0.507, 'CDsd', 0.024); end
@@ -21,16 +27,25 @@ if ~isfield(prior, 'shortS'), prior.shortS = 0.3; end
 if ~isfield(prior, 'shortCLsd'), prior.shortCLsd = 0.05; end
 if ~isfield(prior, 'rejectPx'), prior.rejectPx = 6; end
 if ~isfield(prior, 'rejectMaxFrac'), prior.rejectMaxFrac = 0.1; end
+if ~isfield(prior, 'anchors'), prior.anchors = zeros(0, 5); end
+A = prior.anchors;
+n12 = [nnz(obs(:, 1) == 1), nnz(obs(:, 1) == 2)];
+oneCam = min(n12) < 3;                              % too few from one camera to triangulate with
+[~, kMain] = max(n12);  iMain = obs(:, 1) == kMain;
 t = zeros(size(obs, 1), 1);
 for k = 1:2
     i = obs(:, 1) == k;
     if any(i), t(i) = tv.recon.detTimes(k, obs(i, 2), obs(i, 4), rec, sync); end
 end
-if nargin < 7 || isempty(x0), [x0, ok] = tv.recon.initSegment(obs, t, cams, prior.CD); else, ok = true; end
-seg = struct('x', [], 't0', min(t) - 0.001, 'rmsPx', Inf, 'n', [nnz(obs(:,1) == 1), nnz(obs(:,1) == 2)], ...
-             'obs', obs, 't', t, 'w', [], 'ok', false);
+t0 = min([t; A(:, 1)]) - 0.001;                      % the flight starts no later than its first pin
+if nargin < 7 || isempty(x0)
+    if oneCam, [x0, ok] = tv.recon.initOneCam(obs(iMain, :), t(iMain), cams, A, air, prior.CD);
+    else, [x0, ok] = tv.recon.initSegment(obs, t, cams, prior.CD); end
+else, ok = true;
+end
+seg = struct('x', [], 't0', t0, 'rmsPx', Inf, 'n', [nnz(obs(:,1) == 1), nnz(obs(:,1) == 2)], ...
+             'obs', obs, 't', t, 'w', [], 'ok', false, 'oneCam', oneCam, 'anchors', A, 'res', []);
 if ~ok, return; end
-t0 = seg.t0;
 clSd = prior.CLsd;  if max(t) - min(t) < prior.shortS, clSd = prior.shortCLsd; end
 w = ones(size(obs, 1), 1);
 o = optimset('Display', 'off', 'MaxIter', 60, 'TolFun', 1e-9, 'TolX', 1e-9);
@@ -40,7 +55,8 @@ ub = [ Inf  Inf  Inf  Inf  Inf  Inf  0.6  0.6 0.8];
 x = min(max(x0(:)', lb), ub);
 if ~all(isfinite(residuals(x, w)))
     % a start from a neighbouring flight can be far off: start afresh
-    [x, ok] = tv.recon.initSegment(obs, t, cams, prior.CD);
+    if oneCam, [x, ok] = tv.recon.initOneCam(obs(iMain, :), t(iMain), cams, A, air, prior.CD);
+    else, [x, ok] = tv.recon.initSegment(obs, t, cams, prior.CD); end
     if ~ok || ~all(isfinite(residuals(x, w))), return; end
 end
 try
@@ -71,16 +87,19 @@ seg.rmsPx = sqrt(mean(r(w > 0).^2));             % every detection kept (Huber-w
 seg.res = r;
 
     function res = residuals(x, w)
-        [du, dv] = diffs(x);
+        [du, dv, da] = diffs(x);
         sw = sqrt(w);
-        res = [du .* sw; dv .* sw; (x(9) - prior.CD) / prior.CDsd; x(7) / clSd; x(8) / clSd];
+        res = [du .* sw; dv .* sw; (x(9) - prior.CD) / prior.CDsd; x(7) / clSd; x(8) / clSd; da(:)];
     end
     function r = pixelErrors(x)
         [du, dv] = diffs(x);
         r = hypot(du, dv);
     end
-    function [du, dv] = diffs(x)
-        P = tv.recon.segmentModel(x, t0, t, air);
+    function [du, dv, da] = diffs(x)
+        P = tv.recon.segmentModel(x, t0, [t; A(:, 1)], air);
+        % pins, weighted so that sd metres off costs as much as one pixel
+        da = (P(numel(t) + 1:end, :) - A(:, 2:4)) ./ A(:, 5);
+        P = P(1:numel(t), :);
         du = zeros(size(t));  dv = du;
         for kk = 1:2
             i = obs(:, 1) == kk;

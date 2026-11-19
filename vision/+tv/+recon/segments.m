@@ -7,11 +7,19 @@ function [segs, dropped] = segments(P, cams, rec, sync, air, prior, opts)
 %   merged back whenever one flight explains both (a gap was not an event).
 %   Returns segments sorted in time (struct array from tv.recon.fitSegment), and the
 %   parts dropped as no physical flight ("implausible flight", TV-ADJ-04, logged).
+%   Stretches only one camera saw (Chris, 18 Nov; opts.oneCam): the steps above need both
+%   cameras, so such a stretch is left out by them. Afterwards each one is joined to the
+%   flight before or after it when that flight explains it; otherwise, with opts.oneMin
+%   detections or more, it is fitted as a flight of its own from the one camera's sight
+%   lines and the physics, pinned to where the neighbouring flights end or begin (on the
+%   ground at a bounce). Such a flight has oneCam = true: its place along the sight lines
+%   hangs on the pins, so treat its speed and bounce with more caution.
 %   RETUNE(real footage): opts.clusterMs, opts.edgeMs, opts.minPerCam, the
-%   merge test, its 3 px cap and the 5 px junk limit.
+%   merge test, its 3 px cap and the 5 px junk limit; opts.oneMin, opts.oneJoinS (the
+%   longest gap to a neighbour that still pins, 0.08 s) and opts.oneRms (1.5 px).
 if nargin < 7, opts = struct(); end
 d = struct('clusterMs', 25, 'edgeMs', 4, 'minPerCam', 4, 'mergeRms', 1.5, 'splitRms', 0.6, 'splitGain', 0.6, ...
-           'mergeCapPx', 3, 'junkPx', 5);
+           'mergeCapPx', 3, 'junkPx', 5, 'oneCam', true, 'oneMin', 6, 'oneJoinS', 0.08, 'oneRms', 1.5);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 segs = [];  dropped = [];
@@ -49,6 +57,106 @@ segs = mergeAll(segs, cuts, cams, rec, sync, air, prior, opts);
 [segs, cuts2] = refineSplits(segs, cams, rec, sync, air, prior, opts);
 [segs, dj] = dropJunk(segs, cams, rec, sync, air, prior, opts);  dropped = [dropped; dj]; %#ok<AGROW>
 segs = mergeAll(segs, [cuts, cuts2], cams, rec, sync, air, prior, opts);
+if opts.oneCam, segs = oneCamera(segs, dropped, P, cams, rec, sync, air, prior, opts); end
+end
+
+function segs = oneCamera(segs, dropped, P, cams, rec, sync, air, prior, opts)
+% Detections no flight uses, in stretches where the other camera saw (almost) nothing.
+used = zeros(0, 2);
+for g = [segs(:); dropped(:)]', used = [used; g.obs(:, 1:2)]; end %#ok<AGROW>
+runs = struct('obs', {}, 't', {});
+for p = P(:)'
+    free = ~ismember(p.obs(:, 1:2), used, 'rows');
+    e = diff([0; free(:); 0]);  a = find(e == 1);  b = find(e == -1) - 1;
+    for i = 1:numel(a)
+        idx = a(i):b(i);
+        if numel(idx) < 2, continue; end
+        tr = [min(p.t(idx)), max(p.t(idx))];
+        obsO = zeros(0, 4);  tO = zeros(0, 1);
+        for q = P(:)'
+            if q.cam == p.cam, continue; end
+            in = q.t >= tr(1) & q.t <= tr(2);
+            obsO = [obsO; q.obs(in, :)];  tO = [tO; q.t(in)]; %#ok<AGROW>
+        end
+        if numel(tO) >= opts.minPerCam, continue; end       % both cameras saw it: the usual steps' business
+        keep = ~ismember(obsO(:, 1:2), used, 'rows');
+        runs(end+1) = struct('obs', [p.obs(idx, :); obsO(keep, :)], 't', [p.t(idx); tO(keep)]); %#ok<AGROW>
+    end
+end
+if isempty(runs), return; end
+[~, o] = sort(arrayfun(@(r) min(r.t), runs));
+c = tv.court.constants();
+for r = runs(o)
+    nr = size(r.obs, 1);  ta = min(r.t);  tb = max(r.t);
+    t1 = arrayfun(@(g) min(g.t), segs);  t2 = arrayfun(@(g) max(g.t), segs);
+    iIn = find(t1 < ta & t2 > tb, 1);
+    iPrev = find(t2 <= ta, 1, 'last');  iNext = find(t1 >= tb, 1);
+    % (1) part of a flight already found: the flight it lies inside, or the one before or after
+    joined = false;
+    for j = [iIn, iPrev, iNext]
+        g = segs(j);
+        m = tv.recon.fitSegment([g.obs; r.obs], cams, rec, sync, air, withPins(prior, g), g.x);
+        if m.ok && m.rmsPx < min(max(opts.mergeRms, 1.3 * g.rmsPx), opts.mergeCapPx) && ...
+                sqrt(mean(m.res(end - nr + 1:end).^2)) < opts.mergeCapPx
+            segs(j) = m;  joined = true;  break
+        end
+    end
+    if joined || nr < opts.oneMin || ~isempty(iIn), continue; end
+    % (2) a flight of its own, pinned to its neighbours
+    A = zeros(0, 5);
+    if ~isempty(iPrev) && ta - t2(iPrev) <= opts.oneJoinS, A = [A; pinAfter(segs(iPrev), ta, air, c)]; end %#ok<AGROW>
+    if ~isempty(iNext) && t1(iNext) - tb <= opts.oneJoinS, A = [A; pinBefore(segs(iNext), tb, air, c)]; end %#ok<AGROW>
+    if isempty(A), continue; end
+    pr = prior;  pr.anchors = A;
+    f = tv.recon.fitSegment(r.obs, cams, rec, sync, air, pr);
+    if ~f.ok || f.rmsPx > opts.oneRms, continue; end
+    Pf = tv.recon.segmentModel(f.x, f.t0, [linspace(ta, tb, 20)'; A(:, 1)], air);
+    off = sqrt(sum((Pf(21:end, :) - A(:, 2:4)).^2, 2)) ./ A(:, 5);
+    if any(off > 3) || min(Pf(1:20, 3)) < -0.05 || max(Pf(1:20, 3)) > 15 || any(abs(Pf(1:20, 1)) > 30) || any(abs(Pf(1:20, 2)) > 20)
+        continue                                    % misses a pin, or no place a ball can be
+    end
+    segs = [segs; f]; %#ok<AGROW>
+    [~, s] = sort(arrayfun(@(g) min(g.t), segs));  segs = segs(s);
+end
+end
+
+function pr = withPins(prior, g)
+pr = prior;
+if isfield(g, 'anchors') && ~isempty(g.anchors), pr.anchors = g.anchors; end
+end
+
+function a = pinAfter(g, ta, air, c)
+% Where flight g, run on past its last detection, hands over to a flight starting at ta:
+% on the ground if it comes down before then (a bounce), else midway (a hit), known only
+% as well as the gap is short.
+te = max(g.t);
+tt = (te - 0.01:0.0005:max(ta, te) + 0.0005)';
+[Pg, Vg] = tv.recon.segmentModel(g.x, g.t0, tt, air);
+i = find(Pg(:, 3) < c.ballRadius, 1);
+if ~isempty(i) && i > 1
+    f = (Pg(i-1, 3) - c.ballRadius) / (Pg(i-1, 3) - Pg(i, 3));
+    a = [tt(i-1) + f * 0.0005, Pg(i-1, 1:2) + f * (Pg(i, 1:2) - Pg(i-1, 1:2)), c.ballRadius, 0.03];
+else
+    [~, k] = min(abs(tt - (te + ta) / 2));
+    a = [tt(k), Pg(k, :), 0.03 + 0.5 * max(ta - te, 0) * norm(Vg(k, :))];
+end
+end
+
+function a = pinBefore(h, tb, air, c)
+% The same from the other side: flight h run back before its first detection to tb.
+[p0, v0] = tv.recon.segmentModel(h.x, h.t0, h.t0, air);
+ts = min(h.t);
+back = @(t) p0 + (t - h.t0) .* v0 + 0.5 * (t - h.t0).^2 .* [0 0 -air.g];
+tt = (ts + 0.01:-0.0005:min(tb, ts) - 0.0005)';
+Ph = back(tt);
+i = find(Ph(:, 3) < c.ballRadius, 1);
+if ~isempty(i) && i > 1 && v0(3) > 0
+    f = (Ph(i-1, 3) - c.ballRadius) / (Ph(i-1, 3) - Ph(i, 3));
+    a = [tt(i-1) - f * 0.0005, Ph(i-1, 1:2) + f * (Ph(i, 1:2) - Ph(i-1, 1:2)), c.ballRadius, 0.03];
+else
+    tm = (ts + tb) / 2;
+    a = [tm, back(tm), 0.03 + 0.5 * max(ts - tb, 0) * norm(v0)];
+end
 end
 
 function [segs, dropped] = dropJunk(segs, cams, rec, sync, air, prior, opts)

@@ -7,6 +7,11 @@ function O = observe(S, cams, opts)
 %   the camera; plus detector noise (opts.sigmaPx), random misses
 %   (opts.dropout) and the ball hidden around each contact by the player
 %   (opts.hideMs either side, in one camera or the other).
+%   One camera blocked (Chris, 18 Nov): for a share opts.blockShare of the shots, one camera
+%   (picked at random) reports nothing for part of the shot. opts.blockWhere: 'part' (a
+%   stretch opts.blockFrac of the flight from the hit to the bounce, placed at random),
+%   'beforeBounce' (that whole flight), 'afterBounce' (the bounce to the next hit) or
+%   'whole' (both). O.blocks rows: [shot number in S.shots, camera, from, to] (truth times).
 %   O.tracks{r, k}  struct (frames 0-based, uv) per rally and camera
 %   O.rec(k)        pts, height, width, nFrames (file times from each camera's first frame)
 %   O.sync0         the coarse timing the pipeline starts from (start times to the
@@ -15,11 +20,27 @@ function O = observe(S, cams, opts)
 %                   by calibration-sized errors (opts.posErrM, opts.rotErrDeg)
 if nargin < 3, opts = struct(); end
 d = struct('sigmaPx', 0.5, 'dropout', 0.05, 'hideMs', 25, 'posErrM', 0.01, 'rotErrDeg', 0.04, ...
-           'readoutPrior', 0.008, 'shutter', 1 / 1920);
+           'readoutPrior', 0.008, 'shutter', 1 / 1920, 'blockShare', 0, 'blockWhere', 'part', 'blockFrac', 0.5, 'blockSeed', 1);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 tHits = [];  if ~isempty(S.shots), tHits = [S.shots.tHit]; end
 O.tracks = cell(size(S.windows, 1), 2);
+% blocked stretches, chosen without touching the random-number state (so the noise and the
+% misses are the same with and without them)
+O.blocks = zeros(0, 4);
+for j = 1:numel(S.shots) * (opts.blockShare > 0)
+    s = S.shots(j);
+    u = mod(sin((j + 31 * opts.blockSeed) * [12.9898 78.233 39.3468]) * 43758.5453, 1);     % three numbers in 0..1 per shot
+    if u(1) >= opts.blockShare || isnan(s.tBounce), continue; end
+    tNext = s.tBounce + s.toNextHit;  if isnan(tNext), tNext = s.tBounce + 0.8; end
+    switch opts.blockWhere
+        case 'beforeBounce', w = [s.tHit, s.tBounce];
+        case 'afterBounce',  w = [s.tBounce, tNext];
+        case 'whole',        w = [s.tHit, tNext];
+        otherwise,           w = s.tHit + (s.tBounce - s.tHit) * (u(3) * (1 - opts.blockFrac) + [0, opts.blockFrac]);
+    end
+    O.blocks(end+1, :) = [j, 1 + (u(2) < 0.5), w]; %#ok<AGROW>
+end
 for k = 1:2
     cam = cams(k);  H = cam.height;
     tEndAll = S.windows(end, 2) + 5;
@@ -43,6 +64,9 @@ for k = 1:2
         keep = all(isfinite(uv), 2) & rand(numel(n), 1) > opts.dropout;
         for j = find(hideCam == k)
             keep = keep & abs(Te - tHits(j)) > opts.hideMs / 1000;
+        end
+        for b = O.blocks(O.blocks(:, 2) == k, :)'
+            keep = keep & ~(Te >= b(3) & Te <= b(4));
         end
         uv = uv + opts.sigmaPx * randn(size(uv));
         O.tracks{r, k} = struct('frames', n(keep) - 1, 'uv', uv(keep, :));

@@ -121,6 +121,36 @@ jobs:
             echo "=== BEGIN-B64 $f"; base64 -w 0 "$f"; echo; echo "=== END-B64"
           done
 
+  # Chris, 18 Nov: the flight fit with one camera blind for part of a flight (tools/blockStudy.m).
+  block-study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v2
+        with:
+          release: latest
+          products: >
+            Image_Processing_Toolbox
+            Optimization_Toolbox
+            Computer_Vision_Toolbox
+            Statistics_and_Machine_Learning_Toolbox
+            Parallel_Computing_Toolbox
+
+      - name: Block study (one camera blind, 110 shots, 9 runs)
+        uses: matlab-actions/run-command@v2
+        with:
+          command: addpath('vision', 'vision/tools'); blockStudy('out/blockstudy');
+
+      - name: Print results into the log
+        if: always()
+        run: |
+          for f in $(find out -type f -name 'blockstudy*' 2>/dev/null); do
+            echo "=== BEGIN-B64 $f"; base64 -w 0 "$f"; echo; echo "=== END-B64"
+          done
+
   # Chris, 16 Nov: one error source at a time (tools/errorBudget.m), with its plots.
   error-budget:
     runs-on: ubuntu-latest
