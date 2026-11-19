@@ -10,6 +10,12 @@ on:
       - 'docs/preview/data/**'
       - '.github/workflows/vision.yml'
   workflow_dispatch:
+    inputs:
+      only:
+        description: 'Run one job only (a manual run): all, test, fit-study, block-study or error-budget'
+        type: choice
+        default: all
+        options: [all, test, fit-study, block-study, error-budget]
 
 concurrency:
   group: vision-${{ github.ref }}
@@ -17,6 +23,7 @@ concurrency:
 
 jobs:
   test:
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all' || inputs.only == 'test'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -84,6 +91,7 @@ jobs:
   # Chris, 16 Nov: the flight fit against truth it was not built from, over a
   # 90-minute session of about 400 shots (tools/fitStudy.m). Runs beside the tests.
   fit-study:
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all' || inputs.only == 'fit-study'
     runs-on: ubuntu-latest
     timeout-minutes: 300
     steps:
@@ -123,6 +131,7 @@ jobs:
 
   # Chris, 18 Nov: the flight fit with one camera blind for part of a flight (tools/blockStudy.m).
   block-study:
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all' || inputs.only == 'block-study'
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -139,7 +148,7 @@ jobs:
             Statistics_and_Machine_Learning_Toolbox
             Parallel_Computing_Toolbox
 
-      - name: Block study (one camera blind, 110 shots, 9 runs)
+      - name: Block study (one camera blind, about 80 shots, 7 runs)
         uses: matlab-actions/run-command@v2
         with:
           command: addpath('vision', 'vision/tools'); blockStudy('out/blockstudy');
@@ -153,6 +162,7 @@ jobs:
 
   # Chris, 16 Nov: one error source at a time (tools/errorBudget.m), with its plots.
   error-budget:
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all' || inputs.only == 'error-budget'
     runs-on: ubuntu-latest
     timeout-minutes: 300
     steps:

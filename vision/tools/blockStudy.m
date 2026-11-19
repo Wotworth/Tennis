@@ -3,14 +3,14 @@ function R = blockStudy(outDir, opts)
 %   The same synthetic session as tools/fitStudy.m, shorter (tv.synth.studySession: truth the
 %   fitter does not share; tv.synth.observe: 4K cameras, 0.5 px noise, misses, clock and pose
 %   errors). It is reconstructed once with both cameras throughout, then again with one
-%   camera blind, for half the shots, during: a quarter, half or three quarters of the flight
-%   to the bounce; that whole flight; the bounce to the next hit; or all of it. The noise is
+%   camera blind, for half the shots, during: half of the flight to the bounce; that whole
+%   flight; the bounce to the next hit; or all of it. The noise is
 %   the same in every run, so each blocked shot is compared with itself unblocked. The
 %   whole-flight cases are also run without the one-camera step (segments' opts.oneCam).
 %   Writes blockstudy.md. opts: seed, minutes, targetShots, share.
 if nargin < 1, outDir = fullfile(pwd, 'out', 'blockstudy'); end
 if nargin < 2, opts = struct(); end
-d = struct('seed', 11, 'minutes', 25, 'targetShots', 110, 'share', 0.5);
+d = struct('seed', 11, 'minutes', 18, 'targetShots', 80, 'share', 0.5);     % 7 runs of about 15 minutes each in CI
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 if ~exist(outDir, 'dir'), mkdir(outDir); end
@@ -20,9 +20,7 @@ camsTrue = tv.synth.cameras(sc);
 S = tv.synth.studySession(opts.seed, struct('minutes', opts.minutes, 'targetShots', opts.targetShots));
 cfg = tv.pipeline.defaults();
 cases = {'both cameras throughout', '', 0, true
-         'a quarter of the flight to the bounce', 'part', 0.25, true
          'half of the flight to the bounce', 'part', 0.5, true
-         'three quarters of the flight to the bounce', 'part', 0.75, true
          'the whole flight to the bounce', 'beforeBounce', 1, true
          'the bounce to the next hit', 'afterBounce', 1, true
          'the hit to the next hit', 'whole', 1, true
