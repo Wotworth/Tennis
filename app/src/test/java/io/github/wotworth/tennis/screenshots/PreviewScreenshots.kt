@@ -62,6 +62,12 @@ class PreviewScreenshots {
     @Test fun p03CourtServes() { VisionDefaults.courtType = "serve"; VisionDefaults.courtColour = "speed"; screen("03c-court-map-serves-speed", Screen.Vision(id, 1), identified()) }
     @Test fun p04ShotCard() { val a = identified(); val s = a.vision.session(id)!!.shots.first { it.hitter == "Player A" && !it.isServe && it.bounce != null }
         screen("04-shot-card", Screen.VisionShot(id, s.rally, s.index), a) }
+    // Chris, 19 Nov: the side view is the whole court in true proportion; a tap stretches the heights three times
+    @Test fun p04ShotCardServe() { VisionDefaults.sideStretched = false; screen("04b-shot-card-serve-true-proportion", Screen.VisionShot(id, 29, 1), identified()) }
+    @Test fun p04ShotCardServeStretched() {
+        VisionDefaults.sideStretched = true
+        try { screen("04c-shot-card-serve-heights-stretched", Screen.VisionShot(id, 29, 1), identified()) } finally { VisionDefaults.sideStretched = false }
+    }
     @Test fun p05Rallies() = screen("05-3d-rallies", Screen.Vision(id, 2), identified())
     @Test fun p06Replay() = screen("06-3d-rally-replay", Screen.VisionRally(id, 1), identified())
     @Test fun p07Health() = screen("07-health", Screen.Vision(id, 3), identified())

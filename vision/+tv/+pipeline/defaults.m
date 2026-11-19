@@ -9,6 +9,10 @@ cfg.shutter = 1 / 1920;
 cfg.readoutPrior = 0.008;           % s; RETUNE(real footage): measured in TV-PH-2 (spec)
 cfg.ballApparentScale = 1;          % synthetic footage draws the ball larger
 cfg.chunk = 240;                    % frames decoded at once
+cfg.detector = 'learned';           % TV-DET-04: the learned ball detector ('classical': the first, colour-based one)
+cfg.ballNetFile = '';               % its classifier's weights; empty = round 5 (tv.detect.ballModel)
+cfg.ballCut = 0.05;                 % spots the classifier scores under this are not tracked
+cfg.chainOpts = struct();           % tv.track.chains settings (its own defaults when empty)
 cfg.playerHz = 10;                  % TV-PLY-01: 10 fps between rallies (30 inside: RETUNE)
 cfg.weather = struct('tempC', 15, 'relHumidity', 0.6, 'pressurePa', 101325, 'wind10', [0 0]);
 cfg.indoor = false;

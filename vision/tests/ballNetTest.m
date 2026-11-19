@@ -148,10 +148,10 @@ for q = 1:numel(courts)
     end
 end
 
-%% tv.detect.ballModel: round 5 outdoors, round 4 on a court marked indoor or when set by hand; the files exist
+%% tv.detect.ballModel: round 5 always, another model only when set by hand; the files exist
 m = tv.detect.ballModel();
 assert(~isempty(strfind(m.net, 'ballnet_v5.json')) && exist(m.net, 'file') == 2 && exist(m.pre, 'file') == 2);
-m = tv.detect.ballModel(true);
-assert(~isempty(strfind(m.net, 'ballnet_v4.json')) && exist(m.net, 'file') == 2);
-m = tv.detect.ballModel(false, 'somewhere/else.json');
-assert(strcmp(m.net, 'somewhere/else.json'));
+m = tv.detect.ballModel('');
+assert(~isempty(strfind(m.net, 'ballnet_v5.json')));
+m = tv.detect.ballModel('somewhere/else.json');
+assert(strcmp(m.net, 'somewhere/else.json') && exist(m.pre, 'file') == 2);

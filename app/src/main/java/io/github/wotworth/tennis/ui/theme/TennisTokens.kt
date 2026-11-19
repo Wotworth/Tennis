@@ -208,7 +208,14 @@ object TennisTokens {
         var spotTapRadius by mutableFloatStateOf(14f)        // zpx: how close a tap must be
         var speedLowMph by mutableFloatStateOf(30f)          // bottom of the colour scale
         var speedHighMph by mutableFloatStateOf(90f)         // top of the colour scale
-        var sideViewHeight by mutableFloatStateOf(120f)      // zpx
+        // Chris, 19 Nov: the shot card's side view is the whole court in true proportion; a tap stretches the heights
+        var sideViewMarginM by mutableFloatStateOf(3f)       // metres shown behind each baseline
+        var sideViewMinTopM by mutableFloatStateOf(3.2f)     // metres of height the picture shows at least (just over 10 ft)
+        var sideViewStretch by mutableFloatStateOf(3f)       // heights are drawn this many times taller after a tap
+        var sideViewTickFt by mutableFloatStateOf(5f)        // ft between the height marks shown when stretched
+        var sideViewTick by mutableFloatStateOf(4f)          // zpx: half the length of a baseline or service-line mark
+        var sideViewPad by mutableFloatStateOf(4f)           // zpx around the drawing and above the labels
+        var sideViewMinAlong by mutableFloatStateOf(0.5f)    // a flight nearly across the court is drawn no flatter than this share
         var view3dHeight by mutableFloatStateOf(230f)        // zpx
         var view3dDistanceM by mutableFloatStateOf(34f)      // orbit radius
         var view3dStartAzimuthDeg by mutableFloatStateOf(-60f)

@@ -1,4 +1,4 @@
-function [C, tau] = motionProposals(prev, cur, nxt, sizeMap, opts)
+function [C, tau, prevA, nxtA] = motionProposals(prev, cur, nxt, sizeMap, opts)
 %MOTIONPROPOSALS  Small things that move, with no colour test (TV-DET-04 front end, 18 Nov).
 %   prev, cur, nxt: frames t-K, t, t+K (H-by-W-by-3 uint8). The neighbours are lined up with t
 %   (whole-pixel shift, tv.calib.steady). A pixel moves when it differs from both neighbours even
@@ -10,14 +10,18 @@ function [C, tau] = motionProposals(prev, cur, nxt, sizeMap, opts)
 %   when their size fits a ball there (sizeMap from tv.detect.ballSizeMap): no wider than about
 %   two diameters, no longer than nine (motion blur).
 %   C: rows [x y area length width strength], x and y 1-based pixels. tau: the threshold used.
+%   prevA, nxtA: the two neighbours as lined up with t here (uint8), for the classifier's cuts
+%   (tv.detect.ballCrops), so they are not lined up twice.
 %   No value here depends on the court, the light or the ball's colour.
 if nargin < 5, opts = struct(); end
 d = struct('R', 2, 'nsig', 8, 'floor', 18, 'floorRel', 0.05);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 c = int16(cur);
-[a, da] = tv.calib.steady(prev, double(cur));  a = int16(a);
-[b, db] = tv.calib.steady(nxt, double(cur));  b = int16(b);
+[a, da] = tv.calib.steady(prev, double(cur));
+[b, db] = tv.calib.steady(nxt, double(cur));
+if nargout > 2, prevA = uint8(a);  nxtA = uint8(b); end
+a = int16(a);  b = int16(b);
 plain = single(min(sum(abs(c - a), 3), sum(abs(c - b), 3)));
 % the strip a shift fills from the frame's edge is not motion
 ey = max(abs([da(2) db(2)])) + opts.R;  ex = max(abs([da(1) db(1)])) + opts.R;

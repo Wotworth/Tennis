@@ -416,6 +416,9 @@ for s in shots:
             # baseline becomes 25, 33 becomes 21 (still inside the service box)
             d_ft = 25.0 if s['depth'] * FT < 31 else 21.0
             s['depth'] = m_from_ft(d_ft)
+        if s['depth'] is not None:
+            # the bounce is where the depth says (the loop above moved some depths by tenths of a foot
+            # to keep an average odd, without moving the bounce: up to 1.4 ft apart on the court map)
             s['bounce'][0] = round((-1 if p0[0] > 0 else 1) * (HALF_L - s['depth']), 3)
         pb = [s['bounce'][0], s['bounce'][1], R_BALL]
         L = math.hypot(pb[0] - p0[0], pb[1] - p0[1])

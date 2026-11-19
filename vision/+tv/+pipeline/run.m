@@ -52,7 +52,7 @@ R = tv.pipeline.stage(outDir, 'rallies', k(), @() findRallies(rec));
 
 % --- detection and 2D tracks -----------------------------------------------------------------
 guard();
-D = tv.pipeline.stage(outDir, 'detect', k(R.windows, cfg.ballApparentScale), ...
+D = tv.pipeline.stage(outDir, 'detect', k(R.windows, cfg.ballApparentScale, cfg.detector, cfg.ballNetFile, cfg.ballCut, cfg.chainOpts), ...
     @() detectAll(rec, C, R.windows, sync, cfg));
 
 % --- sync ---------------------------------------------------------------------------------------
@@ -133,6 +133,9 @@ function R = findRallies(rec)
 end
 
 function D = detectAll(rec, C, windows, sync, cfg)
+% cfg.detector 'learned' (the default since 19 Nov): the learned detector, as in the one-camera
+% path. 'classical': the first, colour-based detector, kept to compare with.
+if strcmp(cfg.detector, 'learned'), D = detectLearned(rec, C, windows, sync, cfg); return; end
 D.tracks = cell(size(windows, 1), 2);
 c = tv.court.constants();
 for k = 1:2
@@ -158,6 +161,32 @@ for k = 1:2
             cand = [cand; Ck(Ck(:, 1) >= a & Ck(:, 1) < a + cfg.chunk, :)]; %#ok<AGROW>
         end
         D.tracks{r, k} = tv.track.ball2d(cand);
+        D.candidates{r, k} = cand;
+    end
+end
+end
+
+function D = detectLearned(rec, C, windows, sync, cfg)
+% TV-DET-04 in the two-camera pipeline (Chris, 19 Nov). Per camera and rally window: spots that
+% move, scored by the classifier (tv.detect.learnedCandidates); then every path a ball could have
+% taken through the scored spots becomes a track (tv.track.chains). Unlike the one-camera path
+% there is no "one ball in play" rule here: a neighbour's ball or a stray keeps its own track,
+% and the two cameras together decide which is Chris's (tv.recon.gateTracks, TV-ADJ).
+D.tracks = cell(size(windows, 1), 2);  D.candidates = cell(size(windows, 1), 2);
+m = tv.detect.ballModel(cfg.ballNetFile);
+net = tv.detect.loadBallNet(m.net);  pre = tv.detect.loadBallNet(m.pre);
+for k = 1:2
+    S = tv.detect.ballSizeMap(C.cams(k), tv.court.interest(cfg.court));
+    S.dmin = S.dmin * cfg.ballApparentScale;  S.dmax = S.dmax * cfg.ballApparentScale;
+    co = cfg.chainOpts;  if ~isfield(co, 'fps'), co.fps = rec(k).fps; end
+    for r = 1:size(windows, 1)
+        f0 = tv.media.frameAt(k, windows(r, 1), rec, sync);
+        f1 = tv.media.frameAt(k, windows(r, 2), rec, sync);
+        if isfield(cfg, 'thermalGuard'), cfg.thermalGuard(); end
+        rows = tv.detect.learnedCandidates(rec(k), C.bg{k}, f0, f1, S, net, pre);
+        cand = rows(rows(:, 4) > cfg.ballCut, 1:6);      % [frame u v score dmin dmax]
+        T = tv.track.chains(cand, co);
+        D.tracks{r, k} = rmfield(T, 'score');             % as tv.track.ball2d's tracks
         D.candidates{r, k} = cand;
     end
 end
