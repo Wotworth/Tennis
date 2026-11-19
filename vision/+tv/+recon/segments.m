@@ -9,17 +9,18 @@ function [segs, dropped] = segments(P, cams, rec, sync, air, prior, opts)
 %   parts dropped as no physical flight ("implausible flight", TV-ADJ-04, logged).
 %   Stretches only one camera saw (Chris, 18 Nov; opts.oneCam): the steps above need both
 %   cameras, so such a stretch is left out by them. Afterwards each one is joined to the
-%   flight before or after it when that flight explains it; otherwise, with opts.oneMin
-%   detections or more, it is fitted as a flight of its own from the one camera's sight
+%   flight before or after it when that flight explains it; otherwise, with enough
+%   detections, it is fitted as a flight of its own from the one camera's sight
 %   lines and the physics, pinned to where the neighbouring flights end or begin (on the
 %   ground at a bounce). Such a flight has oneCam = true: its place along the sight lines
 %   hangs on the pins, so treat its speed and bounce with more caution.
 %   RETUNE(real footage): opts.clusterMs, opts.edgeMs, opts.minPerCam, the
-%   merge test, its 3 px cap and the 5 px junk limit; opts.oneMin, opts.oneJoinS (the
-%   longest gap to a neighbour that still pins, 0.08 s) and opts.oneRms (1.5 px).
+%   merge test, its 3 px cap and the 5 px junk limit; opts.oneMin (6 detections, pinned at
+%   both ends), opts.oneMinLoose (15, pinned at one end), opts.oneJoinS (the longest gap to a
+%   neighbour that still pins, 0.08 s) and opts.oneRms (1.5 px).
 if nargin < 7, opts = struct(); end
 d = struct('clusterMs', 25, 'edgeMs', 4, 'minPerCam', 4, 'mergeRms', 1.5, 'splitRms', 0.6, 'splitGain', 0.6, ...
-           'mergeCapPx', 3, 'junkPx', 5, 'oneCam', true, 'oneMin', 6, 'oneJoinS', 0.08, 'oneRms', 1.5);
+           'mergeCapPx', 3, 'junkPx', 5, 'oneCam', true, 'oneMin', 6, 'oneMinLoose', 15, 'oneJoinS', 0.08, 'oneRms', 1.5);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 segs = [];  dropped = [];
@@ -106,7 +107,10 @@ for r = runs(o)
     A = zeros(0, 5);
     if ~isempty(iPrev) && ta - t2(iPrev) <= opts.oneJoinS, A = [A; pinAfter(segs(iPrev), ta, air, c)]; end %#ok<AGROW>
     if ~isempty(iNext) && t1(iNext) - tb <= opts.oneJoinS, A = [A; pinBefore(segs(iNext), tb, air, c)]; end %#ok<AGROW>
-    if isempty(A), continue; end
+    % pinned at both ends, or long enough to stand on one pin: a stub of a few detections hanging
+    % off a rally's end (the ball running on into the back fence, seen by one camera) is no flight
+    % to build an event on (it gave pipelineTest a phantom hit, 19 Nov)
+    if isempty(A) || (size(A, 1) < 2 && nr < opts.oneMinLoose), continue; end
     pr = prior;  pr.anchors = A;
     f = tv.recon.fitSegment(r.obs, cams, rec, sync, air, pr);
     if ~f.ok || f.rmsPx > opts.oneRms, continue; end
