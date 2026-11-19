@@ -208,7 +208,7 @@ Tailscale makes a private network between your own devices. The PC is never on t
 | Setting | Value | Why |
 |---|---|---|
 | Resolution and frame rate | **4K120, 16:9** to start. TBD: the final mode is chosen at the end of TV-PH-2 from processing time and the error budget; 4K240 passes the speed target in simulation. | More frames per flight, sharper speed and spin |
-| Lens (field of view) | **Wide**. Never SuperView (it stretches the picture). | Covers the whole court; its distortion is calibrated |
+| Lens (field of view) | **Linear**, if the camera offers it at 4K120 (check 1 below); otherwise **Wide**. Never SuperView (it stretches the picture). | Chris, 19 Nov: Linear is the plan. Straight lines stay straight, which the court-line fit likes. It is narrower than Wide, so the cameras go further back along the fence (section 6) |
 | Stabilisation | **HyperSmooth off, Horizon Lock off** | Stabilisation moves and warps the picture frame by frame, which would break the calibration |
 | Shutter | **1/1920 s** (Protune) | A sharp ball, little smear |
 | ISO | Auto, maximum 1600 | |
@@ -219,6 +219,15 @@ Tailscale makes a private network between your own devices. The PC is never on t
 | Audio | On (not used for measuring; kept for the reel) | |
 | Auto power-off | Off | |
 | Screens | Dim after 1 minute | Battery and heat |
+
+**Check these on the camera before the first session (Phase 0; Chris, 19 Nov):**
+1. **Linear at 4K120.** With the resolution at 4K and the frame rate at 120, open the lens (field of view) choice and confirm **Linear** is offered. Some GoPro modes drop Linear at high frame rates. If it is not offered at 4K120, write down which lens choices are, and use Wide with the Wide table in section 6.
+2. **HyperSmooth is off.** Confirm it reads off in the `TENNIS` preset itself, not only in another preset.
+3. **Horizon Lock (and any horizon levelling) is off.** It turns and crops the picture as the camera tilts, so the court would not stay put under the calibration.
+4. Record ten seconds with the preset and check the file's details on the phone: 3840 x 2160, 120 frames a second.
+5. **Low-resolution copy:** look on the card for a small second file beside each recording (GoPro calls it LRV), and note its picture size and frame rate. The PC's quick first look for rallies can use it instead of decoding the full 4K file twice.
+
+Tell me what you find for 1 and 5: the placement table (Linear or Wide) and the rally-finding plan depend on them.
 
 **How to set them:**
 - On each camera, make one custom preset named `TENNIS` with all of the above, and lock it.
@@ -337,6 +346,22 @@ Each camera's card stays in that camera, so its footage stays its own. The PC al
 | 6 m | fence | 2.0 m in from each baseline | 3.5 m | 16:9 | 18° toward the net, level |
 | 7 m | fence | 2.5 m in from each baseline | 3.5 m | 16:9 | 18° toward the net, 1° up |
 | 8 m or more | light stand 5 m from the sideline | 0.5 m in from each baseline | 3.0 m | 16:9 | 22° toward the net, 4° down |
+
+The table above is for the **Wide** lens. With **Linear** (narrower: 100° across against 128°) the cameras go further back along the fence and turn more toward the net:
+
+| Side fence from the doubles sideline | Mount | Where along the fence | Height | Frame | Aim |
+|---|---|---|---|---|---|
+| 2 m | fence | 3.5 m behind each baseline | 3.5 m | 4:3 | 42° toward the net, 24° down |
+| 3 m | fence | 3.5 m behind each baseline | 3.5 m | 16:9 | 38° toward the net, 21° down |
+| 4 m | fence | 2.5 m behind each baseline | 3.5 m | 16:9 | 37° toward the net, 20° down |
+| 5 m | fence | 1.5 m behind each baseline | 2.5 m | 16:9 | 31° toward the net, 4° down |
+| 6 m | fence | 1.0 m behind each baseline | 2.5 m | 16:9 | 30° toward the net, level |
+| 7 m | light stand 5 m from the sideline | 1.5 m behind each baseline | 2.5 m | 16:9 | 31° toward the net, 4° down |
+| 8 m | fence | 0.5 m in from each baseline | 3.5 m | 16:9 | 25° toward the net, level |
+| 9 m | fence | 1.5 m in from each baseline | 3.5 m | 16:9 | 22° toward the net, 3° down |
+| 10 m | fence | 2.5 m in from each baseline | 3.5 m | 16:9 | 19° toward the net, level |
+
+Both tables come from GoPro's published lens angles, not a measured lens, so treat them as a starting point and check the live view (below). At 7 to 8 m the far ball is right at the size limit in either lens.
 
 Back-fence corners (layout 2) also work; see the report.
 
@@ -467,7 +492,7 @@ Back-fence corners (layout 2) also work; see the report.
 **Before:**
 - [ ] Cameras charged, power banks charged, cables
 - [ ] Empty cards in both cameras
-- [ ] `TENNIS` preset on both
+- [ ] `TENNIS` preset on both (lens as chosen, HyperSmooth off, Horizon Lock off)
 - [ ] Clamps, magenta cap
 - [ ] Mount both cameras (table in section 6); lines, posts and back areas in view; heads locked
 - [ ] App: start the session, pick the starting racquet (TBD, Part F)

@@ -540,6 +540,7 @@ m v̇ = m g − ½ ρ A C_D |u| u + ½ ρ A C_L |u|² (ω̂ × û),  u = v − w
    - the placement check (TV-CAL-03 and 04) before mounting;
    - full-length trial sessions on external power in each of 4K120 16:9, 4K120 4:3 Open Gate, 4K240 and 8K60, plus one indoor session if Chris plays indoors.
    - TV-PH-0 settles heat only. Keep the trial footage, exempt from TV-OPS-03.
+   - **[19 Nov, Chris]** Camera checks before the first session: Linear is offered at 4K120; HyperSmooth and Horizon Lock are both off in the preset; and whether the camera writes a low-resolution copy (LRV) of each recording, with its size and frame rate (TV-RAL-01). Steps in the user manual, section 3.
 2. **TV-PH-1** Automatic import and highlight reels: watcher, verify and wipe, light and alerts, metadata, pairing, rally cutting, reel.
 3. **TV-PH-2** 3D tracking:
    - court calibration, sync, classical detector, 2D tracking, player tracking and identity;
@@ -593,7 +594,7 @@ The cameras see the ball's path, not its seams: spin is measured from the sidewa
 
 **Camera settings (both identical):**
 - Resolution and frame rate: 4K120 16:9 to start; TV-PH-0 also records 4:3 Open Gate, 4K240 and 8K60.
-- Lens: Wide, fixed, never SuperView.
+- Lens: Wide, fixed, never SuperView. **[19 Nov, Chris]** Linear is the plan, if the MISSION 1 PRO offers it at 4K120 (a TV-PH-0 check); otherwise Wide. The placement check gives a table for each (docs/reports/TV-PH-0a.md): Linear covers the court from every fence distance, with the cameras 1 to 3.5 m behind the baselines for fences 2 to 6 m out.
 - Stabilisation: HyperSmooth off, horizon lock off.
 - Exposure: shutter about 1/1920 s; ISO auto, capped at 1600.
 - Colour: white balance 5500 K; Natural profile, not Log.
