@@ -144,7 +144,9 @@ def proposals(prev, cur, nxt, dmin, dmax, mask):
         ys, xs = np.nonzero(lab[sl] == k)
         ys = ys + sl[0].start; xs = xs + sl[1].start
         area = len(xs)
-        w = M[ys, xs]; x = (xs * w).sum() / w.sum(); y = (ys * w).sum() / w.sum()
+        w = M[ys, xs]
+        if not w.sum() > 0: w = np.ones(len(xs))          # a blob made only of pixels the closing filled in (GoPro clip, 19 Nov)
+        x = (xs * w).sum() / w.sum(); y = (ys * w).sum() / w.sum()
         hy, hx = min(int(y) // 2, dmin.shape[0] - 1), min(int(x) // 2, dmin.shape[1] - 1)
         lo, hi = dmin[hy, hx], dmax[hy, hx]
         if hi <= 0: continue

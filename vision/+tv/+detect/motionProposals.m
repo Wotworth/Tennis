@@ -61,6 +61,7 @@ for k = 1:cc.NumObjects
     if numel(idx) < 2, continue; end
     [ys, xs] = ind2sub([H W], idx);
     w = double(M(idx));
+    if ~(sum(w) > 0), w = ones(size(w)); end       % a blob made only of pixels the closing filled in (GoPro clip, 19 Nov: NaN centre)
     x = sum(xs .* w) / sum(w);  y = sum(ys .* w) / sum(w);
     hi = sizeMap.dmax(min(round(y), H), min(round(x), W));
     if hi <= 0, continue; end
