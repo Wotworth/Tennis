@@ -92,3 +92,13 @@ My first pass dropped 12 of the 16 Apr export's 20,462 frames when cutting out t
 
 1. Weak labels from the dots, with the guard that stops real balls being taught as "not a ball", when the new sessions arrive.
 2. Per session: found hits and bounces against SwingVision's shots within each point (count and timing).
+
+## The overlay is found in each video, not assumed (19 Nov)
+
+Chris: app updates may move the overlay, so find its boxes per video. Until now the reader cut a fixed corner out of the picture and the calibration and detector masks used two hand-set boxes.
+
+- `overlay.py prep` now starts with `find_layout`: it looks over the whole picture (a median of 24 frames spread through the export) for the mini court's line pattern at any place and size, and for the "Shots Tracked by SWINGVISION" watermark by its logo (a yellow disc in a green square that never changes, with white writing beside it). It writes `TAG_layout.json`: the panel cut, and the boxes to keep the ball detector and the court-line fit out of. The calibration and export scripts take their boxes from that file.
+- On the three exports in hand it finds the panel at exactly the hand-set place (cut at 1620, 0, 300 x 480) and the watermark in the two exports that have one (1433, 928 to 1892, 1068; hand-set 1430, 925 to 1915, 1070), and none in the third, which has none.
+- **Moved:** a 45-second copy with the whole picture shifted 300 px left and 180 px down: found at the shifted place; all 21 bounce marks read, on the same frames (within 3) and within 0.15 m; every shot label reads the same words and speed, no unread ink (one label's run is split in two by the re-encoding).
+- **Moved and shrunk to 80%:** found at the right place and size. The marks still read (18 of 21 matched, within 0.11 m), but the words do not: 17 labels unread, because the word templates are for one size. The reader counts what it cannot read, so this shows up in its summary line rather than as wrong words. New templates would be needed if the app ever changes the overlay's size.
+- The cut-finding between points now leaves out the overlay's own area wherever it is, instead of the picture's right-hand side.

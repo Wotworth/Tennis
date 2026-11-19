@@ -112,4 +112,22 @@ What was wrong, and what changed:
 
 New test: `vision/tests/poseSearchTest.m` (both synthetic cameras, Wide and Linear). CI run 49 (MATLAB): 142 pass, including it and the end-to-end synthetic session; the 2 failures are the known adjacentTest sections.
 
-Not proven: a real picture from beside the court (every real picture so far is from behind a baseline), and clay from there. The two-camera pipeline also still finds line pixels with settings tuned on synthetic pictures (`tv.pipeline.run`); the real-footage settings the one-camera path uses should be switched in on the first GoPro footage.
+### How much of that check is circular (Chris, 19 Nov)
+
+"0.00 m from the true camera" above is agreement with `tv.calib.courtFromLines`, and since change 3 that routine's own pose is one of the candidates `searchPose` judges. On pictures from behind a baseline the check is therefore partly circular: the routine can agree with the one-camera routine by adopting its answer. With that candidate switched off (`'crossings', false`), `searchPose` by itself gives:
+
+| Court picture | Without the line-crossing candidate | Its own line support |
+| --- | --- | --- |
+| 3 Oct match (blue hard court) | 0.00 m from the one-camera routine's camera | 0.96 |
+| 16 Apr video (fenced hard court) | 0.01 m | 0.88 |
+| Clay court (10 Nov) | **wrong** (34 m off) | 0.18 |
+| 25 Apr video (pickleball tape, two courts in play behind) | **wrong** (42 m off) | 0.16 |
+| Synthetic, beside the court, Wide and Linear (true camera known exactly; the candidate adds nothing from there) | 0.01 to 0.02 m | 0.95 to 1.00 |
+
+So, stated plainly: by itself the layout-free routine agrees with the one-camera routine on the two clean hard courts (two methods, one answer: a real check), and fails on the clay court and the taped court, where the only reason the combined routine is right is that it adopts the one-camera routine's pose. From beside the court that candidate does not exist. **The Hero 7 clip from the side fence is the real test**, and clay or taped courts from the side are the cases most likely to fail it.
+
+What protects a session meanwhile: both wrong answers carry a very low line-support score (0.16, 0.18, against 0.54 to 0.97 for every right one), and the pipeline now raises an alert when a camera's support is under 0.6 (`cfg.minLineSupport`) instead of carrying a doubtful camera position silently into the 3D work.
+
+### Line-pixel settings in the two-camera path
+
+`tv.pipeline.run` used the line-pixel settings tuned on clean synthetic pictures. It now uses the real-footage settings the one-camera path uses, scaled to the picture's width (`tv.calib.lineOptsFor`: ridge contrast 20; reach and minimum piece length in proportion, 6 and 14 px and 80 px at 4K). The tests on synthetic footage pass the synthetic settings explicitly: at 960 px wide the generator's far lines are under a pixel wide and fainter than the real-footage contrast, and with the real settings both synthetic Wide cameras came out 0.6 to 1.0 m off (the Linear ones were right to 1 cm). The real-footage settings have never seen a real picture from beside a court either: to be retuned on the Hero 7 clip.
