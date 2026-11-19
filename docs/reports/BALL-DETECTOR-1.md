@@ -252,7 +252,19 @@ The classifier alone at each test frame (score above 0.5, before the tracker), f
 
 **Adopted** as the model for new cameras (`vision/models/ballnet_v5.json`, with round 4's first pass). Round 2 stays where it is shipped in the app's footage tests. CI run 48 (MATLAB): 140 pass including the two round-5 sections of `ballNetTest`; the 2 failures are the known adjacentTest sections.
 
-**Is it the new input or the new footage?** The same examples without the colour-change input (5 channels, no light/dark swap): test set 27 of 35 with 1 false spot (round 5: 30, 2; round 4: 28, 2). Taught to refuse shadows without seeing colour, it refuses balls too; the new input is what lets round 5 drop shadows and keep balls. Its held-out figures are to be added.
+**Is it the new input or the new footage?** The same examples without the colour-change input (5 channels, no light/dark swap): test set 27 of 35 with 1 false spot (round 5: 30, 2; round 4: 28, 2). Check set 27 of 36 with 2 false (round 5: 28, 3).
+
+| | Round 4 | Same footage, no colour-change input | Round 5 |
+| --- | --- | --- | --- |
+| Fixed test set: found / false | 28 of 35 / 2 | 27 / 1 | 30 / 2 |
+| Check set | 27 of 36 / 3 | 27 / 2 | 28 / 3 |
+| Shadows among tracked spots, held-out iPhone match | 12.8% | 7.9% | 2.5% |
+| held-out SwingVision clip | 12.1% | 5.7% | 1.9% |
+| held-out GoPro | 6.2% | 2.3% | 0.3% |
+| Classifier alone as filmed: found / false | 30 of 35 / 33 | 30 / 20 | 30 / 13 |
+| Classifier alone, light and dark swapped | 31 / 32 | 30 / 15 | 13 / 16 |
+
+So the new footage alone removes about half the shadows and a third of the false spots, and keeps a dark ball on a pale court; the colour-change input removes most of the rest of the shadows and finds three more test balls, and is what gives up the dark ball. Round 5 stays the choice for outdoor cameras; the no-colour model (`net_r5n`, not exported) is the alternative if a ball darker than the court ever matters. Chris to confirm.
 
 ## Rules retired
 
