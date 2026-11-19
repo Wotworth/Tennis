@@ -26,7 +26,13 @@ Why the GoPro failed, as far as I can tell:
 2. **The lens model is a stand-in.** It is built from GoPro's published angles for current cameras; nothing has been measured, and the Hero 7's Wide mode is a little narrower. The spec already says the real lens must be calibrated first (TV-CAL-01).
 3. **The camera sits higher and looks down more steeply** than the search's starting positions assume.
 
-A retry with a higher camera and a steeper aim is running. Whatever it gives, this is the first real GoPro picture the calibration has seen, and it did not cope. That needs fixing before the two-camera trials, and it is cheap to fix now.
+Two more searches, started near where the camera plainly is (higher, aimed more steeply down), did no better: one settled on the neighbouring court, the other on this court but turned and stretched, held by the net tape again.
+
+This is the first real GoPro picture the calibration has seen, and it did not cope. It needs fixing before the two-camera trials. What I'd change, in order:
+
+1. Score a pose by every court line having paint under it, as the one-camera routine already does, so one bright line (the net tape) cannot carry a wrong pose.
+2. Make the line finder keep faint lines when they are long and straight (clay).
+3. Use the measured lens of the camera in hand, not the published angles.
 
 ## The ball detector (round 4, no colour) on the new footage
 
