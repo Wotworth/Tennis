@@ -250,7 +250,9 @@ The classifier alone at each test frame (score above 0.5, before the tracker), f
 - Drawn shadows (the court at 30 to 75% of its brightness, moving as a ball does): round 4 scores them 0.95 to 1.00, round 5 under 0.1 with a soft edge and under 0.4 as a crisp disc (`tests/ballNetTest.m`).
 - Against SwingVision's 8 bounce marks in the held-out points both models have the ball at 5.
 
-**Adopted** as the model for new cameras (`vision/models/ballnet_v5.json`, with round 4's first pass). Round 2 stays where it is shipped in the app's footage tests. A comparison model with the same data and no colour-change input is training as this is written.
+**Adopted** as the model for new cameras (`vision/models/ballnet_v5.json`, with round 4's first pass). Round 2 stays where it is shipped in the app's footage tests. CI run 48 (MATLAB): 140 pass including the two round-5 sections of `ballNetTest`; the 2 failures are the known adjacentTest sections.
+
+**Is it the new input or the new footage?** The same examples without the colour-change input (5 channels, no light/dark swap): test set 27 of 35 with 1 false spot (round 5: 30, 2; round 4: 28, 2). Taught to refuse shadows without seeing colour, it refuses balls too; the new input is what lets round 5 drop shadows and keep balls. Its held-out figures are to be added.
 
 ## Rules retired
 

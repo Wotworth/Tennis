@@ -99,7 +99,7 @@ The one-camera routine (`tv.calib.courtFromLines`) fitted every court above, but
 | 3 Oct match (blue hard court, fence shadows) | 1.4 m: the whole court one doubles alley sideways (line support 0.55 against 0.97) | 0.00 m |
 | Clay court (10 Nov iPhone video) | 13.3 m | 0.00 m |
 | 25 Apr video | not run | 0.01 m |
-| 16 Apr video | not run | still running as this is written |
+| 16 Apr video | not run | 0.01 m |
 | Synthetic, planned positions beside the court, Wide lens | 0.01 m and 1.67 m (in this session's Octave; MATLAB's pipeline test passed) | 0.01 m and 0.01 m |
 | Synthetic, same positions, Linear lens | not tested | 0.02 m and 0.01 m |
 
@@ -110,6 +110,6 @@ What was wrong, and what changed:
 3. **On clay the grid search never got near the true camera.** The one-camera routine's pose (from the lines' crossings) now joins the candidates where it finds one; from beside the court it finds none and adds nothing.
 4. **A pose far outside the search range is refused.** One candidate 85 m away matched everything by squeezing the court onto a few pixels.
 
-New test: `vision/tests/poseSearchTest.m` (both synthetic cameras, Wide and Linear).
+New test: `vision/tests/poseSearchTest.m` (both synthetic cameras, Wide and Linear). CI run 49 (MATLAB): 142 pass, including it and the end-to-end synthetic session; the 2 failures are the known adjacentTest sections.
 
 Not proven: a real picture from beside the court (every real picture so far is from behind a baseline), and clay from there. The two-camera pipeline also still finds line pixels with settings tuned on synthetic pictures (`tv.pipeline.run`); the real-footage settings the one-camera path uses should be switched in on the first GoPro footage.
