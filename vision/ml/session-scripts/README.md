@@ -8,3 +8,4 @@ How the three iPhone videos were run and exported for the app: kept so a new ses
 - `tvspots.m`, `tvb2.m`, `spotsheet.py`, `framesheet.py`: the blind spot check and the sample frames.
 - `picks_clay_round2.m`: the clay test's sample frames, verdicts and notes.
 - `orch_r4.sh`: round 4's steps in order.
+- `overlay_rescan.py`, `overlay_cluster.py`, `overlay_delay.py`, `overlay_sheet.py`: around `../overlay.py` (the SwingVision overlay reader): scan a prepared export, group its words and digits for naming, compare the dots with the detector's tracks, and draw the 20-shot check sheet.

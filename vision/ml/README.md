@@ -14,6 +14,7 @@ Nothing private is in this folder: the footage, the test-set labels and the trai
 | `tracker.py` | Python twin of `tv.track.chains` and one ball in play |
 | `detect_video.py`, `run_clips.py` | The detector over a stretch, or over every clip of a run (per-clip CSVs that `runSingle` reads) |
 | `mine_runs.py`, `mine2.py` | Self-training: detector runs away from the test frames; confident smooth chains become real balls, and "not a ball" examples leave out anything near a chain or moving like a ball |
+| `overlay.py`, `overlay_words.json` | SwingVision overlay reader: points, shot labels and bounce marks from an export, as weak labels (never the test set). Report: docs/reports/OVERLAY-READER-1.md |
 | `eval_windows.py`, `quickscore.py`, `ballscores.py`, `rescore.py` | Scores on the fixed test set |
 | `export.py` | Weights for MATLAB (batch norm folded, plain JSON) plus a check case |
 | `physics.py` | Camera projection and ball flight for drawing balls |
