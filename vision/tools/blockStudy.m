@@ -10,7 +10,7 @@ function R = blockStudy(outDir, opts)
 %   Writes blockstudy.md. opts: seed, minutes, targetShots, share.
 if nargin < 1, outDir = fullfile(pwd, 'out', 'blockstudy'); end
 if nargin < 2, opts = struct(); end
-d = struct('seed', 11, 'minutes', 18, 'targetShots', 80, 'share', 0.5);     % 7 runs of about 15 minutes each in CI
+d = struct('seed', 11, 'minutes', 10, 'targetShots', 45, 'share', 0.5);     % 7 runs; the blocked ones are slow (the first try, 80 shots, ran out of CI time)
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 if ~exist(outDir, 'dir'), mkdir(outDir); end
@@ -48,6 +48,13 @@ for q = 1:size(cases, 1)
     R(q).blocked = O.blocks(:, 1);
     all = vertcat(segs{:});  if ~isempty(all), R(q).oneCam = nnz([all.oneCam]); end
     fprintf('%s: %d shots blocked, %d one-camera flights, %.0f s so far\n', cases{q, 1}, numel(R(q).blocked), R(q).oneCam, toc(t0));
+    if q > 1      % each row as soon as it exists (a run that is cut short still reports what it finished)
+        b = R(q).blocked;  x = R(q).rows(b);  y = R(1).rows(b);
+        fprintf('ROW | %s | %d | %d | %d | %s | %s | %s | %s | %d |\n', R(q).name, numel(b), nnz([y.found]), nnz([x.found]), ...
+            two([y.bounceErr] * 100), two([x.bounceErr] * 100), two(abs([y.speedErr]) * 2.23694), two(abs([x.speedErr]) * 2.23694), R(q).oneCam);
+    else
+        fprintf('ROW all %d shots, both cameras: %d found, bounce %s cm, speed %s mph\n', numel(R(1).rows), nnz([R(1).rows.found]), two([R(1).rows.bounceErr] * 100), two(abs([R(1).rows.speedErr]) * 2.23694));
+    end
 end
 % every blocked shot against itself with both cameras
 base = R(1).rows;

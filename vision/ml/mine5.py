@@ -63,8 +63,12 @@ def one(args):
     for fr in np.unique(D[:, 0]):
         k = np.nonzero(far & (D[:, 0] == fr))[0]
         hard = k[D[k, 3] > 0.3]; rest = k[D[k, 3] <= 0.3]
-        rows += list(hard) + list(rng.choice(rest, min(int(os.environ.get('NEG_PER_FRAME', 3)), len(rest)), replace=False))
-    neg = np.concatenate([D[np.array(rows, int)], still])
+        rows += list(hard) + list(rng.choice(rest, min(int(os.environ.get('NEG_PER_FRAME', 1)), len(rest)), replace=False))
+    rows = np.array(rows, int)
+    cap = int(os.environ.get('NEG_CAP', 1500))                # per chunk: the session's disk is small
+    if len(rows) > cap: rows = rng.choice(rows, cap, replace=False)
+    if len(still) > 300: still = still[rng.choice(len(still), 300, replace=False)]
+    neg = np.concatenate([D[rows], still])
     want = {}
     for r, y in [(r, 1) for r in pos] + [(r, 0) for r in neg]: want.setdefault(int(r[0]), []).append((r, y))
     X, M, Y = [], [], []

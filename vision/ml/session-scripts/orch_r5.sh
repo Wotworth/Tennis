@@ -12,7 +12,7 @@ echo "mined $(date -u +%T)"
 gen() { [ -f $M/data/$4 ] || FRAME_MAX=$5 POSONLY=$2 SHADOWS=$3 $PY gen_data.py $1 $6 90 $M/data/$4 > /dev/null 2>&1; }
 ( gen 6 75 0 pos4_v6_s1.npz 12000 11 & gen 6 75 0 pos4_v6_s2.npz 12000 12 & gen 7 75 0 pos4_v7_s1.npz 9000 13 & gen 7 75 0 pos4_v7_s2.npz 9000 14 & wait )
 ( gen 1 0 30 shd5_v1_s1.npz 999999999 21 & gen 2 0 30 shd5_v2_s1.npz 999999999 22 & gen 3 0 30 shd5_v3_s1.npz 999999999 23 & gen 6 0 30 shd5_v6_s1.npz 12000 24 & wait )
-( gen 7 0 30 shd5_v7_s1.npz 9000 25 & gen 4 0 30 shd5_v4_s1.npz 999999999 26 & wait )
+( gen 7 0 30 shd5_v7_s1.npz 9000 25 & wait )     # shd5_v4_s1.npz (the whole clay recording) was drawn by hand before this ran
 echo "drawn $(date -u +%T)"
 EX="$M/mine/v{v}_*_mine4.npz;$M/mine_r2/v{v}_*_mine4.npz;$M/mine_r3/v{v}_*_mine4.npz;$M/pts_r4/v{v}_*_mine5.npz;$M/data/shd5_v{v}_*.npz"
 one() {   # tag, MODEL_IN, INV

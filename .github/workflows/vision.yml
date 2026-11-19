@@ -133,7 +133,7 @@ jobs:
   block-study:
     if: github.event_name != 'workflow_dispatch' || inputs.only == 'all' || inputs.only == 'block-study'
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 330
     steps:
       - uses: actions/checkout@v4
 
@@ -148,7 +148,7 @@ jobs:
             Statistics_and_Machine_Learning_Toolbox
             Parallel_Computing_Toolbox
 
-      - name: Block study (one camera blind, about 80 shots, 7 runs)
+      - name: Block study (one camera blind, about 45 shots, 7 runs)
         uses: matlab-actions/run-command@v2
         with:
           command: addpath('vision', 'vision/tools'); blockStudy('out/blockstudy');

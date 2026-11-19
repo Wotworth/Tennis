@@ -9,11 +9,20 @@ torch.set_num_threads(1)
 def stream(v, first, count):
     p = common.pts(v); t = p[first] - 0.25 / common.FPS
     cmd = ['ffmpeg', '-v', 'error', '-ss', '%.6f' % t, '-i', common.VIDEO[v], '-frames:v', str(count), '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-']
+    # the check set's windows of the whole clay recording are kept as stream copies (valset/store:
+    # the same compressed frames, from the keyframe before each window, with the number of frames
+    # to skip beside them), so the 3 GB recording itself need not stay on the session's disk
+    kept = f'{common.ROOT}/valset/store/v{v}_{first:06d}_{count}.mkv'; skip = 0
+    if os.path.exists(kept):
+        import json
+        skip = json.load(open(kept + '.json'))['skip']
+        cmd = ['ffmpeg', '-v', 'fatal', '-i', kept, '-fps_mode', 'passthrough', '-frames:v', str(count + skip), '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-']
     pr = subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=10 ** 8)
     n = common.W * common.H * 3
     while True:
         b = pr.stdout.read(n)
         if len(b) < n: break
+        if skip: skip -= 1; continue
         yield common.condition(np.frombuffer(b, np.uint8).reshape(common.H, common.W, 3))
     pr.wait()
 
