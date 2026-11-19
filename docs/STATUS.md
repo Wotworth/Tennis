@@ -71,6 +71,8 @@ New footage and round 5 (overnight 19 Nov; Chris: use the new videos to train, s
 
 Two-camera calibration on real pictures (19 Nov): `tv.calib.searchPose` had only seen synthetic pictures; on Chris's iPhone court pictures (straight lens, true camera known) it was one doubles alley off on the hard court and 13 m off on clay. Fixed (line-by-line paint support, look-alike shifts, the line-crossing pose as a candidate, a range guard): within 1 cm on the hard court, clay and the 25 Apr and 16 Apr courts, and on the synthetic side positions with Wide and Linear lenses; new `tests/poseSearchTest.m`. Not proven on a real picture from beside the court. Report: docs/reports/NEW-FOOTAGE-1.md.
 
+Sample session fix (19 Nov, Chris's screenshot of shot 29·1 drawn through the net but shown as over it and in): the spoof's shot numbers and drawn paths now come from one flight per shot (docs/reports/SPOOF-SESSION.md); `SamplePathsTest`; 165 app tests pass in the session.
+
 Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens calibration and trial sessions). The launcher needs the new "checks" tile state (LAUNCHER-REQUESTS.md), not built.
 
 ## Next

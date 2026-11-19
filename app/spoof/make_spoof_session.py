@@ -384,14 +384,70 @@ for _ in range(20000):
 assert not shown_ok(), shown_ok()
 
 # ---------------------------------------------------------------------------------------------
-# trajectories: a plain arc from contact to bounce, then on; and the same launch without spin,
-# landing |spin effect| further. For the drawings only: no number on screen comes from them.
+# one flight per shot (Chris, 19 Nov: shot 29.1 was drawn through the net while its card said it
+# cleared the net by 17 in and landed in). The numbers above were picked one by one, so a shot's
+# net clearance, launch angle, highest point and flight time could contradict its contact point,
+# speed and bounce, and the drawn path ignored them. Now each shot is one ballistic flight from its
+# contact point to its bounce, as fast as its speed says (drag taken as 15% off the average), and
+# the four numbers are read off that flight, each moved to the nearest value the session may show
+# (1 more than a multiple of 4 in the shown unit). The flight time is then set so the path crosses
+# the net at exactly the clearance shown. Nothing random is drawn here.
+NET = 0.914                                                 # the net's height where the app draws it (Court.NET_CENTRE)
+
+
+def snap4(v):
+    """The nearest whole number that is 1 more than a multiple of 4."""
+    return int(4 * round((v - 1) / 4.0) + 1)
+
+
+def apex_shown(m):
+    """The nearest height the app can show oddly: tenths of a foot (1 mod 4) under 10 ft, whole
+    feet (1 mod 4) from 13 ft."""
+    ft = m * FT
+    c = [min(snap4(ft * 10), 97) / 10.0] + [float(max(13, snap4(ft)))]
+    return m_from_ft(min(c, key=lambda x: abs(x - ft)))
+
+
+for s in shots:
+    p0 = s['contact']; v = s['speedContact']
+    if s['bounce']:
+        if s['isServe'] and s['depth'] is not None and s['depth'] * FT > 27:
+            # a serve cannot clear the net and come down 6 or 10 ft past it: 29 ft short of the
+            # baseline becomes 25, 33 becomes 21 (still inside the service box)
+            d_ft = 25.0 if s['depth'] * FT < 31 else 21.0
+            s['depth'] = m_from_ft(d_ft)
+            s['bounce'][0] = round((-1 if p0[0] > 0 else 1) * (HALF_L - s['depth']), 3)
+        pb = [s['bounce'][0], s['bounce'][1], R_BALL]
+        L = math.hypot(pb[0] - p0[0], pb[1] - p0[1])
+        tau = -p0[0] / (pb[0] - p0[0])                       # how far along the flight the net is
+        T = L / (0.85 * v)
+        if 0.02 < tau < 0.98:
+            chord = p0[2] * (1 - tau) + R_BALL * tau; k = 0.5 * G * tau * (1 - tau)
+            c_in = max(1 if s['isServe'] else 5, snap4((chord + k * T * T - NET - R_BALL) * IN))
+            while NET + R_BALL + m_from_in(c_in) <= chord + k * 0.2 ** 2: c_in += 4    # a flight needs some time
+            T = math.sqrt((NET + R_BALL + m_from_in(c_in) - chord) / k)
+            s['netClearance'] = m_from_in(c_in)
+    else:
+        # into the net: the path ends on the net, under the tape, and the clearance is negative
+        c_in = -min(snap4(abs(s['netClearance']) * IN), 25)
+        s['netClearance'] = m_from_in(c_in)
+        pb = [0.0, round(p0[1] * 0.5, 3), NET + R_BALL + m_from_in(c_in)]
+        L = math.hypot(pb[0] - p0[0], pb[1] - p0[1])
+        T = L / (0.85 * v)
+    vz = (pb[2] - p0[2] + 0.5 * G * T * T) / T
+    s['flightTime'] = round(T, 3)
+    s['launchDeg'] = snap4(math.degrees(math.atan2(vz, L / T)) * 10) / 10.0
+    s['apex'] = apex_shown(max(p0[2], pb[2], p0[2] + (vz * vz / (2 * G) if vz > 0 else 0.0)))
+
+# ---------------------------------------------------------------------------------------------
+# trajectories: that flight from contact to bounce, then on; and the same launch without spin,
+# landing |spin effect| further.
 for s in shots:
     p0 = s['contact']
     if s['bounce']:
         pb = [s['bounce'][0], s['bounce'][1], R_BALL]
     else:
-        pb = [p0[0] * -0.02, p0[1] * 0.5, 0.6]             # into the net
+        pb = [0.0, round(p0[1] * 0.5, 3), NET + R_BALL + s['netClearance']]     # into the net
     T = s['flightTime']
     def arc(pe, T, extra=0.0):
         vz = (pe[2] - p0[2] + 0.5 * G * T * T) / T
