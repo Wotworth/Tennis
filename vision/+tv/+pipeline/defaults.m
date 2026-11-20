@@ -18,16 +18,24 @@ cfg.frames = 'all';                 % Chris, 20 Nov: 'all' searches every frame;
 % adds to the fit's own uncertainty. Measured from the shot study (CI run 60, 181 shots, gusts, lift
 % following spin): with these terms 2 sd covers 96% (spin effect), 90% (curve), 95% (bounce, 2D) of
 % the true errors; the fit's own bands alone covered 8 to 17%. RETUNE(Tuesday's targets and machine).
-cfg.modelErr = struct('bounceM', 0.018, ...      % m, added to the bounce point's 1-sigma (line calls)
-                      'effectM', 0.04, 'effectFrac', 0.075, ... % spin effect: m plus a share of the effect
-                      'curveM', 0.15, 'curveFrac', 0.12);       % sideways curve: m plus a share of the curve
+cfg.modelErr = struct('bounceM', 0.020, ...      % m, added to the bounce point's 1-sigma (line calls); gusts or calm alike
+                      'effectM', 0.042, 'effectFrac', 0.08, ... % spin effect: m plus a share of the effect; gusts or calm alike
+                      'curveM', 0.20, 'curveFrac', 0.16, ...    % sideways curve in gusts as studied (spread about 1 m/s at ball height)
+                      'curveMCalm', 0.075, 'curveFracCalm', 0.06, ... % sideways curve in calm air
+                      'gustRefMps', 3.0, 'gustCap', 3);         % the studied gusts as the 10 m forecast shows them (gust minus mean wind), and the most it is scaled to
+% Chris, 22 Nov (item 10): the session's weather scales the curve term between calm and the studied
+% gusts, by (gust minus mean wind at 10 m) / gustRefMps, squared, on the extra variance
+% (tv.metrics.shot). CI run 61 (gusts 193 shots, calm 196): the curve needed 1.34 x the 21 Nov term in
+% gusts and half of it in calm air; the bounce and spin-effect errors did not grow with the gusts
+% (spin effect error median 7.4 cm in gusts, 9.2 cm calm), so their terms are not scaled.
+% RETUNE(Tuesday's machine repeats and the first windy sessions)
 cfg.liftModel = 'spin';            % 'constant': one lift per flight (before 21 Nov). 'spin': lift follows the spin parameter as the ball slows, spin decays (21 Nov; tv.physics.simulate). RETUNE(lab data)
 cfg.spinTau = 5;                   % s, spin decay with liftModel 'spin'
 cfg.play = struct('score', 0.5, 'binS', 0.25, 'binShare', 0.25, 'mergeS', 4, 'leadS', 1.5, 'tailS', 2, 'pairGapM', 0.75, 'minHeightM', 0.2, 'linkS', 0.05, 'minSpeed', 4, 'maxSpeed', 75);   % rallies from the ball in play (tv.rally.fromPlay); RETUNE(real footage)
 cfg.ballCut = 0.05;                 % spots the classifier scores under this are not tracked
 cfg.chainOpts = struct();           % tv.track.chains settings (its own defaults when empty)
 cfg.playerHz = 10;                  % TV-PLY-01: 10 fps between rallies (30 inside: RETUNE)
-cfg.weather = struct('tempC', 15, 'relHumidity', 0.6, 'pressurePa', 101325, 'wind10', [0 0]);
+cfg.weather = struct('tempC', 15, 'relHumidity', 0.6, 'pressurePa', 101325, 'wind10', [0 0], 'gust10', NaN);   % gust10: Open-Meteo wind_gusts_10m, m/s (NaN: unknown, the studied gusts are assumed)
 cfg.indoor = false;
 cfg.indoorDefaults = struct('tempC', 18, 'relHumidity', 0.5);   % TV-IND-01; the PC's config overrides
 cfg.chrisLabel = '';                % set by an app answer (TV-PLY-07)

@@ -318,6 +318,18 @@ object TennisTokens {
         var recentRestrings by mutableIntStateOf(5)
     }
 
+    /** Tuesday's measurements form and the accuracy page (Chris, 22 Nov, items 9 and 14). */
+    object Measure {
+        var pairGap by mutableFloatStateOf(8f)           // zpx between two number boxes side by side
+        var itemGap by mutableFloatStateOf(10f)          // zpx after one camera, target or machine clip
+        var itemTitleGap by mutableFloatStateOf(6f)      // zpx under a camera's, target's or clip's own title
+        var cmDecimals by mutableIntStateOf(1)           // the accuracy page: places after the point for cm
+        var mphDecimals by mutableIntStateOf(1)          // ...for mph
+        var ftDecimals by mutableIntStateOf(1)           // ...for ft (spin effect)
+        var gDecimals by mutableIntStateOf(2)            // ...for gravity (m/s²)
+        var heightDecimals by mutableIntStateOf(3)       // ...for the release height (m)
+    }
+
     /** DET-01: how many days back the Health Connect report can go. */
     object Health {
         var reportMaxDaysBack by mutableIntStateOf(365)

@@ -135,6 +135,23 @@ class ScreenshotTest {
         TennisTheme { HealthReportContent(HealthReportState(availability = HealthSource.Availability.Missing), {}, {}, {}) }
     }
 
+    // Chris, 22 Nov, items 9 and 14: Tuesday's measurements form (new sheet) and the accuracy page (bundled sample);
+    // each also as one tall picture of the whole page
+    private fun tall(name: String, content: @Composable () -> Unit) {
+        RuntimeEnvironment.setQualifiers(TALL)
+        captureRoboImage("build/outputs/roborazzi/$name-full.png") { content() }
+    }
+    private val tuesday = java.time.LocalDate.of(2026, 11, 24)
+    private val fieldNotes: @Composable () -> Unit = {
+        TennisTheme { io.github.wotworth.tennis.ui.screens.FieldNotesContent(io.github.wotworth.tennis.vision.FieldNotes(tuesday.toString()), tuesday.toEpochDay(), {}, {}, {}) }
+    }
+    @Test fun fieldNotes() { shoot("tuesday-measurements", both = false, content = fieldNotes); tall("tuesday-measurements", fieldNotes) }
+    @Test fun accuracy() {
+        val a = Sample.fill()
+        screen("accuracy", Screen.Accuracy, a, both = false)
+        tall("accuracy") { AppRoot(a, Navigator(Screen.Accuracy)) }
+    }
+
     /** TIL-04: the plain racket icon, on the tile green, as a medium tile and as the app icon. */
     @Test fun racketIcon() = shoot("racket-icon", both = false) {
         TennisTheme {
@@ -151,5 +168,6 @@ class ScreenshotTest {
     companion object {
         const val W360 = "w360dp-h780dp-port-xxhdpi"
         const val W411 = "w411dp-h891dp-port-420dpi"
+        const val TALL = "w360dp-h9000dp-port-hdpi"
     }
 }

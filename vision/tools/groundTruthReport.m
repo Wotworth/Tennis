@@ -87,6 +87,37 @@ end
 G.text = strjoin(L, newline);
 if ~isempty(outFile)
     fid = fopen(outFile, 'w');  fprintf(fid, '%s\n', G.text);  fclose(fid);
+    % the numbers alone, for the app's accuracy page (Chris, 22 Nov, item 14): <outFile>.json
+    [dd, bb] = fileparts(outFile);
+    tv.util.writeJson(fullfile(dd, [bb '.json']), forApp(G, M));
+end
+end
+
+function A = forApp(G, M)
+% groundTruthReport's results in the app's format (app: vision/Accuracy.kt). Distances in cm.
+A = struct('session', '', 'synthetic', false, 'cameras', {{}}, 'drop', [], 'still', {{}}, 'targets', {{}}, 'machine', {{}}, 'spin', []);
+if isfield(M, 'session'), A.session = M.session; end
+if isfield(M, 'synthetic'), A.synthetic = logical(M.synthetic); end
+if isfield(G, 'cameras')
+    A.cameras = arrayfun(@(c) struct('cam', c.cam, 'found', c.found(:)', 'taped', c.taped(:)', 'errCm', 100 * c.err), G.cameras(:)', 'UniformOutput', false);
+end
+if isfield(G, 'drop') && ~isempty(G.drop.g)
+    A.drop = struct('n', numel(G.drop.g), 'g', median(G.drop.g), 'gSpread', iqrOf(G.drop.g), 'gTruth', 9.81, ...
+        'heightM', median(G.drop.top), 'heightSpreadM', iqrOf(G.drop.top), 'heightTruthM', M.drops.releaseHeightM);
+end
+if isfield(G, 'still')
+    A.still = arrayfun(@(b) struct('name', b.name, 'found', logical(b.found), 'errCm', 100 * b.err, 'gapCm', 100 * b.gap), G.still(:)', 'UniformOutput', false);
+end
+if isfield(G, 'targets')
+    A.targets = arrayfun(@(t) struct('name', t.name, 'n', t.n, 'medianCm', 100 * t.median, 'worstCm', 100 * t.worst), G.targets(:)', 'UniformOutput', false);
+end
+if isfield(G, 'machine')
+    A.machine = arrayfun(@(m) struct('setting', m.setting, 'n', m.n, 'speedMph', m.speed, 'speedSdMph', m.speedSd, ...
+        'spinFt', m.spin, 'spinSdFt', m.spinSd, 'landSdCm', m.landSd), G.machine(:)', 'UniformOutput', false);
+end
+if isfield(G, 'spin')
+    A.spin = struct('medianDiffRpm', G.spin.medianDiff, 'rows', {arrayfun(@(r) struct('ball', r.ball, 'stripeRpm', r.stripe, 'stripeSdRpm', r.stripeSd, ...
+        'systemRpm', r.system, 'systemSdRpm', r.systemSd, 'inside', logical(r.inside)), G.spin.rows(:)', 'UniformOutput', false)});
 end
 end
 

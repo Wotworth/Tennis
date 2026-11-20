@@ -49,3 +49,30 @@ assert(tv.synth.fairCall('in', 'in', [5 0 0], hit, false))
 assert(tv.synth.fairCall('too close', 'in', [c.halfLength - 0.03, 0, 0], hit, false))     % 3 cm inside the baseline
 assert(~tv.synth.fairCall('too close', 'in', [5 0 0], hit, false))                        % metres from any line
 assert(~tv.synth.fairCall('out', 'in', [c.halfLength - 0.03, 0, 0], hit, false))
+
+%% The session's gusts scale the curve's band, and only the curve's (22 Nov, item 10)
+sc = tv.synth.defaultScenario();  cams = tv.synth.cameras(sc);
+air = tv.physics.defaultParams();
+rec = struct('pts', {(0:3000)' / sc.fps, (0:3000)' / sc.fps}, 'height', {540, 540});
+sync = struct('startOffset', [0 0], 'delta', 0, 'drift', 0, 'tref', 0, 'readout', [0 0], 'shutter', 0);
+x = [-11.5 -1 1.0, 24 2 5, 0.12 0.10 0.507];  t0 = 100 / sc.fps;  frames = (100:190)';
+obs = [];
+for k = 1:2
+    P = tv.recon.segmentModel(x, t0, frames / sc.fps, air);
+    obs = [obs; repmat(k, numel(frames), 1), frames, tv.camera.project(cams(k), P)]; %#ok<AGROW>
+end
+seg = tv.recon.fitSegment(obs, cams, rec, sync, air);
+mcfg = struct('cams', cams, 'lines', 'singles');  info = struct('chris', 0);  b = struct('t', t0 + 1, 'p', [0 0 0]);
+q = tv.pipeline.defaults();  me = q.modelErr;  mcfg.modelErr = me;
+out = struct();
+for g = {'unknown', NaN; 'calm', 0; 'reference', me.gustRefMps; 'very', 20}'
+    a = air;  a.gustExcess10 = g{2};
+    m = tv.metrics.shot(seg, [], [], b, [], a, mcfg, [], info, false, -1);
+    out.(g{1}) = m;
+end
+fprintf('curve band: calm %.1f, studied gusts %.1f, unknown %.1f, very gusty %.1f cm\n', 100 * out.calm.spinCurveSd, ...
+    100 * out.reference.spinCurveSd, 100 * out.unknown.spinCurveSd, 100 * out.very.spinCurveSd);
+assert(out.calm.spinCurveSd < out.reference.spinCurveSd && out.reference.spinCurveSd < out.very.spinCurveSd)
+assert(abs(out.unknown.spinCurveSd - out.reference.spinCurveSd) < 1e-12)          % unknown: the studied gusts
+assert(abs(out.calm.spinEffectSd - out.very.spinEffectSd) < 1e-12)                % the spin effect is not scaled
+assert(strcmp(out.calm.windLevel, 'calm') && strcmp(out.very.windLevel, 'gusty') && strcmp(out.unknown.windLevel, 'unknown'))

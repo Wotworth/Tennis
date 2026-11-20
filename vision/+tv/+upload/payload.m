@@ -4,8 +4,9 @@ function [summary, data] = payload(R, mode)
 if nargin < 2, mode = 'full'; end
 summary = struct('startUtc', R.rec(1).startUtc, 'mode', mode);
 sh = R.shots;
-chris = sh(strcmp({sh.hitter}, 'Chris'));
-serves = chris([chris.isServe]);
+chris = [];  serves = [];                             % no shots (an empty-court clip): 22 Nov
+if isstruct(sh) && ~isempty(sh), chris = sh(strcmp({sh.hitter}, 'Chris')); end
+if ~isempty(chris), serves = chris([chris.isServe]); end
 head = sprintf('%d shots', numel(chris));
 if ~isempty(serves), head = sprintf('%s, fastest serve %d mph', head, round(max([serves.speedContact]) * 2.237)); end
 dur = 0;  if ~isempty(R.rallies), dur = max([R.rallies.stop]) - min([R.rallies.start]); end
@@ -20,7 +21,8 @@ for i = 1:numel(types)
     stats(end+1) = struct('shotType', types{i}, 'metric', 'inPct', 'median', t.inPct, 'iqr', 0, 'n', t.count); %#ok<AGROW>
     stats(end+1) = struct('shotType', types{i}, 'metric', 'ellipseArea', 'median', t.ellipseArea, 'iqr', 0, 'n', t.count); %#ok<AGROW>
 end
-stats(end+1) = struct('shotType', 'all', 'metric', 'sessionCD', 'median', R.air.sessionCD, 'iqr', 0, 'n', numel(sh));
+cd = NaN;  if isfield(R.air, 'sessionCD'), cd = R.air.sessionCD; end
+stats(end+1) = struct('shotType', 'all', 'metric', 'sessionCD', 'median', cd, 'iqr', 0, 'n', numel(sh));
 data = struct('session', struct('durationS', dur, 'headline', head, 'identityPending', R.players.question), ...
     'rallies', R.rallies, 'shots', sh, 'stats', stats, 'complete', true);
 end

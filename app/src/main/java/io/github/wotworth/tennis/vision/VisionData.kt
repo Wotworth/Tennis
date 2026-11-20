@@ -23,6 +23,8 @@ data class VisionSession(
     val identityQuestion: Boolean,
     val heartRate: List<HrSample> = emptyList(),
     val tempC: Double? = null,
+    /** 22 Nov (item 10): the session's gusts as the PC judged them: calm, breezy, gusty or unknown. */
+    val windLevel: String = "unknown",
     val synthetic: Boolean = false,
     /** What the PC did not analyse, and why (TV-ADJ-06): balls and people from other courts and the like. */
     val rejects: Rejects? = null,
@@ -98,6 +100,7 @@ object VisionJson {
             airRho = air?.num("rho"),
             wind = air?.optJSONArray("wind")?.let { a -> (0 until a.length()).map { a.optDouble(it) } } ?: emptyList(),
             sessionCD = air?.num("sessionCD"),
+            windLevel = air?.optString("windLevel")?.takeIf { it.isNotBlank() } ?: "unknown",
             crossing = cr?.let {
                 Crossing(it.num("minDeg") ?: 0.0, it.num("thresholdDeg") ?: 20.0, strings(it.opt("low")), it.optString("text"))
             },

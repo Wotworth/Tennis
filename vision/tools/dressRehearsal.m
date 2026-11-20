@@ -19,7 +19,7 @@ if ~isfield(opts, 'clips'), opts.clips = {'clip1', 'clip2', 'clip3', 'clip4'}; e
 if ~exist(root, 'dir'), mkdir(root); end
 here = fileparts(mfilename('fullpath'));
 M = tv.readJson(fullfile(here, '..', 'groundtruth', 'template.json'));
-M.stillBalls.atS = 1.0;  M.session = 'rehearsal';
+M.stillBalls.atS = 1.0;  M.session = 'rehearsal';  M.synthetic = true;
 R.steps = struct('step', {}, 'ok', {}, 'note', {});
 files = struct();  truths = struct();
 % --- 1. the clips as camera files ---------------------------------------------------------

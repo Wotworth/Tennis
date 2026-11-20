@@ -2,6 +2,8 @@
 <paths>
     <!-- DET-01: the Health Connect report, shared as a text file. -->
     <cache-path name="reports" path="reports/" />
+    <!-- Tuesday's measurements (item 9): a copy of the draft, shared as groundtruth/<date>.json. -->
+    <cache-path name="groundtruth" path="groundtruth/" />
     <!-- PHO-01: the camera app writes package photos here. -->
     <files-path name="photos" path="photos/" />
 </paths>

@@ -1,5 +1,5 @@
 {
-  "session": "2026-11-25",
+  "session": "2026-11-24",
   "note": "Filled from Chris's measurements (USER-MANUAL section 16). Distances in metres. Court axes: x along the court (the near baseline, the cameras' side, at x = -11.885), y across (the cameras' side fence at negative y), z up.",
   "cameras": [
     {"cam": 1, "heightM": 3.5, "fromDoublesSidelineM": 4.0, "beyondBaselineM": 2.5, "atEnd": "near"},

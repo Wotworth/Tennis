@@ -76,7 +76,7 @@ q = air;  q.CD = x(9);  q.CL = 0;
 h0 = tv.physics.groundHit(P0);
 dirH = x(4:5) / norm(x(4:5));
 m.spinEffect = NaN;  m.spinEffectNet = NaN;  m.spinCurve = NaN;  m.spinEffectSd = NaN;  m.spinCurveSd = NaN;
-m.spinEffectSdFit = NaN;  m.spinCurveSdFit = NaN;
+m.spinEffectSdFit = NaN;  m.spinCurveSdFit = NaN;  m.windLevel = '';  m.gustRatio = NaN;
 if ~isempty(h0) && ~isempty(bounceEv)
     hb = segGround(x, seg.t0, air, c);
     m.spinEffect = (hb(1:2) - h0(1:2)) * dirH';           % negative: landed shorter
@@ -89,7 +89,8 @@ end
 [m.spinEffectSdFit, m.spinCurveSdFit] = effectSd(seg, air, c, m.spinEffect, m.spinCurve);
 % 21 Nov (Chris, item 3): the fit's own uncertainty is 4 to 10 times too small; what the flight
 % model leaves out is added (cfg.modelErr, measured from the shot study), and only that is used
-me = modelErr(cfg);
+me = forWind(modelErr(cfg), air);
+m.windLevel = me.windLevel;  m.gustRatio = me.gustRatio;
 m.spinEffectSd = sqrt(m.spinEffectSdFit ^ 2 + me.effectM ^ 2 + (me.effectFrac * m.spinEffect) ^ 2);
 m.spinCurveSd = sqrt(m.spinCurveSdFit ^ 2 + me.curveM ^ 2 + (me.curveFrac * m.spinCurve) ^ 2);
 i0 = find(sign(P0(1:end-1, 1)) ~= sign(P0(2:end, 1)), 1);
@@ -156,4 +157,20 @@ function t = shotType(isServe, p, segAfter)
 if isServe, t = 'serve';
 elseif p(3) > 2.3, t = 'overhead';
 else, t = 'groundstroke'; end
+end
+
+function me = forWind(me, air)
+% the sideways-curve term between calm and the studied gusts, by the session's gusts (22 Nov, item 10):
+% extra variance = calm^2 + r^2 (gusts^2 - calm^2), r = (gust - mean wind at 10 m) / gustRefMps, capped.
+% Unknown gusts: the studied level (r = 1). me.windLevel: calm (r < 0.5), breezy (to 1), gusty (over 1).
+me.gustRatio = 1;  me.windLevel = 'unknown';
+if ~isfield(me, 'curveMCalm'), return; end
+g = NaN;  if isfield(air, 'gustExcess10'), g = air.gustExcess10; end
+if isfinite(g)
+    me.gustRatio = min(g / me.gustRefMps, me.gustCap);
+    if me.gustRatio < 0.5, me.windLevel = 'calm'; elseif me.gustRatio <= 1, me.windLevel = 'breezy'; else, me.windLevel = 'gusty'; end
+end
+r2 = me.gustRatio ^ 2;
+me.curveM = sqrt(me.curveMCalm ^ 2 + r2 * (me.curveM ^ 2 - me.curveMCalm ^ 2));
+me.curveFrac = sqrt(me.curveFracCalm ^ 2 + r2 * (me.curveFrac ^ 2 - me.curveFracCalm ^ 2));
 end

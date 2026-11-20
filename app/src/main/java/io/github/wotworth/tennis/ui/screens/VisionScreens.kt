@@ -121,6 +121,10 @@ fun VisionTiles() {
     FootageTestTiles()
     val checks = app.vision.checks(app.prefs.visionSample).size
     if (checks > 0) TextRow("ball check", "$checks frames to look at: a few taps teach the detector") { nav.open(Screen.BallCheck) }
+    // Chris, 22 Nov, items 9 and 14: Tuesday's measurements, and the accuracy report from them
+    TextRow("tuesday's measurements", "the tape-measure numbers from the court, saved as you type") { nav.open(Screen.FieldNotes) }
+    val accuracy = androidx.compose.runtime.remember { io.github.wotworth.tennis.vision.AccuracyStore(app).all().firstOrNull() }
+    if (accuracy != null) TextRow("accuracy", accuracyDay(accuracy)) { nav.open(Screen.Accuracy) }
     // TV-CAL-21: a session the PC is holding because a camera's court-line fit is doubtful
     if (app.vision.cornerChecks(app.prefs.visionSample).isNotEmpty()) {
         TextRow("court corners", "a session is waiting: tap the four corners of its court") { nav.open(Screen.CourtCorners) }
@@ -243,7 +247,8 @@ private fun VisionSummary(v: VisionSession) {
         }
         SectionHeader("air")
         TextRow(listOfNotNull(v.tempC?.let { "${(it * 9 / 5 + 32).roundToInt()} °F" }, v.wind.takeIf { it.size >= 2 }?.let { "wind ${Units.mph(hypot(it[0], it[1]))}" }).joinToString(" · ").ifBlank { "–" },
-            v.sessionCD?.let { "ball drag %.3f (falls as balls wear)".format(Locale.US, it) })
+            listOfNotNull(v.sessionCD?.let { "ball drag %.3f (falls as balls wear)".format(Locale.US, it) },
+                if (v.windLevel == "gusty") "gusty: sideways curves less certain" else null).joinToString(" · ").ifBlank { null })
     }
 }
 

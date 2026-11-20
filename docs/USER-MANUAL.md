@@ -862,7 +862,7 @@ Every test below gives a number that is **not graded against our own labels or s
 10. **Before the nets come down:** a last 30-second clip of the empty court from both cameras (the light will have moved), then stop.
 
 ### 16.4 After the session
-1. Write the numbers from 16.3 (camera positions, court widths, target positions, machine settings, drop spots) in a note and send it to me. I fill `vision/groundtruth/2026-11-25.json` from it (template: `vision/groundtruth/template.json`).
+1. Fill the numbers in as you go, in the app: **sessions page → tuesday's measurements** (camera positions, court widths, still balls, drop spots, targets, machine settings per clip, the striped-ball clip). It saves as you type. At the end tap **share the file** and save `2026-11-24.json` in the Tuesday Drive folder: it is the file the analysis reads (`vision/groundtruth/2026-11-24.json`), so nothing is copied by hand. Afterwards **sessions page → accuracy** shows the results per test once I've run them.
 2. Upload the files as in 16.5.
 3. The accuracy report comes out per test: the drop (gravity and height), the still balls (3D error), the targets (bounce error), the machine (spread per setting), and the camera positions against the tape.
 

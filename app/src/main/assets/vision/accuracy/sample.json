@@ -1,0 +1,31 @@
+{"session":"2026-11-24","synthetic":true,
+ "cameras":[
+  {"cam":1,"found":[-14.41,-9.47,3.52],"taped":[-14.385,-9.485,3.5],"errCm":3.5},
+  {"cam":2,"found":[14.37,-9.51,3.49],"taped":[14.385,-9.485,3.5],"errCm":3.1}],
+ "drop":{"n":9,"g":9.77,"gSpread":0.11,"gTruth":9.81,"heightM":2.027,"heightSpreadM":0.008,"heightTruthM":2.0335},
+ "still":[
+  {"name":"near centre mark","found":true,"errCm":1.1,"gapCm":0.6},
+  {"name":"near T","found":true,"errCm":1.4,"gapCm":0.8},
+  {"name":"far T","found":true,"errCm":2.7,"gapCm":1.3},
+  {"name":"far service line at the singles sideline","found":true,"errCm":3.3,"gapCm":1.9},
+  {"name":"net tape at the centre strap","found":false,"errCm":null,"gapCm":null},
+  {"name":"1 m inside the near doubles corner","found":true,"errCm":1.6,"gapCm":0.7}],
+ "targets":[
+  {"name":"far left corner","n":6,"medianCm":3.2,"worstCm":7.9},
+  {"name":"far right corner","n":5,"medianCm":4.1,"worstCm":9.3},
+  {"name":"far centre line, 1 m short of the baseline","n":6,"medianCm":2.9,"worstCm":6.1},
+  {"name":"far left service box centre","n":6,"medianCm":2.4,"worstCm":5.2},
+  {"name":"far right service box centre","n":6,"medianCm":2.6,"worstCm":5.8},
+  {"name":"far centre line, 50 cm short of the service line","n":6,"medianCm":2.2,"worstCm":4.7}],
+ "machine":[
+  {"setting":"medium flat","n":10,"speedMph":44.7,"speedSdMph":0.6,"spinFt":1.0,"spinSdFt":0.1,"landSdCm":21},
+  {"setting":"medium topspin","n":10,"speedMph":43.9,"speedSdMph":0.8,"spinFt":3.4,"spinSdFt":0.3,"landSdCm":27},
+  {"setting":"slow slice","n":9,"speedMph":31.2,"speedSdMph":0.7,"spinFt":-1.9,"spinSdFt":0.2,"landSdCm":33},
+  {"setting":"fast topspin","n":10,"speedMph":57.5,"speedSdMph":1.1,"spinFt":4.6,"spinSdFt":0.4,"landSdCm":38}],
+ "spin":{"medianDiffRpm":60,"rows":[
+  {"ball":1,"stripeRpm":2050,"stripeSdRpm":20,"systemRpm":2000,"systemSdRpm":100,"inside":true},
+  {"ball":2,"stripeRpm":2110,"stripeSdRpm":20,"systemRpm":2190,"systemSdRpm":110,"inside":true},
+  {"ball":3,"stripeRpm":1990,"stripeSdRpm":30,"systemRpm":1930,"systemSdRpm":90,"inside":true},
+  {"ball":4,"stripeRpm":2080,"stripeSdRpm":20,"systemRpm":2400,"systemSdRpm":120,"inside":false},
+  {"ball":5,"stripeRpm":2020,"stripeSdRpm":20,"systemRpm":2090,"systemSdRpm":100,"inside":true},
+  {"ball":6,"stripeRpm":2060,"stripeSdRpm":30,"systemRpm":2000,"systemSdRpm":100,"inside":true}]}}

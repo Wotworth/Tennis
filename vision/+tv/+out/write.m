@@ -18,7 +18,9 @@ s.cameras = arrayfun(@(k) struct('serial', R.rec(k).serial, 'position', R.cams(k
     'lineSupport', fieldOr(R.calib(k), 'support', NaN), ...       % share of the fitted lines with paint under them (Chris, 20 Nov)
     'calibSource', fieldOr(R.calib(k), 'source', 'lines')), 1:2);   % 'lines', or 'corners' when tapped
 s.sync = struct('startOffsetS', R.sync.startOffset(2), 'deltaS', R.sync.delta, 'drift', R.sync.drift);
-s.air = struct('rho', R.air.rho, 'wind', R.air.wind(1:2), 'sessionCD', R.air.sessionCD);
+s.air = struct('rho', R.air.rho, 'wind', R.air.wind(1:2), 'sessionCD', R.air.sessionCD, 'gustExcess10', NaN, 'windLevel', 'unknown');
+if isfield(R.air, 'gustExcess10'), s.air.gustExcess10 = R.air.gustExcess10; end
+if isfield(R, 'shots') && isstruct(R.shots) && ~isempty(R.shots) && isfield(R.shots, 'windLevel'), s.air.windLevel = R.shots(1).windLevel; end   % 22 Nov, item 10: the app marks the curve less certain when 'gusty'
 s.symmetry = struct('chosen', R.symmetry.chosen, 'ballGapM', R.symmetry.ballGap', 'playerGapM', R.symmetry.playerGap', ...
     'cam2AtLowerX', R.symmetry.cam2AtLowerX);
 s.crossing = struct('minDeg', R.crossing.minDeg, 'thresholdDeg', R.crossing.thresholdDeg, ...

@@ -58,6 +58,10 @@ sealed interface Screen {
     data class MissedShot(val sessionId: String, val rally: Int) : Screen
     data class Court(val id: Long) : Screen
     data class CourtEdit(val id: Long? = null) : Screen
+    /** Chris, 22 Nov, item 9: Tuesday's tape-measure numbers, as the PC's ground-truth file. */
+    data object FieldNotes : Screen
+    /** Chris, 22 Nov, item 14: the accuracy report's numbers. */
+    data object Accuracy : Screen
 }
 
 /** A plain back stack; back always ends at the hub (NAV-06). */
@@ -108,6 +112,8 @@ fun AppRoot(app: TennisApp, nav: Navigator = remember { Navigator() }, overlays:
                     is Screen.VisionIdentity -> io.github.wotworth.tennis.ui.screens.VisionIdentityScreen(s.id)
                     is Screen.Court -> io.github.wotworth.tennis.ui.screens.CourtScreen(s.id)
                     is Screen.CourtEdit -> io.github.wotworth.tennis.ui.screens.CourtEditScreen(s.id)
+                    Screen.FieldNotes -> io.github.wotworth.tennis.ui.screens.FieldNotesScreen()
+                    Screen.Accuracy -> io.github.wotworth.tennis.ui.screens.AccuracyScreen()
                 }
                 OverlayHost(overlays)
             }

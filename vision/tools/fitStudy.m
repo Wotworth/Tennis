@@ -72,6 +72,9 @@ for r = 1:min(3, nR)
     if ~isempty(segs{r}), fprintf('rally %d flights: %s\n', r, strjoin(arrayfun(@(g) sprintf('%.3f-%.3f (%.2f px)', min(g.t), max(g.t), g.rmsPx), segs{r}, 'UniformOutput', false), ', ')); end
 end
 
+% the session's gusts as the forecast would give them (22 Nov, item 10): the studied 0.6 m/s per period
+% is the reference level, calm is none
+q = tv.pipeline.defaults();  air.gustExcess10 = q.modelErr.gustRefMps * opts.gustAmp / 0.6;
 rows = tv.synth.scoreShots(S, segs, ev, air, cams);
 % every shot not found, with what was found near it, so the CI log says why
 for k = find(~[rows.found])

@@ -5,7 +5,13 @@ function S = session(shots, rallies, air)
 %   and depth; in %; the landing-spot dispersion ellipse (1-sigma area,
 %   m^2); first-serve speed and in %; and per-rally medians over time
 %   (the fatigue curve).
-S.air = struct('rho', air.rho, 'wind', air.wind, 'sessionCD', air.sessionCD);
+cd = NaN;  if isfield(air, 'sessionCD'), cd = air.sessionCD; end
+S.air = struct('rho', air.rho, 'wind', air.wind, 'sessionCD', cd);
+if isempty(shots)                                     % no shots (an empty-court clip, one drop: 22 Nov)
+    S.byType = struct();  S.firstServe = struct('speed', stats([]), 'inPct', NaN);
+    S.rallies = rallies;  S.overTime = struct('rally', {}, 't', {}, 'speed', {}, 'spinEffect', {});
+    return
+end
 types = unique({shots.type});
 S.byType = struct();
 for k = 1:numel(types)

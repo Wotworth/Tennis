@@ -111,6 +111,10 @@ if cfg.indoor   % TV-IND-01: indoor temperature and humidity, pressure from the 
 end
 air0.wind = [0.5 * cfg.weather.wind10, 0];            % TV-PHY-04: half the 10 m forecast
 if cfg.indoor, air0.wind = [0 0 0]; end
+% 22 Nov (item 10): how gusty the session is, for the sideways-curve uncertainty (tv.metrics.shot)
+air0.gustExcess10 = NaN;
+if isfield(cfg.weather, 'gust10') && isfinite(cfg.weather.gust10), air0.gustExcess10 = max(0, cfg.weather.gust10 - norm(cfg.weather.wind10)); end
+if cfg.indoor, air0.gustExcess10 = 0; end
 guard();
 kRec = k(sync, Y.symmetry.chosen, cfg.weather, cfg.indoor, cfg.CDprior, cfg.refineRounds, h(kGate));
 X = tv.pipeline.stage(outDir, 'recon', kRec, @() reconstruct(G, cams, rec, sync, air0, cfg));

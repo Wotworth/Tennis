@@ -1,4 +1,4 @@
-function res = quickLook(files, outDir, calibFrom)
+function res = quickLook(files, outDir, calibFrom, opts)
 %QUICKLOOK  A short two-camera stretch of a real session, processed here before the PC exists (Chris, 20 Nov).
 %   res = quickLook({cam1Stretch, cam2Stretch}, outDir)              calibrates from this stretch
 %   res = quickLook({cam1Stretch, cam2Stretch}, outDir, calibFile)   uses another clip's calibration
@@ -14,11 +14,16 @@ function res = quickLook(files, outDir, calibFrom)
 %   own, from the ball (the coarse start times come from each file). Every frame is searched.
 %   A doubtful calibration does not hold the stretch (there is no app to ask yet): the alert is
 %   printed and processing goes on.
+%   opts.lensName: the cameras' lens setting, 'Linear' by default (Tuesday's setting, manual 16.3;
+%   22 Nov: the dress rehearsal found the pipeline's 'Wide' default put the cameras a metre off).
 if nargin < 3, calibFile = ''; else, calibFile = calibFrom; end
+if nargin < 4, opts = struct(); end
+if ~isfield(opts, 'lensName'), opts.lensName = 'Linear'; end
 % a clip GoPro split into chapters: its other chapters beside it are read with it (22 Nov)
 for k = 1:numel(files), files{k} = withChapters(files{k}); end
 cfg = tv.pipeline.defaults();
 cfg.calibFrom = calibFile;
+cfg.lensName = opts.lensName;
 cfg.doubtfulCalibration = 'continue';
 cfg.frames = 'all';
 cfg.outputs.reel = false;

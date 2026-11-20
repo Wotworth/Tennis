@@ -39,6 +39,8 @@ class SpoofOddNumbersTest {
         Regex("""^180 · 140 · 100 bpm$"""),                // the heart-rate chart's grid lines
         Regex("""^\d+–\d+%$|^90%\+$"""),                   // the heart-rate zone names
         // the bundled footage test's tile on the sessions page: real footage, not the spoof session
+        // the accuracy row (item 14): the date of a bundled result file, not the spoof session
+        Regex("""^(sample \(synthetic\) · )?\w{3} \d{1,2} \w{3} \d{4}$"""),
         Regex("""^Clay, iPhone · \d+ rallies$|^footage test · \d+ \w+ \d+$|^ball found in \d+% of frames$"""),
     )
 
