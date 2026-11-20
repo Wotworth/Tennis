@@ -16,7 +16,7 @@ import kotlin.math.sin
  * Around the tap, within [radius] picture pixels: the painted lines are the pixels brighter than
  * what is either side of them (up to 17 px wide) and nearly colourless, or less coloured than the
  * court round them. Up to four straight lines are found there; the corner is the crossing of two
- * of them nearest the tap. A court's sizes are measured to the OUTSIDE edges of its lines, so the corner
+ * of them nearest the tap where at least one of them ends, at most half the radius from the tap. A court's sizes are measured to the OUTSIDE edges of its lines, so the corner
  * is where the two lines' outside edges cross: each line is moved half its own measured width
  * away from the court. "Away from the court" is the side the other line does not run into (at a
  * corner the baseline runs along the court and the sideline down it). When a line runs on both
@@ -81,12 +81,20 @@ object CornerSnap {
             lines.add(l)
             rest = rest.filter { abs((it[0] - tap.x) * cos(l.angle) + (it[1] - tap.y) * sin(l.angle) - l.rho) > l.halfWidth + 2 }
         }
+        // at a corner at least one line ends at the crossing (the sideline ends at the baseline; the
+        // baseline itself may run on into a neighbouring court); two lines both running through make
+        // a +, not a corner. And a snap never
+        // moves a tap more than half the search radius: on real pictures a far-away crossing was
+        // always the wrong one (20 Nov), and the PC refines a tap up to about 12 px off by itself
+        val maxMove = 0.5 * radius
         var la: Line? = null;  var lb: Line? = null;  var centre: Offset? = null;  var bestD = Double.MAX_VALUE
         for (i in lines.indices) for (j in i + 1 until lines.size) {
             if (angleGapRad(lines[i].angle, lines[j].angle) < 8 * PI / 180) continue
             val c = cross(lines[i], lines[j], tap) ?: continue
             val d = (c - tap).getDistance().toDouble()
-            if (d <= radius && d < bestD) { bestD = d; la = lines[i]; lb = lines[j]; centre = c }
+            if (d > maxMove || d >= bestD) continue
+            if (extent(px, lines[i], tap, c) == 0 && extent(px, lines[j], tap, c) == 0) continue   // a + crossing: not a corner
+            bestD = d; la = lines[i]; lb = lines[j]; centre = c
         }
         if (la == null || lb == null || centre == null) return null
         // each line's own width, measured away from the other line (where they cross the paint is both)
@@ -95,7 +103,7 @@ object CornerSnap {
         val ea = extent(px, la, tap, centre);  val eb = extent(px, lb, tap, centre)
         val oa = outwardShift(la, lb, eb);  val ob = outwardShift(lb, la, ea)
         val corner = cross(la.copy(rho = la.rho + oa), lb.copy(rho = lb.rho + ob), tap) ?: return null
-        if ((corner - tap).getDistance() > radius) return null
+        if ((corner - tap).getDistance() > maxMove) return null
         return Result(corner, centre, la, lb)
     }
 

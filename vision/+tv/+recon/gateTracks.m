@@ -36,7 +36,7 @@ function [kept, log, partners] = gateTracks(tracks, cands, cams, rec, sync, box,
 %   none), reason, errPx.
 %   RETUNE(real footage): every opts value (tv.pipeline.defaults, cfg.gate).
 if nargin < 7, opts = struct(); end
-d = struct('epipolarPx', 4, 'minInsideFrac', 0.5, 'minPairedFrac', 0.3, 'maxSpeed', 75, 'maxGapFrames', 3, 'sameBallM', 2, 'rollMaxZ', 0.3, 'rollMinS', 0.3);
+d = struct('epipolarPx', 4, 'minInsideFrac', 0.5, 'minPairedFrac', 0.3, 'maxSpeed', 75, 'maxGapFrames', 3, 'sameBallM', 2, 'rollMaxZ', 0.3, 'rollMinS', 0.3, 'rollShare', 0.9);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 log = emptyLog();
@@ -103,9 +103,13 @@ for k = 1:2
         % a ball rolling on the ground (a stray from the next court, or a dead ball) is not a
         % shot: all its 3D points low for at least opts.rollMinS (CI 17 Nov: a stray rolling
         % across Chris's court was accepted once flights were fitted per ball)
+        % 20 Nov: "low" is judged on the 90th percentile of its heights, not the highest point: with
+        % the learned detector the stray in adjacentTest's second rally had 90% of its points under
+        % 5 cm but a few mis-paired ones at 0.7 to 1.4 m, so it was kept, fitted together with
+        % Chris's ball, and the whole stretch (two of his shots) was dropped
         if isempty(reason) && nnz(inside) >= 5
-            zi = I.X(inside, 3);  ti = t(inside);
-            if max(zi) < opts.rollMaxZ && max(ti) - min(ti) >= opts.rollMinS
+            zi = sort(I.X(inside, 3));  ti = t(inside);
+            if zi(ceil(opts.rollShare * numel(zi))) < opts.rollMaxZ && max(ti) - min(ti) >= opts.rollMinS
                 reason = 'rolling on the ground';
             end
         end

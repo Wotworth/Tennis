@@ -11,6 +11,7 @@ cfg.ballApparentScale = 1;          % synthetic footage draws the ball larger
 cfg.chunk = 240;                    % frames decoded at once
 cfg.detector = 'learned';           % TV-DET-04: the learned ball detector ('classical': the first, colour-based one)
 cfg.ballNetFile = '';               % its classifier's weights; empty = round 5 (tv.detect.ballModel)
+cfg.calibFrom = '';                 % a calib.mat (outDir/stages) from another clip of the same session: its cameras are used as they are
 cfg.frames = 'all';                 % Chris, 20 Nov: 'all' searches every frame; 'sound' only the sound's rally windows (not before a
                                     % first pass is shown to miss under 1% of rally frames on real sessions and Chris agrees)
 cfg.play = struct('score', 0.5, 'binS', 0.25, 'binShare', 0.25, 'mergeS', 4, 'leadS', 1.5, 'tailS', 2);   % rallies from the ball in play (tv.rally.fromPlay); RETUNE(real footage)
@@ -32,7 +33,7 @@ cfg.gate = struct('epipolarPx', 4, ...      % TV-ADJ-02: summed reprojection err
                   'minPairedFrac', 0.3, ... % share of a track seen by both cameras
                   'maxSpeed', 75, ...       % m/s between neighbouring 3D points
                   'sameBallM', 2, ...       % two overlapping tracks in one camera are one ball only within this (m)
-                  'rollMaxZ', 0.3, 'rollMinS', 0.3, ... % a track this low (m) for this long (s) is a rolling ball
+                  'rollMaxZ', 0.3, 'rollMinS', 0.3, 'rollShare', 0.9, ... % a track this low (m) for this long (s) is a rolling ball
                   'perBall', false, ...     % fit a second ball in view at once apart (tv.recon.ballGroups); off: CI 17 Nov lost more flights with it
                   'playerInsideFrac', 0.6); % TV-ADJ-05: share of a person's time inside
 cfg.adjacentTest = struct('maxFalsePos', 0.005, 'maxFalseNeg', 0.02, 'maxSwaps', 0);   % AC-14 to AC-16

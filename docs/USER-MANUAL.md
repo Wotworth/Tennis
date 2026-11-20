@@ -73,6 +73,19 @@ Contents:
 ## 2. One-time setup
 
 ### 2.1 Closet PC
+
+**The short version, for the 30-day return window (Chris, 20 Nov):**
+- [ ] Updates: Windows, then Lenovo Legion Space with the BIOS (step 6); Windows 11 Pro (step 7)
+- [ ] Power: "After Power Loss: Power On" in the BIOS (step 9); the setup script sets sleep off and the update hours (step 15)
+- [ ] NVIDIA driver (step 11)
+- [ ] MATLAB with Image Processing, Computer Vision, Optimization, Statistics and Machine Learning, Signal Processing, Parallel Computing and Deep Learning toolboxes (step 12; section 1)
+- [ ] Setup script with `-InstallTools`: FFmpeg, Git, Tailscale, LibreHardwareMonitor (step 15)
+- [ ] FFmpeg lists **cuda** (step 15a)
+- [ ] Tailscale and Remote Desktop from the tablet (step 16)
+- [ ] Phone alerts (step 17)
+- [ ] Benchmark: temperatures under the limits (step 20)
+- [ ] Watcher and the test card (steps 21–24)
+
 Steps marked **(PC)** need the monitor and keyboard. Everything after step 16 is done from the tablet over Remote Desktop.
 
 1. **(PC) Place the PC** where it will live in the closet, with space behind it. Leave the closet door open while it processes.
@@ -133,6 +146,14 @@ Steps marked **(PC)** need the monitor and keyboard. Everything after step 16 is
       - starts the temperature sensors at log-on;
       - makes the config files.
     - If it warns about something, fix it and run the same line again: it is safe to repeat.
+15a. **(PC) Check FFmpeg can use the graphics card's video decoder (NVDEC; Chris, 20 Nov).** In the same Terminal, paste:
+
+      ```
+      ffmpeg -hide_banner -hwaccels
+      ```
+
+    - The list must include **cuda**. If it doesn't, the NVIDIA driver (step 11) is missing or FFmpeg is a cut-down build: run `winget install Gyan.FFmpeg` again and restart.
+    - Once a camera file is on D:, the benchmark (step 20) times decoding with and without it.
     - Open LibreHardwareMonitor once and tick "Start minimized" and "Minimize to tray".
 16. **Remote access.**
     1. **(PC)** Sign in to Tailscale (section 2.2).
@@ -156,8 +177,8 @@ Steps marked **(PC)** need the monitor and keyboard. Everything after step 16 is
       cd C:\TennisVision\code\vision; addpath(pwd, 'tools'); benchmarkPC
       ```
 
-    - Leave it for 1–2 hours. Your phone gets "Benchmark done", with the hours a 2-hour session would take in each capture mode.
-    - **Keep the PC** if 4K120 with the 200 W limit is within 12 hours, and the peak temperatures stay under 90 °C (CPU) and 80 °C (GPU). Otherwise send me `C:\TennisVision\benchmark\benchmark.md`.
+    - Leave it for 1–2 hours. Your phone gets "Benchmark done", with the hours a 1.5-hour session would take in each capture mode, every frame searched.
+    - **Keep the PC** if 4K240 with the 200 W limit is within **18 hours** (TV-OPS-04, 20 Nov), and the peak temperatures stay under 90 °C (CPU) and 80 °C (GPU). Otherwise send me `C:\TennisVision\benchmark\benchmark.md`. Note: the spot-finding on the graphics card is not built yet (docs/reports/PROCESSING-TIME-1.md), so the first benchmark will be well over 18 hours; it is the temperatures and the decoder that matter on day one, and I'll tell you when the timing is the real test.
 21. **(Tablet) Start the watcher.** Restart the PC. It signs in by itself, and your phone gets "Watcher started".
 22. **(Tablet) Test card.**
     - Put the empty microSD card in reader 1.

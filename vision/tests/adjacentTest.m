@@ -42,12 +42,23 @@ for r = 1:numel(R.result.segs)
     for kk = 1:2
         tk = R.result.ballTracks{r, kk};
         fprintf('rally %d camera %d: %d tracks kept, %d points\n', r, kk, numel(tk), sum(arrayfun(@(t) numel(t.frames), tk)));
+        for j = 1:numel(tk)                            % what each kept track really is (Chris, 20 Nov: find the cause)
+            [cnt, nm] = tv.synth.trackLabels(tk(j), kk, R.result.rec, T.cams, T.truth, 4 * T.sc.frameSize(1) / 960);
+            fprintf('   kept track %d (id %d), frames %d-%d: %s\n', j, tk(j).id, tk(j).frames(1), tk(j).frames(end), ...
+                strjoin(arrayfun(@(i) sprintf('%s %d', nm{i}, cnt(i)), find(cnt > 0), 'UniformOutput', false), ', '));
+        end
     end
     for g = R.result.segs{r}'
         fprintf('rally %d flight %.3f-%.3f rms %.2f px n %d/%d\n', r, g.t0, max(g.t), g.rmsPx, g.n);
     end
     for g = R.result.dropped{r}'
         fprintf('rally %d DROPPED part %.3f-%.3f rms %.2f px n %d/%d\n', r, g.t0, max(g.t), g.rmsPx, g.n);
+        for kk = 1:2                                   % which balls the part's points really are, per camera
+            o = g.obs(g.obs(:, 1) == kk, :);
+            if isempty(o), continue; end
+            [cnt, nm] = tv.synth.trackLabels(struct('frames', o(:, 2), 'uv', o(:, 3:4)), kk, R.result.rec, T.cams, T.truth, 4 * T.sc.frameSize(1) / 960);
+            fprintf('   camera %d: %s\n', kk, strjoin(arrayfun(@(i) sprintf('%s %d', nm{i}, cnt(i)), find(cnt > 0), 'UniformOutput', false), ', '));
+        end
     end
 end
 if ~isempty(getenv('CI'))

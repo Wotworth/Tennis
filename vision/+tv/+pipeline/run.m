@@ -18,7 +18,7 @@ function result = run(files, outDir, cfg)
 if nargin < 3 || isempty(cfg), cfg = tv.pipeline.defaults(); end
 % settings added after a session's cfg was saved (an app answer reruns it from run.mat) take their defaults
 d0 = tv.pipeline.defaults();
-dflt = struct('frames', 'all', 'play', d0.play, 'corners', {{[], []}}, 'calibAccepted', [false false], 'doubtfulCalibration', 'hold', 'maxTapRms', 0.01, 'checkPictureWidth', 3840);
+dflt = struct('frames', 'all', 'play', d0.play, 'calibFrom', '', 'corners', {{[], []}}, 'calibAccepted', [false false], 'doubtfulCalibration', 'hold', 'maxTapRms', 0.01, 'checkPictureWidth', 3840);
 fn = fieldnames(dflt);
 for i = 1:numel(fn), if ~isfield(cfg, fn{i}), cfg.(fn{i}) = dflt.(fn{i}); end, end
 if ~exist(outDir, 'dir'), mkdir(outDir); end
@@ -39,8 +39,15 @@ guard();
 % each stage's key carries the keys of the stages it is built on (h: their short form), so a change
 % upstream (tapped corners, another detector, indoor air) reruns everything that used it
 h = @tv.util.hashText;
-kCal = k('search', cfg.lensName, cfg.aspect, 'corners', 'lines-19nov', cfg.lineOpts, cfg.corners);
-C = tv.pipeline.stage(outDir, 'calib', kCal, @() calibrate(rec, cfg));
+kCal = k('search', cfg.lensName, cfg.aspect, 'corners', 'lines-19nov', cfg.lineOpts, cfg.corners, cfg.calibFrom, 'lines-20nov');
+if ~isempty(cfg.calibFrom)
+    % the cameras did not move between clips (Tuesday: one clip per test, cameras untouched): the
+    % calibration of another clip of the same session is used as it is (tools/quickLook.m)
+    Cf = load(cfg.calibFrom);  C = Cf.out;
+    if ~isequal([C.cams.width], [rec.width]), error('tv:calib:from', 'The calibration in %s is for another picture size.', cfg.calibFrom); end
+else
+    C = tv.pipeline.stage(outDir, 'calib', kCal, @() calibrate(rec, cfg));
+end
 % TV-CAL-11, 21: a fit the court's own lines do not back. On real pictures (19 Nov) the pose the search
 % settled on had 16 to 18% of its near-half lines on paint when it was wrong and 54 to 97% when it was
 % right; under cfg.minLineSupport it is doubtful. The picture and the fit are written for the app, and
