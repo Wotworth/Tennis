@@ -762,3 +762,84 @@ My session's machine is wiped when the session ends. Google Drive stays the mast
 - [ ] Google Drive > TennisVision > footage > Upload > Browse > the file
 - [ ] Tell me it's uploaded; approve my request for Google Drive access
 - [ ] Share link when I ask; set back to Restricted when I say it's done
+
+---
+
+## 16. Tuesday: the first two-camera session (ball machine, about 90 minutes)
+
+Chris, 20 Nov: the two Mission 1 Pros arrive Friday. About 20 minutes of recording on an outdoor court with a ball machine, both cameras on internal batteries, started and stopped together from the GoPro app, one clip per test, cameras not touched between clips, one ball bounced at the start of every clip in view of both cameras. Mostly machine balls you hit back.
+
+Every test below gives a number that is **not graded against our own labels or synthetic data**: a tape measure, a known height, gravity, or a machine that repeats itself. The PC turns them into an accuracy report by itself (`tools/groundTruthReport.m`, section 16.4).
+
+### 16.1 What to bring
+- Both cameras, charged, with empty cards; the two clamps; the GoPro app on the phone.
+- The checkerboard (section 4.1).
+- A **30 m tape measure** and a **2 m folding rule or a second tape**; a roll of **coloured tape** (not white: it must not look like a court line); a marker pen; this list.
+- 6 balls kept aside for the still tests (put a pen dot on them so they don't go into the machine).
+- The ball machine and its balls.
+
+### 16.2 Before you leave home (10 min)
+1. **Camera settings, both cameras, in the `TENNIS` preset:**
+   1. Resolution and rate **4K at 240**. Check the lens choice at 4K240: write down whether **Linear** is offered. If it is, use Linear; if not, Wide.
+   2. **HyperSmooth off**, **Horizon Lock off** (and any horizon levelling).
+   3. **Shutter 1/1920 s** if the menu offers it at 240 (else 1/960, and write which). ISO auto, maximum 1600. White balance 5500 K. Colour Natural. Bitrate high. GPS on. Audio on.
+   4. Record 10 seconds, play it back, and on the phone check the file says 3840 × 2160 and 240 frames a second. Look for a small second file (LRV) beside it on the card.
+   - **Proves:** that both cameras record the mode the calibration and the detector will assume.
+2. **Checkerboard, each camera on its own, in the `TENNIS` preset, handheld board, camera on a table** (section 4.3–4.6): 90 seconds per camera. If you have time, also 60 seconds in **Wide** per camera (only if Linear was offered), so we have both lenses measured.
+   - **Proves:** each lens's exact bending, instead of GoPro's published angles.
+
+### 16.3 At the court (about 75 min)
+1. **Mount the cameras (10 min).** Use the Linear placement table in section 6 for the side fence's distance from the doubles sideline: both cameras on the same side fence, one beyond each baseline, the height and aim in the table.
+   - In the app's live view check that **all four corners of the doubles court** are in view on each camera, with a little room round them. Re-aim if not.
+   - **Measure each camera with the tape** and write it down: its height above the court; its distance from the doubles sideline (straight across); its distance from the baseline line extended (along). Take a phone photo of each mount.
+   - **Proves:** the camera position the PC finds from the court lines against the tape (the first real check of calibration).
+2. **Measure the court (5 min):** the baseline's width (it can be 5 to 10 cm), one service line's width, and the distance between the two doubles sidelines at one baseline. Write them down.
+   - **Proves:** the court model's line widths and that the court is standard size.
+3. **Timecode sync** in the GoPro app (section 5), just before the first clip.
+4. **Clip 1 — empty court and still balls (2 min).** Everyone out of view. Start both cameras, bounce one ball once in view of both, take it away. Then put the 6 marked balls down, still, at these spots, and wait 20 seconds:
+   1. the centre mark of the near baseline (inside edge of the line);
+   2. the T (service line meets the centre service line), near half;
+   3. the T, far half;
+   4. where the far service line meets the far singles sideline (on your side);
+   5. on top of the net tape, at the centre strap (balance it in the dip; if it won't stay, skip it);
+   6. 1 m inside the near doubles corner on each line (measure 1.00 m along the baseline and 1.00 m along the sideline, place the ball where the two measurements meet).
+   - Every spot is on a line crossing or measured from one, so no further measuring is needed. Stop both cameras.
+   - **Proves:** 3D position of still objects from the two cameras, against known positions (calibration plus triangulation, no motion).
+5. **Clip 2 — the 2-metre drop (5 min).** Tape the tape measure upright to the net post (or hold the folding rule upright on the court). At three spots — near the post on your side, at the centre of the near service box, and at the far T — hold a ball with its **bottom at 2.00 m**, let go without throwing, and let it bounce until it stops. Three drops at each spot. Say the spot out loud before each set (the camera's microphone records it).
+   - **Proves:** gravity measured by the system (it should find 9.81 m/s²) and the release height (2.00 m + the ball's radius, 2.03 m to its centre): timing, scale and height in one go.
+6. **Clip 3 — bounce targets (10 min).** Tape six crosses, about 10 cm each arm, at measured spots: 50 cm inside each far corner (both lines), 1 m short of the far baseline on the centre line, the centre of each far service box, and 50 cm short of the far service line on the centre line. Write each spot down as "distance from the baseline, distance from the sideline", measured with the tape to the cross's centre.
+   - For each target: **drop** 3 balls from shoulder height straight over the cross, then **toss** 3 balls underhand from 2–3 m so they bounce on it. After each toss say "on" or "off" (did it land on the cross, within a hand's width).
+   - **Proves:** the bounce position against a tape-measured spot, near and far, for slow and faster balls.
+7. **Clips 4 to 7 — ball machine, one clip per setting (about 5 min each).** Machine on the far baseline centre (measure where: distance from the centre mark), oscillation **off**. For each setting write down: **speed dial, spin dial, feed rate, elevation**, and the machine's position. Four settings, for example: medium flat; medium topspin; slow slice; fast topspin. Let the first 10 balls of each setting go by untouched (they show the machine's own spread), then hit the rest back.
+   - **Proves:** how alike the system finds balls the machine fires the same way (speed, spin, landing spot), and your returns.
+8. **Optional — one clip at 4K200 (3 min)** if the menu offers it, same settings otherwise. Note the battery % and any heat warning before and after each clip.
+   - **Proves:** whether 4K200 runs cooler or longer than 4K240 on battery, for choosing the mode.
+9. **Before the nets come down:** a last 30-second clip of the empty court from both cameras (the light will have moved), then stop.
+
+### 16.4 After the session
+1. Write the numbers from 16.3 (camera positions, court widths, target positions, machine settings, drop spots) in a note and send it to me. I fill `vision/groundtruth/2026-11-25.json` from it (template: `vision/groundtruth/template.json`).
+2. Upload the files as in 16.5.
+3. The accuracy report comes out per test: the drop (gravity and height), the still balls (3D error), the targets (bounce error), the machine (spread per setting), and the camera positions against the tape.
+
+### 16.5 Sending me the clips (before the closet PC exists)
+My session has about 4 GB of disk, so I fetch **short stretches** of each file, not whole files. Upload **whole files** to the Google Drive folder as before (section 15); don't trim them on the phone (the GoPro app re-encodes a trimmed copy, which changes the picture). Then share the folder link. Order of use:
+1. the checkerboard clips (I fetch about 20 s of each);
+2. clip 1 (empty court and still balls);
+3. clip 2 (drops), clip 3 (targets);
+4. one machine clip;
+5. the rest when the first ones work.
+File names: keep the camera's own names (GX01xxxx.MP4); put each camera's files in its own folder `CAM1` and `CAM2`. Include the small LRV files too.
+
+### 16.6 Checklist
+- [ ] Both cameras: 4K240, Linear offered? (write down), HyperSmooth off, Horizon Lock off, shutter written down
+- [ ] 10-second test file checked: 3840 × 2160, 240
+- [ ] Checkerboard 90 s per camera (and Wide if possible)
+- [ ] Cameras mounted from the Linear table; four corners in view on each; positions taped and written
+- [ ] Court widths measured
+- [ ] Timecode sync
+- [ ] Clip 1: empty court, 6 still balls, 20 s
+- [ ] Clip 2: 9 drops from 2.00 m, spots said aloud
+- [ ] Clip 3: 6 targets measured; 3 drops and 3 tosses each, "on"/"off" said
+- [ ] Clips 4–7: one per machine setting, settings written; first 10 balls untouched
+- [ ] (Optional) 4K200 clip; battery and heat noted
+- [ ] Last empty-court clip

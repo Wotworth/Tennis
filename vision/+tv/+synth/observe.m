@@ -20,7 +20,11 @@ function O = observe(S, cams, opts)
 %                   by calibration-sized errors (opts.posErrM, opts.rotErrDeg)
 if nargin < 3, opts = struct(); end
 d = struct('sigmaPx', 0.5, 'dropout', 0.05, 'hideMs', 25, 'posErrM', 0.01, 'rotErrDeg', 0.04, ...
-           'readoutPrior', 0.008, 'shutter', 1 / 1920, 'blockShare', 0, 'blockWhere', 'part', 'blockFrac', 0.5, 'blockSeed', 1);
+           'readoutPrior', 0.008, 'shutter', 1 / 1920, 'blockShare', 0, 'blockWhere', 'part', 'blockFrac', 0.5, 'blockSeed', 1, ...
+           'errModel', []);
+% opts.errModel (tv.synth.detectorModel, 20 Nov): the detector's measured recall and centre error by
+%   the ball's size in the picture, in place of sigmaPx and dropout. The size comes from the ball's
+%   distance to the camera and the lens.
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 tHits = [];  if ~isempty(S.shots), tHits = [S.shots.tHit]; end
@@ -61,14 +65,23 @@ for k = 1:2
             uv(:) = NaN;  tmp = nan(nnz(ok), 2);  tmp(okp, :) = px(okp, :);  uv(ok, :) = tmp;
             v(isfinite(uv(:, 2))) = uv(isfinite(uv(:, 2)), 2);
         end
-        keep = all(isfinite(uv), 2) & rand(numel(n), 1) > opts.dropout;
+        if isempty(opts.errModel)
+            keep = all(isfinite(uv), 2) & rand(numel(n), 1) > opts.dropout;
+            sig = opts.sigmaPx * ones(numel(n), 1);
+        else
+            Bm = ballAt(S.pieces{r}, Te);
+            dpx = 2 * 0.0335 ./ sqrt(sum((Bm - cam.pos) .^ 2, 2)) * tv.lens.pxPerRad(cam.lens);
+            em = opts.errModel;  dq = min(max(dpx, min(em.d)), max(em.d));  dq(~isfinite(dq)) = min(em.d);
+            keep = all(isfinite(uv), 2) & rand(numel(n), 1) < interp1(em.d, em.recall, dq);
+            sig = interp1(em.d, em.sigma, dq);
+        end
         for j = find(hideCam == k)
             keep = keep & abs(Te - tHits(j)) > opts.hideMs / 1000;
         end
         for b = O.blocks(O.blocks(:, 2) == k, :)'
             keep = keep & ~(Te >= b(3) & Te <= b(4));
         end
-        uv = uv + opts.sigmaPx * randn(size(uv));
+        uv = uv + sig .* randn(size(uv));
         O.tracks{r, k} = struct('frames', n(keep) - 1, 'uv', uv(keep, :));
     end
 end

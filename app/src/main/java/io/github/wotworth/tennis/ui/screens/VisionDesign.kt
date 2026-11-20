@@ -530,7 +530,7 @@ fun ShotVariantB(v: VisionSession, s: VisionShot, answer: String?) {
             }
         }
         Spacer(Modifier.height(zpx(6f)))
-        v.trajectory(s.rally, s.index)?.let { SideView(it, s, PlayerColour.base(me), caption = false) }
+        v.trajectory(s.rally, s.index)?.let { SideView(it, s, PlayerColour.base(me)) }
         TennisText("solid: real path · dashed: no spin", TennisTokens.Type.listSecondary)
         Spacer(Modifier.height(zpx(10f)))
         val all = shotStats(s).associate { it.second to it.first }
@@ -558,6 +558,11 @@ private fun shotActions() = listOf(
 
 /** The shot card's figures, number first, label second (the order variation A shows them in). */
 fun shotStats(s: VisionShot): List<Pair<String, String>> = listOfNotNull(
+    // Chris, 20 Nov: the spin's effect is the first figure, and the sideways curve beside it when
+    // it is 0.5 ft or more; numbers and labels only. Topspin brings the ball down shorter, slice
+    // carries it longer; serves are named by their kind (kick, slice, flat).
+    spinEffectStat(s),
+    curveStat(s),
     Units.mph(s.speedContact) to "speed at contact",
     (s.speedBounce?.let { Units.mph(it) } ?: "–") to "at the bounce",
     (s.launchDeg?.let { "%.1f°".format(Locale.US, it) } ?: "–") to "launch angle",
@@ -566,17 +571,30 @@ fun shotStats(s: VisionShot): List<Pair<String, String>> = listOfNotNull(
     s.call to "call",
     Units.ft(s.depth) to "short of the baseline",
     "± ${Units.inches(s.bounceSd)}" to "bounce ±",
-    // Chris, 17 Nov: name the spin: topspin brings the ball down shorter, slice carries it longer
-    // serves by their kind (kick, slice, flat): a slice serve curves sideways rather than dips
-    if (s.isServe && serveSpinKind(s) == "slice") (s.spinCurve?.let { Units.ft(abs(it)) } ?: "–") to "curve from slice"
-    else (s.spinEffect?.let { Units.ft(abs(it)) } ?: "–") to (s.spinEffect?.let {
-        "${if (it < 0) "shorter" else "longer"} from ${if (s.isServe) serveSpinKind(s) else s.spinLabel.ifBlank { "spin" }}" } ?: "from spin"),
     (if (s.isServe) serveSpinKind(s) else s.spinLabel.ifBlank { "–" }) to "spin",
     (s.rpm?.let { Units.rpm(it, s.rpmSd) } ?: "–") to "spin rate",
     spinSplit(s).replace("topspin ", "").replace("slice ", "").replace(" · sidespin ", " / ") to "topspin / sidespin",
     (s.kickAngleDeg?.let { "%.0f°".format(Locale.US, it) } ?: "–") to "kick off the court",
     (s.confidence?.let { "${(it * 100).roundToInt()}%" } ?: "–") to "confidence",
 )
+
+/** "5.7 ft" / "shorter from topspin" (or "longer from slice", per the shot's spin); never "brought it down". */
+fun spinEffectStat(s: VisionShot): Pair<String, String> {
+    val kind = if (s.isServe) serveSpinKind(s) else s.spinLabel.ifBlank { "spin" }
+    val e = s.spinEffect ?: return "–" to "from spin"
+    return Units.ft(abs(e)) to "${if (e < 0) "shorter" else "longer"} from $kind"
+}
+
+/**
+ * The sideways curve from spin, left or right as the hitter saw it (Chris, 20 Nov): "1.2 ft" /
+ * "curved left from slice"; null under [TennisTokens.Vision.curveShowFt] (the tile is hidden).
+ */
+fun curveStat(s: VisionShot): Pair<String, String>? {
+    val c = s.spinCurve ?: return null
+    if (abs(c) * Units.FT_PER_M < TennisTokens.Vision.curveShowFt) return null
+    val slice = (s.isServe && serveSpinKind(s) == "slice") || s.spinLabel == "slice"
+    return Units.ft(abs(c)) to "curved ${if (c > 0) "left" else "right"} from ${if (slice) "slice" else "sidespin"}"
+}
 
 /** Trends, variation A: the line of choices as selectors (chevron, underline) that open the flyout. */
 @Composable
@@ -689,12 +707,21 @@ fun CourtB(v: VisionSession, answer: String?, f: VisionFilter, onShot: (VisionSh
 fun ShotCardA(v: VisionSession, s: VisionShot, answer: String?) {
     val zpx = LocalZpx.current
     val me = PlayerColour.isMe(v, s, answer)
+    val app = io.github.wotworth.tennis.ui.LocalApp.current
+    // Chris, 20 Nov: the shot type is the page's title; under it only who hit it (speed and call are tiles)
     Row(verticalAlignment = Alignment.CenterVertically) {
         PlayerSwatch(PlayerColour.base(me)); Spacer(Modifier.width(zpx(6f)))
-        TennisText(shotLine(s, v.who(s.hitter, answer)), TennisTokens.Type.listSecondary)
+        TennisText(v.who(s.hitter, answer), TennisTokens.Type.listSecondary)
     }
     Spacer(Modifier.height(zpx(6f)))
-    v.trajectory(s.rally, s.index)?.let { SideView(it, s, PlayerColour.base(me)) }
+    v.trajectory(s.rally, s.index)?.let { tr ->
+        // "side · top", the last choice remembered (in the app's settings too)
+        SegmentStrip(listOf("side" to "side", "top" to "top"), VisionDefaults.shotView) {
+            VisionDefaults.shotView = it;  app.prefs.chooseShotView(it)
+        }
+        Spacer(Modifier.height(zpx(6f)))
+        if (VisionDefaults.shotView == "top") TopView(tr, s, PlayerColour.base(me)) else SideView(tr, s, PlayerColour.base(me))
+    }
     Spacer(Modifier.height(zpx(10f)))
     StatGrid(shotStats(s))
 }

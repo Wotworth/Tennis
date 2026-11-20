@@ -1,8 +1,8 @@
 function R = benchmarkPC(opts)
 %BENCHMARKPC  Day-one benchmark of the closet PC, before any camera or court exists (Chris, 16 Nov).
 %   benchmarkPC() makes synthetic two-camera footage, runs the whole pipeline on it, times
-%   every stage, and projects the hours a real 2-hour session would take, against the
-%   12-hour limit (6 hours is the goal; TV-OPS-04):
+%   every stage, and projects the hours a real 1.5-hour session would take with every frame
+%   searched, against the 18-hour limit (TV-OPS-04, Chris 20 Nov):
 %     1. 4K120, 26 s of footage (two rallies, nine shots), with the GPU power cap;
 %     2. the same without the cap (scheduled task "TennisVision GPU uncapped", made by the
 %        setup script; the capped task runs again afterwards), to show what the cap costs;
@@ -12,9 +12,10 @@ function R = benchmarkPC(opts)
 %   config/tennisvision.json exists. It takes about an hour or two: making 4K footage is
 %   itself slow (MATLAB draws every frame), and is not part of the timings.
 %   opts.quick = true: quarter resolution, 4K120 only, no cap comparison (CI smoke test).
-%   opts.outDir, opts.realShots (550: a 2-hour session), opts.realRallyFraction (0.25).
+%   opts.outDir, opts.realShots (410: a 1.5-hour session), opts.realMinutes (90),
+%   opts.realRallyFraction (1: every frame is searched, Chris 20 Nov; 0.25 if rally windows return).
 if nargin < 1, opts = struct(); end
-d = struct('quick', false, 'outDir', defaultOut(), 'realShots', 550, 'realRallyFraction', 0.25, 'capCompare', ispc());
+d = struct('quick', false, 'outDir', defaultOut(), 'realShots', 410, 'realMinutes', 90, 'realRallyFraction', 1, 'capCompare', ispc());
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 if opts.quick, opts.capCompare = false; end
@@ -79,7 +80,7 @@ for f = M(:)'
 end
 r.stageS.outputs = max(0, r.totalS - sum(cell2mat(struct2cell(r.stageS))));
 synth = struct('durationS', seconds, 'rallyS', sum(diff(res.rallyWindows, 1, 2)), 'shots', max(1, numel(res.shots)));
-real = struct('durationS', 7200, 'rallyS', opts.realRallyFraction * 7200, 'shots', opts.realShots);
+real = struct('durationS', 60 * opts.realMinutes, 'rallyS', opts.realRallyFraction * 60 * opts.realMinutes, 'shots', opts.realShots);
 r.P = tv.ops.projectHours(r.stageS, synth, real);
 r.name = name;
 r = orderfields(r, {'name', 'P', 'stageS', 'totalS', 'genS'});
@@ -87,8 +88,8 @@ end
 
 function t = report(runs, peaks, opts, cfgPC)
 L = {'# Closet PC benchmark', ''};
-L{end+1} = sprintf('%s. SYNTHETIC footage, timed stage by stage, projected to a 2-hour session (%d shots, %.0f%% of the time in rallies). Limit 12 h, goal 6 h (TV-OPS-04).', ...
-    tv.util.nowUtc(), opts.realShots, 100 * opts.realRallyFraction);
+L{end+1} = sprintf('%s. SYNTHETIC footage, timed stage by stage, projected to a %.1f-hour session (%d shots, %.0f%% of the frames searched). Limit 18 h (TV-OPS-04, 20 Nov).', ...
+    tv.util.nowUtc(), opts.realMinutes / 60, opts.realShots, 100 * opts.realRallyFraction);
 L{end+1} = '';
 L{end+1} = ['| Stage | ' strjoin({runs.name}, ' | ') ' |'];
 L{end+1} = ['|---' repmat('|---', 1, numel(runs)) '|'];
@@ -98,7 +99,7 @@ for i = 1:numel(stages)
     L{end+1} = ['| ' stages{i} ' | ' strjoin(cells, ' | ') ' |']; %#ok<AGROW>
 end
 tot = arrayfun(@(r) sprintf('**%.1f h** (%s)', r.P.totalH, verdict(r.P.totalH)), runs, 'UniformOutput', false);
-L{end+1} = ['| **2-hour session** | ' strjoin(tot, ' | ') ' |'];
+L{end+1} = ['| **Whole session** | ' strjoin(tot, ' | ') ' |'];
 L{end+1} = '';
 cap = strcmp({runs.name}, '4K120 capped');  unc = strcmp({runs.name}, '4K120 uncapped');
 if any(cap) && any(unc)
@@ -118,12 +119,12 @@ t = strjoin(L, newline);
 end
 
 function s = verdict(h)
-if h <= 6, s = 'within the 6 h goal'; elseif h <= 12, s = 'within the 12 h limit'; else, s = 'OVER the 12 h limit'; end
+if h <= 18, s = 'within the 18 h limit'; else, s = 'OVER the 18 h limit'; end
 end
 
 function s = summaryLine(runs)
 s = strjoin(arrayfun(@(r) sprintf('%s %.1f h', r.name, r.P.totalH), runs, 'UniformOutput', false), ', ');
-s = [s ' for a 2-hour session (limit 12 h). Details: C:\TennisVision\benchmark\benchmark.md'];
+s = [s ' for a 1.5-hour session, every frame (limit 18 h). Details: C:\TennisVision\benchmark\benchmark.md'];
 end
 
 function schtask(name)

@@ -17,6 +17,11 @@ import io.github.wotworth.tennis.ui.screens.VisionDefaults
 import io.github.wotworth.tennis.ui.theme.TennisTokens
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.performClick
+import io.github.wotworth.tennis.ui.screens.curveStat
+import io.github.wotworth.tennis.ui.screens.spinEffectStat
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -67,31 +72,36 @@ class SideViewTest {
         assertTrue("checked $checked bounces", checked > 100)
     }
 
-    @Test fun aTapStretchesTheHeightsAndThePictureSaysSo() {
+    @Test fun aTapStretchesTheHeightsAndOnlyTheChipSaysSo() {
         val app = Sample.empty()
         app.prefs.chooseVisionSample(true)
         val v = app.vision.session(VisionStore.SAMPLE_ID)!!
-        VisionDefaults.sideStretched = false
+        VisionDefaults.sideStretched = false;  VisionDefaults.shotView = "side";  app.prefs.chooseShotView("side")
         try {
             CanvasText.record = true; CanvasText.seen.clear()
-            rule.setContent { AppRoot(app, Navigator(Screen.VisionShot(v.id, 29, 1))) }
+            rule.setContent { AppRoot(app, Navigator(Screen.VisionShot(v.id, 25, 29))) }
             rule.waitForIdle()
             val view = rule.onNodeWithTag("sideView")
             fun state() = view.fetchSemanticsNode().config[SemanticsProperties.StateDescription]
             assertEquals("true proportion", state())
             val low = view.fetchSemanticsNode().size.height
-            assertTrue("labels drawn: ${CanvasText.seen}", CanvasText.seen.containsAll(listOf("baseline", "service line", "net")))
-            assertTrue(CanvasText.seen.none { it.startsWith("heights stretched") })
-            rule.onNodeWithText("true proportion · tap to stretch heights ×3").assertExists()
+            assertTrue("labels drawn: ${CanvasText.seen}", CanvasText.seen.containsAll(listOf("baseline", "net", "no spin", "1:1")))
+            assertTrue(CanvasText.seen.none { it.contains("stretched") || it.contains("ft") })
+            // Chris, 20 Nov: no sentences on the card: no caption, no legend, never "brought it down"
+            rule.onAllNodesWithText("tap", substring = true).assertCountEquals(0)
+            rule.onAllNodesWithText("brought", substring = true).assertCountEquals(0)
+            rule.onAllNodesWithText("dashed", substring = true).assertCountEquals(0)
+            // the title is the shot's type; the spin's effect is the first tile
+            rule.onNodeWithText("backhand").assertExists()
+            rule.onNodeWithText("5.7 ft").assertExists()
+            rule.onNodeWithText("longer from slice").assertExists()
 
             CanvasText.seen.clear()
             view.performTouchInput { click() }
             rule.waitForIdle()
             assertEquals("heights stretched", state())
-            assertTrue("said on the picture: ${CanvasText.seen}", CanvasText.seen.contains("heights stretched ×3"))
-            assertTrue("height marks: ${CanvasText.seen}", CanvasText.seen.containsAll(listOf("5 ft", "10 ft")))
+            assertTrue("the chip: ${CanvasText.seen}", CanvasText.seen.contains("×3"))
             assertTrue("the picture grew from $low to ${view.fetchSemanticsNode().size.height}", view.fetchSemanticsNode().size.height > 1.5 * low)
-            rule.onNodeWithText("heights stretched ×3 · tap for true proportion").assertExists()
 
             view.performTouchInput { click() }
             rule.waitForIdle()
@@ -99,5 +109,42 @@ class SideViewTest {
         } finally {
             CanvasText.record = false; VisionDefaults.sideStretched = false
         }
+    }
+
+    @Test fun theTopViewShowsTheCurveAndTheChoiceIsRemembered() {
+        val app = Sample.empty()
+        app.prefs.chooseVisionSample(true)
+        val v = app.vision.session(VisionStore.SAMPLE_ID)!!
+        VisionDefaults.shotView = "side";  app.prefs.chooseShotView("side")
+        val curved = v.shots.first { it.isServe && it.spinCurve != null && kotlin.math.abs(it.spinCurve!!) * Units.FT_PER_M >= 0.5 }
+        try {
+            CanvasText.record = true; CanvasText.seen.clear()
+            rule.setContent { AppRoot(app, Navigator(Screen.VisionShot(v.id, curved.rally, curved.index))) }
+            rule.waitForIdle()
+            rule.onNodeWithText("top").performClick()
+            rule.waitForIdle()
+            rule.onNodeWithTag("topView").assertExists()
+            assertEquals("top", app.prefs.shotView)
+            assertTrue("labelled: ${CanvasText.seen}", CanvasText.seen.contains("no spin"))
+            val c = curveStat(curved)!!
+            rule.onNodeWithText(c.first).assertExists()
+            rule.onNodeWithText(c.second).assertExists()
+            assertTrue(c.second, c.second.matches(Regex("curved (left|right) from (slice|sidespin)")))
+        } finally {
+            CanvasText.record = false; VisionDefaults.shotView = "side"
+        }
+    }
+
+    @Test fun theCurveTileHidesUnderHalfAFootAndSaysLeftOrRightAsTheHitterSawIt() {
+        val app = Sample.empty()
+        app.prefs.chooseVisionSample(true)
+        val v = app.vision.session(VisionStore.SAMPLE_ID)!!
+        val s = v.shots.first { it.bounce != null }
+        assertEquals(null, curveStat(s.copy(spinCurve = null)))
+        assertEquals(null, curveStat(s.copy(spinCurve = 0.4 / Units.FT_PER_M)))
+        assertEquals("curved left from slice", curveStat(s.copy(isServe = false, spinLabel = "slice", spinCurve = 1.3 / Units.FT_PER_M))!!.second)
+        assertEquals("curved right from sidespin", curveStat(s.copy(isServe = false, spinLabel = "topspin", spinCurve = -1.3 / Units.FT_PER_M))!!.second)
+        assertEquals("1.3 ft", curveStat(s.copy(isServe = false, spinLabel = "topspin", spinCurve = -1.3 / Units.FT_PER_M))!!.first)
+        assertEquals("shorter from topspin", spinEffectStat(s.copy(isServe = false, spinLabel = "topspin", spinEffect = -1.0)).second)
     }
 }

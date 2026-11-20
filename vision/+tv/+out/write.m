@@ -28,6 +28,12 @@ s.counts = struct('rallies', numel(R.rallies), 'shots', numel(R.shots));
 s.rejects = struct('report', 'rejects/rejects.html', 'csv', 'rejects/rejects.csv', 'counts', ...
     tv.out.rejects(outDir, R.gateLog, R.dropped, R.players.rejected));
 s.summary = R.summary;
+% Chris, 20 Nov: every frame searched; what finding rallies by sound alone would have skipped
+if isfield(R, 'rallyFinding')
+    f = R.rallyFinding;
+    s.rallyFinding = struct('mode', f.mode, 'playSeconds', f.playSeconds, 'soundCoverage', f.soundCoverage, ...
+        'soundWindows', f.soundWindows, 'windows', R.rallyWindows);
+end
 tv.util.writeJson(fullfile(outDir, 'session.json'), s);
 tv.util.writeJson(fullfile(outDir, 'shots.json'), R.shots);
 tv.util.writeJson(fullfile(outDir, 'rallies.json'), R.rallies);

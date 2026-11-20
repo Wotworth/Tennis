@@ -79,8 +79,12 @@ object TileCues {
     val CUES: Uri by lazy { Uri.parse("content://${TileRows.AUTHORITY}/cues") }
     val BACK: Uri by lazy { Uri.parse("content://${TileRows.AUTHORITY}/back") }
 
-    fun state(d: AppData, liveTile: Boolean, now: Long, window: (Proposal) -> String = { windowText(it) }, checks: Int = 0): TileRow {
+    fun state(d: AppData, liveTile: Boolean, now: Long, window: (Proposal) -> String = { windowText(it) }, checks: Int = 0, corners: Int = 0): TileRow {
         d.waiting.minByOrNull { it.startMillis }?.let { return TileRow("proposal", "Tennis?", window(it), it.id.toString(), now) }
+        // Chris, 20 Nov (TV-CAL-21): a session the PC is holding for the court corners must not stall
+        // unnoticed: shown on the live tile ahead of the cues. The launcher already draws the "checks"
+        // face (a number and a line), so no launcher change is needed.
+        if (liveTile && corners > 0) return TileRow("checks", "$corners", if (corners == 1) "session waiting: corners" else "sessions waiting: corners", null, now)
         // Chris, 15 Nov: "N frames to check" at the lowest priority: only when the live tile is on
         // and there are no cues to flip through (where the tile would otherwise be the plain icon)
         if (liveTile && checks > 0 && cues(d).isEmpty()) return TileRow("checks", "$checks", "frames to check", null, now)

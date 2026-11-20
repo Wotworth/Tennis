@@ -75,6 +75,22 @@ class PreviewScreenshots {
         VisionDefaults.cornerPreview = listOf(Offset(724.2f, 963.7f), Offset(666.6f, 557.6f), Offset(1479.6f, 486.5f), Offset(1822.7f, 562.6f))
         try { screen("14b-court-corners-tapped", Screen.CourtCorners) } finally { VisionDefaults.cornerPreview = emptyList() }
     }
+    // Chris, 20 Nov: taps snap to the paint's corner; a magnifier shows what is under the finger
+    @Test fun p14CourtCornersLoupe() {
+        VisionDefaults.cornerPreview = listOf(Offset(724.2f + 11f, 963.7f - 8f), Offset(666.6f - 9f, 557.6f + 7f), Offset(1479.6f + 6f, 486.5f + 9f))
+        VisionDefaults.cornerLoupePreview = Offset(1822.7f - 4f, 562.6f + 3f)
+        try { screen("14c-court-corners-snapped-loupe", Screen.CourtCorners) } finally { VisionDefaults.cornerPreview = emptyList(); VisionDefaults.cornerLoupePreview = null }
+    }
+    // Chris, 20 Nov: shot 25·29 (a sliced backhand) side 1:1, side ×3 and top; a slice serve from above
+    private fun shotView(name: String, rally: Int, index: Int, view: String, stretched: Boolean) {
+        VisionDefaults.shotView = view;  VisionDefaults.sideStretched = stretched
+        val a = identified().also { it.prefs.chooseShotView(view) }
+        try { screen(name, Screen.VisionShot(id, rally, index), a) } finally { VisionDefaults.shotView = "side"; VisionDefaults.sideStretched = false }
+    }
+    @Test fun p04eShot2529Side() = shotView("04e-shot-25-29-side-1to1", 25, 29, "side", false)
+    @Test fun p04fShot2529SideX3() = shotView("04f-shot-25-29-side-x3", 25, 29, "side", true)
+    @Test fun p04gShot2529Top() = shotView("04g-shot-25-29-top", 25, 29, "top", false)
+    @Test fun p04hSliceServeTop() = shotView("04h-slice-serve-7-1-top", 7, 1, "top", false)
     @Test fun p05Rallies() = screen("05-3d-rallies", Screen.Vision(id, 2), identified())
     @Test fun p06Replay() = screen("06-3d-rally-replay", Screen.VisionRally(id, 1), identified())
     @Test fun p07Health() = screen("07-health", Screen.Vision(id, 3), identified())

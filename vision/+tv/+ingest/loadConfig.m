@@ -42,6 +42,7 @@ cfg.pipeline.thermalGuard = @() tv.ops.thermalGuard(g);
 % the cloud API (TV-PH-4): endpoint in the config, write token in secrets.local.json
 cfg.client = [];
 cfg.answersSeconds = 300;                   % TV-PLY-07: check for app answers every 5 minutes
+cfg.heldReminderHours = 12;                % TV-CAL-21 (Chris, 20 Nov): a session waiting for the court corners is reminded on the phone this often
 sf = fullfile(fileparts(file), 'secrets.local.json');
 if isfield(s, 'upload') && ~strncmp(s.upload.endpoint, 'FILL', 4) && exist(sf, 'file')
     sec = jsondecode(fileread(sf));

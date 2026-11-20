@@ -445,6 +445,18 @@ for s in shots:
 # ---------------------------------------------------------------------------------------------
 # trajectories: that flight from contact to bounce, then on; and the same launch without spin,
 # landing |spin effect| further.
+# Chris, 20 Nov (shot card top view): sidespin curves some groundstrokes too, a little either way.
+# A separate random stream, so every other number in the sample stays as it was. The curve is shown
+# when it is 0.5 ft or more; every value shown is odd (tenths of a foot, 1 more than a multiple of 4).
+rng_curve = random.Random(2011)
+for s in shots:
+    if s['bounce'] and not s['isServe'] and s['spinCurve'] is None and rng_curve.random() < 0.35:
+        sgn = 1 if rng_curve.random() < 0.5 else -1
+        s['spinCurve'] = sgn * m_from_ft(odd4(1, 25) / 10.0)
+        if abs(s['spinSide']) < 0.02: s['spinSide'] = 0.02
+    elif s['spinCurve'] is not None and s['isServe']:
+        s['spinCurve'] = (1 if rng_curve.random() < 0.5 else -1) * abs(s['spinCurve'])
+
 for s in shots:
     p0 = s['contact']
     if s['bounce']:
@@ -464,11 +476,23 @@ for s in shots:
     xyz = arc(pb, T)
     if s['bounce']:
         d = [pb[0] - p0[0], pb[1] - p0[1]]; L = math.hypot(*d); u = [d[0] / L, d[1] / L]
+        # without spin the ball lands the spin effect further on (topspin: it landed shorter) or
+        # back (slice: it landed longer), and the curve back across: from above it flies straight
+        left = [-u[1], u[0]]                                # to the left of the flight
+        eff = s['spinEffect'] or 0.0;  cv = s['spinCurve'] or 0.0
+        ns = [pb[0] - u[0] * eff - left[0] * cv, pb[1] - u[1] * eff - left[1] * cv, R_BALL]
+        # the real path bends sideways as spin acts: from above it leaves along the no-spin line and
+        # curves onto the bounce (only the sideways part changes, so the path crosses the net where
+        # it did and at the clearance on the card)
+        if cv:
+            for i, q in enumerate(xyz):
+                f = i / (len(xyz) - 1)
+                q[0] = round(q[0] + left[0] * cv * (f * f - f), 2)
+                q[1] = round(q[1] + left[1] * cv * (f * f - f), 2)
         for i in range(1, 31):                              # after the bounce
             tt = i * 0.01
             xyz.append([round(pb[0] + u[0] * 12 * tt, 2), round(pb[1] + u[1] * 12 * tt, 2), round(R_BALL + 4 * tt - 0.5 * G * tt * tt, 2)])
-        ns = [pb[0] + u[0] * abs(s['spinEffect'] or 0), pb[1] + u[1] * abs(s['spinEffect'] or 0), R_BALL]
-        no = arc(ns, T * 1.08)[::2]
+        no = arc(ns, T * (1.08 if eff < 0 else 0.94))[::2]
     else:
         no = arc(pb, T)[::2]
     trajs.append({'rally': s['rally'], 'shot': s['index'], 't0': s['t'], 'dt': 0.01, 'xyz': xyz, 'noSpin': no, 'dtNoSpin': 0.02})

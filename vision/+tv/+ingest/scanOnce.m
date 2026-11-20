@@ -36,8 +36,12 @@ for s = sessions(:)'
     if any(strcmp(state.done, id)), continue; end
     out = fullfile(cfg.sessions, id);
     if exist(fullfile(out, 'session.json'), 'file'), state.done{end+1} = id; continue; end
-    % TV-CAL-21: held for a doubtful court-line fit; it runs on when the corners are answered (tv.ops.applyAnswers)
-    if exist(fullfile(out, 'calibration', 'calibration.json'), 'file'), continue; end
+    % TV-CAL-21: held for a doubtful court-line fit; it runs on when the corners are answered (tv.ops.applyAnswers).
+    % Chris, 20 Nov: it must not stall unnoticed: the phone is reminded every cfg.heldReminderHours (12)
+    if exist(fullfile(out, 'calibration', 'calibration.json'), 'file')
+        state = remindHeld(cfg, state, id);
+        continue
+    end
     if strcmp(s.mode, 'reduced')
         cfg.notify('One camera only', sprintf('%s: only one camera''s footage arrived; reduced processing is not built yet.', id));
         state.done{end+1} = id;
@@ -81,6 +85,22 @@ catch err
 end
 if ~isempty(tl), stop(tl); delete(tl); end
 cfg.lightFn('off');
+end
+
+function state = remindHeld(cfg, state, id)
+% one reminder per held session every cfg.heldReminderHours (the first when the session was held)
+hours = 12;  if isfield(cfg, 'heldReminderHours'), hours = cfg.heldReminderHours; end
+if ~isfield(state, 'heldReminded'), state.heldReminded = struct('id', {}, 'at', {}); end
+k = find(strcmp({state.heldReminded.id}, id), 1);
+if isempty(k)
+    state.heldReminded(end+1) = struct('id', id, 'at', clock);      % just held: the pipeline's alert went out
+    return
+end
+if etime(clock, state.heldReminded(k).at) >= 3600 * hours
+    cfg.notify('Court corners still needed', sprintf(['%s is still waiting for the court corners. ' ...
+        'Open court corners in the app.'], id));
+    state.heldReminded(k).at = clock;
+end
 end
 
 function pcfg = keepCalibrationAnswer(pcfg, out)

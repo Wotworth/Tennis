@@ -11,6 +11,9 @@ cfg.ballApparentScale = 1;          % synthetic footage draws the ball larger
 cfg.chunk = 240;                    % frames decoded at once
 cfg.detector = 'learned';           % TV-DET-04: the learned ball detector ('classical': the first, colour-based one)
 cfg.ballNetFile = '';               % its classifier's weights; empty = round 5 (tv.detect.ballModel)
+cfg.frames = 'all';                 % Chris, 20 Nov: 'all' searches every frame; 'sound' only the sound's rally windows (not before a
+                                    % first pass is shown to miss under 1% of rally frames on real sessions and Chris agrees)
+cfg.play = struct('score', 0.5, 'binS', 0.25, 'binShare', 0.25, 'mergeS', 4, 'leadS', 1.5, 'tailS', 2);   % rallies from the ball in play (tv.rally.fromPlay); RETUNE(real footage)
 cfg.ballCut = 0.05;                 % spots the classifier scores under this are not tracked
 cfg.chainOpts = struct();           % tv.track.chains settings (its own defaults when empty)
 cfg.playerHz = 10;                  % TV-PLY-01: 10 fps between rallies (30 inside: RETUNE)

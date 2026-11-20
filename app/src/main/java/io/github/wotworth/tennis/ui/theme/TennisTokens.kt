@@ -140,6 +140,8 @@ object TennisTokens {
         val filterBar = Role(15f, Weight.Regular, 0f, Case.Lowercase, Tone.Primary)
         val statNumber = Role(26f, Weight.Light, -0.01f, Case.AsTagged, Tone.Primary)
         val statLabel = Role(12f, Weight.Regular, 0f, Case.AsTagged, Tone.Secondary)
+        /** Chris, 20 Nov: small labels drawn on charts (court marks, "no spin", the stretch chip). */
+        val chartLabel = Role(10f, Weight.Regular, 0f, Case.AsTagged, Tone.Secondary)
         /** Chris, 17 Nov: the label and averages on a key-figure tile (white on the tile). */
         val tileFigureLabel = Role(12f, Weight.Regular, 0f, Case.AsTagged, Tone.Primary)
         val menuItem = Role(22f, Weight.Light, 0f, Case.Lowercase, Tone.Primary)
@@ -215,6 +217,10 @@ object TennisTokens {
         var sideViewTickFt by mutableFloatStateOf(5f)        // ft between the height marks shown when stretched
         var sideViewTick by mutableFloatStateOf(4f)          // zpx: half the length of a baseline or service-line mark
         var sideViewPad by mutableFloatStateOf(4f)           // zpx around the drawing and above the labels
+        var chipPad by mutableFloatStateOf(3f)               // the side view's "×3" / "1:1" chip, padding round its text (zpx)
+        var topViewMarginM by mutableFloatStateOf(1.5f)      // the shot card's top view: court shown this far past its lines (m)
+        var bounceMark by mutableFloatStateOf(4f)            // the bounce's dot on the top view (zpx)
+        var curveShowFt by mutableFloatStateOf(0.5f)         // the sideways-curve tile shows from this curve up (ft; Chris, 20 Nov)
         var sideViewMinAlong by mutableFloatStateOf(0.5f)    // a flight nearly across the court is drawn no flatter than this share
         var view3dHeight by mutableFloatStateOf(230f)        // zpx
         var view3dDistanceM by mutableFloatStateOf(34f)      // orbit radius
@@ -226,7 +232,9 @@ object TennisTokens {
         var frameMaxZoom by mutableFloatStateOf(6f)          // pinch zoom on a footage test's sample frame, at most (Chris, 18 Nov)
         var frameSwipePx by mutableFloatStateOf(40f)         // sideways drag that turns to the next sample frame
         // court corners (TV-CAL-21, 22): the picture where the four corners of the court are tapped
-        var cornerMaxZoom by mutableFloatStateOf(9f)         // pinch zoom at most: a 4K picture at about its own pixels on a phone
+        var cornerMaxZoom by mutableFloatStateOf(16f)        // pinch zoom at most (was 9; Chris, 20 Nov: more if cheap; a 4K picture at about twice its own pixels on a phone)
+        var loupeRadius by mutableFloatStateOf(46f)          // the magnifier above a finger on the corner picture (zpx)
+        var loupeMag by mutableFloatStateOf(4f)              // how much more the magnifier enlarges than the picture as shown
         var cornerRing by mutableFloatStateOf(9f)            // radius of a tapped corner's ring (zpx)
         var cornerDot by mutableFloatStateOf(1.2f)           // radius of its centre dot (zpx)
         var cornerStroke by mutableFloatStateOf(1f)          // the ring's width (zpx)

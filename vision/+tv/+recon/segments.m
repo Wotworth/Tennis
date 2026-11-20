@@ -95,7 +95,7 @@ for r = runs(o)
     iPrev = find(t2 <= ta, 1, 'last');  iNext = find(t1 >= tb, 1);
     % (1) part of a flight already found: the flight it lies inside, or the one before or after
     joined = false;
-    for j = [iIn, iPrev, iNext]
+    for j = [iIn(:); iPrev(:); iNext(:)]'                % (empties of any shape: no flight yet)
         g = segs(j);
         m = tv.recon.fitSegment([g.obs; r.obs], cams, rec, sync, air, withPins(prior, g), g.x);
         if m.ok && m.rmsPx < min(max(opts.mergeRms, 1.3 * g.rmsPx), opts.mergeCapPx) && ...

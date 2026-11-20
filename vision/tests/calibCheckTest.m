@@ -117,7 +117,7 @@ assert(any(strcmp(paths, '/calibration/4/applied')) && any(strcmp(paths, '/calib
 % the taps did not make a court: the run stops again, nothing is uploaded, and the question goes up again
 [c, log] = tv.testing.fakeClient(pending);
 calls('up') = {};
-bad = @(f, o, p) error('tv:calib:doubtful', 'still doubtful');
+bad = @tv.testing.doubtfulRun;
 done = tv.ops.applyAnswers(wcfg, c, bad, up);
 paths = cellfun(@(x) x{1}, log('post'), 'UniformOutput', false);
 assert(numel(calls('up')) == 0 && any(strcmp(paths, '/calibration')) && any(strcmp(paths, '/calibration/4/applied')))

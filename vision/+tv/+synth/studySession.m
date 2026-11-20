@@ -17,7 +17,14 @@ if nargin < 1, seed = 7; end
 if nargin < 2, opts = struct(); end
 d = struct('minutes', 90, 'targetShots', 400, 'tempC', 17, 'relHumidity', 0.6, 'pressurePa', 101200, ...
            'wind', [1.5 -0.8 0], 'gustAmp', 0.6, 'spinTau', 5, 'clScatter', 0.15, 'cdSd', 0.024, ...
-           'halfVolley', 0.05, 'volley', 0.06, 'winner', 0.15);
+           'halfVolley', 0.05, 'volley', 0.06, 'winner', 0.15, 'sideSpin', false, 'machine', 0);
+% opts.sideSpin (Chris, 20 Nov): the spin axis is tilted toward the vertical, so spin also
+%   curves the ball sideways: slice and kick serves 20-60 degrees, slices up to 25, topspin up
+%   to 12, either way. S.shots(i).spinCurve is the truth: the landing point against the same
+%   launch without spin, across the flight (positive to the left of the flight).
+% opts.machine: the share of rallies that start with a ball-machine feed (Tuesday, 20 Nov)
+%   instead of a serve: four settings (speed, spin, target), each fed with the small scatter
+%   of a machine (speed 1.5%, aim 0.4 degrees). S.shots(i).setting is 1-4 for a feed, 0 otherwise.
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 tv.util.seed(seed);
@@ -39,12 +46,23 @@ while T < opts.minutes * 60 - 60 && numel(shots) < opts.targetShots
     side = 2 * mod(pointInGame, 2) - 1;
     fl = struct('t', {}, 'P', {});
     t = T;  second = false;  hitter = server;  isServe = true;  idx = 0;
-    [p0, t, fl] = toss(ends(server), side, t, fl);
+    feed = 0;  chrisIdx = 1;
+    if opts.machine > 0 && rand() < opts.machine, feed = randi(4); end
+    if feed == 0, [p0, t, fl] = toss(ends(server), side, t, fl); else, p0 = [0 0 0]; end
     while true
         idx = idx + 1;
         [kind, target, speed, CL, spinDir] = tv.synth.planShot(hitter, isServe, second, ends, side, c);
+        setting = 0;
+        if idx == 1 && feed > 0
+            [kind, target, speed, CL, spinDir, p0] = machinePlan(feed, ends(3 - chrisIdx), c);
+            setting = feed;  isServe = false;  hitter = 3 - chrisIdx;
+        end
         dirH = [target - p0(1:2), 0];  dirH = dirH / norm(dirH);
         ax = cross([0 0 1], dirH) * spinDir;  ax = ax / norm(ax);
+        if opts.sideSpin
+            tilt = sideTilt(kind, isServe, spinDir, setting);
+            ax = cos(tilt) * ax + sin(tilt) * [0 0 1];  ax = ax / norm(ax);
+        end
         qa = air;  qa.CL = CL;  qa.spinAxis = ax;
         v0 = tv.synth.aimAt(p0, target, speed, qa);              % aimed with the fitter's model
         q = base;  q.CL0 = CL;  q.spinAxis = ax;  q.t0 = t;
@@ -53,7 +71,8 @@ while T < opts.minutes * 60 - 60 && numel(shots) < opts.targetShots
         s = struct('rally', rIdx, 'index', idx, 'tHit', t, 'pHit', p0, 'vHit', v0, 'speedHit', norm(v0), ...
             'hitter', hitter, 'isServe', isServe, 'kind', kind, 'result', '', 'tBounce', NaN, ...
             'pBounce', [NaN NaN NaN], 'spinEffect', NaN, 'netClearance', NaN, 'rpm0', info.rpm0, ...
-            'CL0', CL * q.clScale, 'CLnom', CL, 'CD', q.CD, 'spinDir', spinDir, 'toNextHit', NaN, 'shortFlight', false);
+            'CL0', CL * q.clScale, 'CLnom', CL, 'CD', q.CD, 'spinDir', spinDir, 'toNextHit', NaN, 'shortFlight', false, ...
+            'spinCurve', NaN, 'setting', setting);
         % the net
         xc = find(sign(P(1:end-1, 1)) ~= sign(P(2:end, 1)), 1);
         if ~isempty(xc)
@@ -86,13 +105,14 @@ while T < opts.minutes * 60 - 60 && numel(shots) < opts.targetShots
         q0 = q;  q0.CL0 = 0;
         [~, P0] = tv.physics.truthFlight(p0, v0, q0, 4, c.ballRadius);
         s.spinEffect = (hb(1:2) - P0(end, 1:2)) * dirH(1:2)';
+        s.spinCurve = (hb(1:2) - P0(end, 1:2)) * [-dirH(2); dirH(1)];
         s.result = tv.metrics.lineCall(hb(1:2), 1e-4, isServe, sign(p0(2)), -ends(hitter), struct('lines', 'singles'));
         % after the bounce
         vb = tv.physics.bounce(V(end, :), air);
         qb = base;  qb.CD = q.CD;  qb.CL0 = 0.04;  qb.spinAxis = ax;  qb.t0 = s.tBounce;
         [tb, Pb] = tv.physics.truthFlight([hb(1:2), c.ballRadius + 1e-4], vb, qb, 2.5, c.ballRadius);
         t = s.tBounce;
-        if ~strcmp(s.result, 'in') || rand() < opts.winner
+        if ~strcmp(s.result, 'in') || (feed > 0 && idx >= 2) || rand() < opts.winner
             k = find(tb <= 0.8, 1, 'last');
             fl(end+1) = struct('t', t + tb(1:k), 'P', Pb(1:k, :)); %#ok<AGROW>
             shots = [shots; s]; %#ok<AGROW>
@@ -116,6 +136,26 @@ while T < opts.minutes * 60 - 60 && numel(shots) < opts.targetShots
     T = t + 2 + 36 + 30 * rand();
 end
 S.shots = shots;  S.pieces = pieces;  S.windows = windows;  S.air = air;  S.gust = gust;  S.opts = opts;
+
+    function a = sideTilt(kind, serve, sdir, setting)
+        % how far the spin axis leans toward the vertical (radians), so spin also curves the ball
+        if setting > 0, a = deg2rad([6 0 -15 9]);  a = a(setting);  return; end   % a machine repeats itself
+        sgn = 2 * (rand() < 0.5) - 1;
+        if serve, a = sgn * deg2rad(20 + 40 * rand());
+        elseif sdir < 0, a = sgn * deg2rad(25 * rand());
+        else, a = sgn * deg2rad(12 * rand()); end
+        if strcmp(kind, 'machine'), a = 0; end
+    end
+
+    function [kind, target, speed, CL, spinDir, p] = machinePlan(k, e, cc)
+        % ball machine at the far baseline (x = e * 12.5 m), mouth 1 m up; four settings
+        set = [22 0.08 1 9.5 2.5; 25 0.03 1 10 0; 18 0.07 -1 7 -2; 28 0.12 1 10 -3];   % speed, C_L, spin (+top -slice), depth, sideways
+        r = set(k, :);
+        kind = 'machine';  spinDir = r(3);  CL = r(2);
+        speed = r(1) * (1 + 0.015 * randn());
+        target = [-e * r(4), r(5)] + 0.15 * randn(1, 2);              % about 0.4 degrees of aim
+        p = [e * 12.5, 0, 1.0];
+    end
 
     function [p, tOut, fl] = toss(e, sd, tIn, fl)
         % a slow vertical toss above the server; contact as it falls back through 2.75 m

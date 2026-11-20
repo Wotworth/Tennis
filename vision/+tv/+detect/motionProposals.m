@@ -12,14 +12,20 @@ function [C, tau, prevA, nxtA] = motionProposals(prev, cur, nxt, sizeMap, opts)
 %   C: rows [x y area length width strength], x and y 1-based pixels. tau: the threshold used.
 %   prevA, nxtA: the two neighbours as lined up with t here (uint8), for the classifier's cuts
 %   (tv.detect.ballCrops), so they are not lined up twice.
+%   opts.align false: the frames are taken as already lined up (a fixed camera; small test patches,
+%   where lining up could follow the ball itself).
 %   No value here depends on the court, the light or the ball's colour.
 if nargin < 5, opts = struct(); end
-d = struct('R', 2, 'nsig', 8, 'floor', 18, 'floorRel', 0.05);
+d = struct('R', 2, 'nsig', 8, 'floor', 18, 'floorRel', 0.05, 'align', true);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 c = int16(cur);
-[a, da] = tv.calib.steady(prev, double(cur));
-[b, db] = tv.calib.steady(nxt, double(cur));
+if opts.align
+    [a, da] = tv.calib.steady(prev, double(cur));
+    [b, db] = tv.calib.steady(nxt, double(cur));
+else                                               % a camera known not to move (tests on small patches)
+    a = double(prev);  b = double(nxt);  da = [0 0];  db = [0 0];
+end
 if nargout > 2, prevA = uint8(a);  nxtA = uint8(b); end
 a = int16(a);  b = int16(b);
 plain = single(min(sum(abs(c - a), 3), sum(abs(c - b), 3)));

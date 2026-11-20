@@ -19,7 +19,10 @@ import io.github.wotworth.tennis.ui.Navigator
 import io.github.wotworth.tennis.ui.Screen
 import io.github.wotworth.tennis.ui.screens.SESSIONS
 import io.github.wotworth.tennis.ui.screens.cornerPrompt
+import io.github.wotworth.tennis.ui.screens.TapCorner
+import io.github.wotworth.tennis.ui.screens.cornerStatus
 import io.github.wotworth.tennis.ui.screens.placeCorner
+import io.github.wotworth.tennis.ui.screens.ringAt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -88,17 +91,40 @@ class CourtCornersTest {
     }
 
     @Test fun aTapAddsACornerMovesANearOneAndWithFourMovesTheNearest() {
-        var t = listOf<Offset>()
+        var t = listOf<TapCorner>()
         t = placeCorner(t, Offset(100f, 100f), 40f)
         t = placeCorner(t, Offset(900f, 120f), 40f)
         assertEquals(2, t.size)
         t = placeCorner(t, Offset(110f, 95f), 40f)                       // near the first: it moves
-        assertEquals(2, t.size);  assertEquals(Offset(110f, 95f), t[0])
+        assertEquals(2, t.size);  assertEquals(Offset(110f, 95f), t[0].p)
         t = placeCorner(t, Offset(880f, 700f), 40f)
-        t = placeCorner(t, Offset(120f, 690f), 40f)
-        assertEquals(4, t.size)
+        t = placeCorner(t, Offset(120f, 690f), 40f) { it + Offset(1f, 1f) }   // this one snaps
+        assertEquals(4, t.size);  assertEquals(TapCorner.How.SNAPPED, t[3].how);  assertEquals(Offset(121f, 691f), t[3].p)
         t = placeCorner(t, Offset(500f, 650f), 40f)                      // four already: the nearest moves, none is added
-        assertEquals(4, t.size);  assertEquals(Offset(500f, 650f), t[3])
+        assertEquals(4, t.size);  assertEquals(Offset(500f, 650f), t[3].p);  assertEquals(TapCorner.How.NOT_SNAPPED, t[3].how)
+        assertEquals("all four tapped · four not snapped", cornerStatus(t))
+        assertEquals(1, ringAt(t, Offset(905f, 118f), 20f));  assertEquals(null, ringAt(t, Offset(300f, 300f), 20f))
+    }
+
+    /** Chris, 20 Nov: a tap near a corner snaps to where the paint's outside edges cross. */
+    @Test fun aTapNearACornerSnapsToThePaintsOutsideCorner() {
+        val app = sampleApp()
+        val c = app.vision.cornerChecks(true).single()
+        val b = app.vision.cornerImage(c)!!
+        val px = IntArray(b.width * b.height).also { b.getPixels(it, 0, b.width, 0, 0, b.width, b.height) }
+        val r = CornerSnap.radiusFor(b.width)
+        assertEquals(38, r)
+        val offsets = listOf(Offset(12f, -9f), Offset(-14f, 6f), Offset(8f, 13f), Offset(-10f, -12f))
+        val errs = trueCorners.mapIndexed { i, p -> CornerSnap.snap(px, b.width, b.height, p + offsets[i])?.let { (it.corner - p).getDistance() } }
+        println("snap errors (px): ${errs.joinToString { it?.let { e -> "%.2f".format(e) } ?: "not snapped" }}")
+        // the far corner under the net post (index 2) is cluttered by the net's tape and shadow: it may
+        // stay unsnapped, but if it snaps it must be right; the other three must snap
+        errs.forEachIndexed { i, e ->
+            if (i != 2) assertTrue("corner $i: nothing snapped", e != null)
+            if (e != null) assertTrue("corner $i snapped ${"%.2f".format(e)} px from the true corner", e < 4f)   // the taps were 11 to 16 px off
+        }
+        // a tap on bare court, far from any corner: nothing convincing, the tap stands
+        assertEquals(null, CornerSnap.snap(px, b.width, b.height, Offset(1100f, 800f)))
     }
 
     @Test fun theAnswerIsExactlyWhatTheWorkerTakes() {
@@ -117,9 +143,9 @@ class CourtCornersTest {
     }
 
     private fun state(): Map<String, String> {
-        val s = rule.onNodeWithTag("cornerPicture").fetchSemanticsNode().config[SemanticsProperties.StateDescription]   // "corners n zoom z lines b"
+        val s = rule.onNodeWithTag("cornerPicture").fetchSemanticsNode().config[SemanticsProperties.StateDescription]   // "corners n zoom z lines b loupe b snapped n"
         val w = s.split(" ")
-        return mapOf("corners" to w[1], "zoom" to w[3], "lines" to w[5])
+        return mapOf("corners" to w[1], "zoom" to w[3], "lines" to w[5], "loupe" to w[7], "snapped" to w[9])
     }
 
     @Test fun fourTapsOnTheCornersGoToTheOutboxInPicturePixels() {
@@ -145,7 +171,8 @@ class CourtCornersTest {
             rule.waitForIdle()
         }
         assertEquals("4", state()["corners"])
-        rule.onNodeWithText("all four tapped").assertExists()
+        assertTrue(state().getValue("snapped").toInt() >= 3)                          // the far corner under the net may not snap
+        rule.onNodeWithText("all four tapped", substring = true).assertExists()
         rule.onNodeWithText("use these corners").performClick()
         rule.waitForIdle()
         val post = app.vision.outbox.read().let { it.getJSONObject(it.length() - 1) }
@@ -153,10 +180,30 @@ class CourtCornersTest {
         val body = post.getJSONObject("body")
         assertEquals("corners", body.getString("answer"))
         val got = body.getJSONArray("corners").let { a -> (0 until a.length()).map { Offset(a.getJSONArray(it).getDouble(0).toFloat(), a.getJSONArray(it).getDouble(1).toFloat()) } }
-        // each real corner has a tap within a screen pixel or so of it, in the picture's own pixels
-        trueCorners.forEach { p -> assertTrue("$p in $got", got.any { (it - p).getDistance() < 2.5f / k }) }
+        // each real corner has a corner within 4 picture px of it (snapped), or within a screen pixel of the tap
+        trueCorners.forEach { p -> assertTrue("$p in $got", got.any { (it - p).getDistance() < maxOf(4f, 2.5f / k) }) }
         rule.onNodeWithText("Nothing is waiting", substring = true).assertExists()   // answered: the check is gone
         assertTrue(app.vision.cornerChecks(true).isEmpty())
+    }
+
+    @Test fun aRingCanBeDraggedAndTheLoupeShowsWhileAFingerIsDown() {
+        val app = sampleApp()
+        rule.setContent { AppRoot(app, Navigator(Screen.CourtCorners)) }
+        rule.waitForIdle()
+        val pic = rule.onNodeWithTag("cornerPicture")
+        val k = pic.fetchSemanticsNode().size.width / 1920f
+        val p = trueCorners[3]
+        pic.performTouchInput { click(Offset(p.x * k, p.y * k)) }
+        rule.waitForIdle()
+        assertEquals("1", state()["snapped"])
+        pic.performTouchInput { down(Offset(p.x * k, p.y * k)) }
+        rule.waitForIdle()
+        assertEquals("true", state()["loupe"])
+        pic.performTouchInput { moveBy(Offset(-60f, 40f)); moveBy(Offset(-60f, 40f)); up() }
+        rule.waitForIdle()
+        assertEquals("false", state()["loupe"])
+        assertEquals("1", state()["corners"]);  assertEquals("0", state()["snapped"])
+        rule.onNodeWithText("one tapped · one moved by hand").assertExists()
     }
 
     @Test fun pinchZoomsForACloserTapAndTheLinesCanBeAcceptedOrHidden() {

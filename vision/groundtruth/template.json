@@ -1,0 +1,31 @@
+{
+  "session": "2026-11-25",
+  "note": "Filled from Chris's measurements (USER-MANUAL section 16). Distances in metres. Court axes: x along the court (the near baseline, the cameras' side, at x = -11.885), y across (the cameras' side fence at negative y), z up.",
+  "cameras": [
+    {"cam": 1, "heightM": 3.5, "fromDoublesSidelineM": 4.0, "beyondBaselineM": 2.5, "atEnd": "near"},
+    {"cam": 2, "heightM": 3.5, "fromDoublesSidelineM": 4.0, "beyondBaselineM": 2.5, "atEnd": "far"}
+  ],
+  "court": {"baselineWidthM": 0.08, "serviceLineWidthM": 0.05, "doublesWidthM": 10.97},
+  "stillBalls": {
+    "clip": "clip1",
+    "atS": 40,
+    "balls": [
+      {"name": "near centre mark", "x": -11.765, "y": 0, "z": 0.0335},
+      {"name": "near T", "x": -6.40, "y": 0, "z": 0.0335},
+      {"name": "far T", "x": 6.40, "y": 0, "z": 0.0335},
+      {"name": "far service line at the singles sideline", "x": 6.40, "y": -4.115, "z": 0.0335},
+      {"name": "net tape at the centre strap", "x": 0, "y": 0, "z": 0.948},
+      {"name": "1 m inside the near doubles corner", "x": -10.885, "y": -4.485, "z": 0.0335}
+    ]
+  },
+  "drops": {"clip": "clip2", "releaseHeightM": 2.0335, "spots": [
+      {"name": "net post", "x": 0, "y": -5.4, "count": 3},
+      {"name": "near service box centre", "x": -3.2, "y": -2.06, "count": 3},
+      {"name": "far T", "x": 6.40, "y": 0, "count": 3}]},
+  "targets": {"clip": "clip3", "spots": [
+      {"name": "far left corner", "fromBaselineM": 0.5, "fromSidelineM": 0.5, "x": 11.385, "y": -4.985},
+      {"name": "far right corner", "fromBaselineM": 0.5, "fromSidelineM": 0.5, "x": 11.385, "y": 4.985}]},
+  "machine": [
+    {"clip": "clip4", "setting": "medium flat", "speedDial": 5, "spinDial": 0, "feedS": 4, "elevationDeg": 10, "position": {"x": 12.3, "y": 0}}
+  ]
+}

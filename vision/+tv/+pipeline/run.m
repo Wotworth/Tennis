@@ -17,7 +17,8 @@ function result = run(files, outDir, cfg)
 %     outputs  session.json, shots, trajectories, rallies, plots, reel (TV-OUT)
 if nargin < 3 || isempty(cfg), cfg = tv.pipeline.defaults(); end
 % settings added after a session's cfg was saved (an app answer reruns it from run.mat) take their defaults
-dflt = struct('corners', {{[], []}}, 'calibAccepted', [false false], 'doubtfulCalibration', 'hold', 'maxTapRms', 0.01, 'checkPictureWidth', 3840);
+d0 = tv.pipeline.defaults();
+dflt = struct('frames', 'all', 'play', d0.play, 'corners', {{[], []}}, 'calibAccepted', [false false], 'doubtfulCalibration', 'hold', 'maxTapRms', 0.01, 'checkPictureWidth', 3840);
 fn = fieldnames(dflt);
 for i = 1:numel(fn), if ~isfield(cfg, fn{i}), cfg.(fn{i}) = dflt.(fn{i}); end, end
 if ~exist(outDir, 'dir'), mkdir(outDir); end
@@ -67,10 +68,21 @@ end
 % --- rallies ------------------------------------------------------------------------------
 R = tv.pipeline.stage(outDir, 'rallies', k(), @() findRallies(rec));
 
+% --- every frame (Chris, 20 Nov: until a first pass misses under 1% of rally frames, every frame is
+% searched; the rallies are then where the ball was in play, joined with the sound's windows, and the
+% sound's own windows are kept to measure what they would have skipped) ---------------------------
+A = [];
+if strcmp(cfg.frames, 'all') && strcmp(cfg.detector, 'learned')
+    guard();
+    kScan = k('scan', cfg.ballApparentScale, cfg.ballNetFile, cfg.ballCut, h(kCal));
+    A = tv.pipeline.stage(outDir, 'scan', kScan, @() scanAll(rec, C, cfg));
+    R = tv.rally.fromPlay(R, A.rows, rec, sync, cfg.play);
+end
+
 % --- detection and 2D tracks -----------------------------------------------------------------
 guard();
-kDet = k(R.windows, cfg.ballApparentScale, cfg.detector, cfg.ballNetFile, cfg.ballCut, cfg.chainOpts, h(kCal));
-D = tv.pipeline.stage(outDir, 'detect', kDet, @() detectAll(rec, C, R.windows, sync, cfg));
+kDet = k(R.windows, cfg.ballApparentScale, cfg.detector, cfg.ballNetFile, cfg.ballCut, cfg.chainOpts, h(kCal), cfg.frames);
+D = tv.pipeline.stage(outDir, 'detect', kDet, @() detectAll(rec, C, R.windows, sync, cfg, A));
 
 % --- sync ---------------------------------------------------------------------------------------
 guard();
@@ -109,7 +121,7 @@ M = tv.pipeline.stage(outDir, 'metrics', k(cfg.lines, P.info.chris, h(kRec), h(k
 [up.summary, up.data] = tv.upload.payload(struct('rec', rec, 'shots', M.shots, 'rallies', M.rallies, ...
     'summary', M.summary, 'air', X.air, 'players', P));
 result = struct('summaryForUpload', up.summary, 'dataForUpload', up.data, 'rec', rec, 'cams', cams, 'calib', C.report, 'symmetry', Y.symmetry, 'crossing', Y.crossing, ...
-    'rallyWindows', R.windows, ...
+    'rallyWindows', R.windows, 'rallyFinding', {rallyFinding(R)}, ...
     'sync', X.sync, 'air', X.air, 'segs', {X.segs}, 'events', {X.events}, 'players', P, ...
     'gateLog', {G.log}, 'dropped', {X.dropped}, 'candidates', {D.candidates}, 'ballTracks', {G.tracks}, ...
     'shots', M.shots, 'rallies', M.rallies, 'summary', M.summary, 'refine', X.report);
@@ -117,6 +129,14 @@ tv.out.write(outDir, result, cfg);
 end
 
 % ======================================================================================
+function F = rallyFinding(R)
+% what finding rallies by sound alone would have skipped (TV-RAL-03; Chris, 20 Nov)
+F = struct('mode', 'sound', 'soundWindows', R.windows, 'playSeconds', NaN, 'soundCoverage', NaN);
+if isfield(R, 'soundWindows')
+    F = struct('mode', 'every frame', 'soundWindows', R.soundWindows, 'playSeconds', R.playSeconds, 'soundCoverage', R.soundCoverage);
+end
+end
+
 function s = fileStamp(f)
 d = dir(f);  s = sprintf('%d-%s', d.bytes, d.date);
 end
@@ -176,10 +196,11 @@ function R = findRallies(rec)
 [R.windows, R.onsets] = tv.rally.fromAudio(y, fs);
 end
 
-function D = detectAll(rec, C, windows, sync, cfg)
+function D = detectAll(rec, C, windows, sync, cfg, A)
+if nargin < 6, A = []; end
 % cfg.detector 'learned' (the default since 19 Nov): the learned detector, as in the one-camera
 % path. 'classical': the first, colour-based detector, kept to compare with.
-if strcmp(cfg.detector, 'learned'), D = detectLearned(rec, C, windows, sync, cfg); return; end
+if strcmp(cfg.detector, 'learned'), D = detectLearned(rec, C, windows, sync, cfg, A); return; end
 D.tracks = cell(size(windows, 1), 2);
 c = tv.court.constants();
 for k = 1:2
@@ -210,7 +231,8 @@ for k = 1:2
 end
 end
 
-function D = detectLearned(rec, C, windows, sync, cfg)
+function D = detectLearned(rec, C, windows, sync, cfg, A)
+% A: every frame's scored spots already (cfg.frames 'all', scanAll): each window takes its part
 % TV-DET-04 in the two-camera pipeline (Chris, 19 Nov). Per camera and rally window: spots that
 % move, scored by the classifier (tv.detect.learnedCandidates); then every path a ball could have
 % taken through the scored spots becomes a track (tv.track.chains). Unlike the one-camera path
@@ -227,12 +249,36 @@ for k = 1:2
         f0 = tv.media.frameAt(k, windows(r, 1), rec, sync);
         f1 = tv.media.frameAt(k, windows(r, 2), rec, sync);
         if isfield(cfg, 'thermalGuard'), cfg.thermalGuard(); end
-        rows = tv.detect.learnedCandidates(rec(k), C.bg{k}, f0, f1, S, net, pre);
+        if ~isempty(A)
+            rows = double(A.rows{k});  rows = rows(rows(:, 1) >= f0 & rows(:, 1) <= f1, :);
+        else
+            rows = tv.detect.learnedCandidates(rec(k), C.bg{k}, f0, f1, S, net, pre);
+        end
         cand = rows(rows(:, 4) > cfg.ballCut, 1:6);      % [frame u v score dmin dmax]
         T = tv.track.chains(cand, co);
         D.tracks{r, k} = rmfield(T, 'score');             % as tv.track.ball2d's tracks
         D.candidates{r, k} = cand;
     end
+end
+end
+
+function A = scanAll(rec, C, cfg)
+% every frame of both recordings through the learned detector; the spots the tracker could use
+% (score over cfg.ballCut) are kept, in single precision (a real session: about a gigabyte)
+m = tv.detect.ballModel(cfg.ballNetFile);
+net = tv.detect.loadBallNet(m.net);  pre = tv.detect.loadBallNet(m.pre);
+A.rows = cell(1, 2);
+for k = 1:2
+    S = tv.detect.ballSizeMap(C.cams(k), tv.court.interest(cfg.court));
+    S.dmin = S.dmin * cfg.ballApparentScale;  S.dmax = S.dmax * cfg.ballApparentScale;
+    step = 60 * round(rec(k).fps);                        % a minute at a time, so the heat guard can pause
+    rows = cell(0, 1);
+    for f0 = 0:step:rec(k).nFrames - 1
+        if isfield(cfg, 'thermalGuard'), cfg.thermalGuard(); end
+        r = tv.detect.learnedCandidates(rec(k), C.bg{k}, f0, min(f0 + step - 1, rec(k).nFrames - 1), S, net, pre);
+        rows{end+1, 1} = single(r(r(:, 4) > cfg.ballCut, :)); %#ok<AGROW>
+    end
+    A.rows{k} = vertcat(zeros(0, 9, 'single'), rows{:});
 end
 end
 

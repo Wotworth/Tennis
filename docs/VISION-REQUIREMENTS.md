@@ -150,7 +150,7 @@ tennis/
 - TV-HW-07 **Staging on the 1 TB SSD:** it fits. Two cards of 2 h each at 240 Mbps are 432 GB in staging. Add Windows (about 40 GB), MATLAB with its toolboxes (about 35 GB), drivers and tools (about 15 GB), a page file (up to 32 GB) and one session's working files (up to about 50 GB): about 600 GB of the 930 GB usable, leaving about 35% free, above the 15% limit (TV-ING-09). Staging empties into D: within minutes of a verified import, and processing reads the raw files from D:, so queued sessions wait on the archive, not on C:. No extra SSD is needed; for more headroom, a 2 TB PCIe Gen4 NVMe (for example WD_BLACK SN850X or Samsung 990 PRO) fits a free M.2 slot.
 - TV-HW-08 **Day-one benchmark** (`tools/benchmarkPC.m`):
   - Before cameras or a court exist, it runs the full pipeline on synthetic two-camera footage: 4K120 with and without the power cap, then a shorter 4K240.
-  - It times every stage and projects the hours for a 2-hour session in each mode against the 12-hour limit (TV-OPS-04), with the peak temperatures.
+  - It times every stage and projects the hours for a 1.5-hour session in each mode against the 18-hour limit (TV-OPS-04, 20 Nov), with the peak temperatures.
   - Chris runs it within the PC's return window (`docs/USER-MANUAL.md (section 2.1)`).
 
 ## 2. Ingest and session assembly
@@ -513,7 +513,7 @@ m v̇ = m g − ½ ρ A C_D |u| u + ½ ρ A C_L |u|² (ω̂ × û),  u = v − w
   - They are extracted when a frame is labelled (test set) or harvested (auto-labels), before the raw footage can be deleted, as JPEG quality 95 at the camera's resolution.
   - Auto-labels are kept as whole runs of consecutive frames, so neighbouring labels share frames, and at most 20,000 new labelled frames a month are kept (spread over sessions, courts and light), matching the retraining threshold.
   - Disk estimate (to be measured on trial footage): about 2.5 MB per 4K frame. Test set: 300 frames × 3 ≈ 2.3 GB, growing slowly (about 4 GB with later batches). Auto-labels: about 21,300 frames per 20,000 labels ≈ 53 GB a month, about 0.65 TB a year. Beside the 6.5 TB footage steady state on the 12 TB archive, that fits for about 6 years; the weekly message reports it, and a second drive extends it.
-- TV-OPS-04 **[16 Nov, changed]** A 2-hour session is fully processed in ≤ 12 h on the specified PC; 6 h is a goal, not a requirement. Process overnight, one session at a time, and queue the rest. At the end of TV-PH-2, the measured processing time per capture mode is part of the capture-mode decision.
+- TV-OPS-04 **[20 Nov, changed; was 2 h in ≤ 12 h]** A session is up to 1.5 hours (the warm-up is not recorded) and is fully processed in ≤ 18 h on the specified PC. Keep making it faster wherever results do not get worse; a heavier method that clearly improves results is allowed within the 18 h. Process overnight, one session at a time, and queue the rest. At the end of TV-PH-2, the measured processing time per capture mode is part of the capture-mode decision.
 - TV-OPS-05 `tools/reprocess.m` reruns any stage for any range of sessions with the current code.
 - TV-OPS-06 A weekly "all OK" message with disk use, sessions processed and any warnings.
 - TV-TST-01 Synthetic generator (the core test): simulate shots with known speed, spin, C_D, wind and timing.
@@ -567,7 +567,7 @@ m v̇ = m g − ½ ρ A C_D |u| u + ½ ρ A C_L |u|² (ω̂ × û),  u = v − w
 | AC-09 | Drop-test gravity | 9.81 m/s² ± 1% |
 | AC-10 | Synthetic spin effect recovered | within 10 cm |
 | AC-11 | Synthetic rpm recovered (true C_L(S) known) | within 10% |
-| AC-12 | 2-hour session, cards in to app | ≤ 13 h **[16 Nov]** (was 7 h) |
+| AC-12 | 1.5-hour session, cards in to app | ≤ 19 h **[20 Nov]** (was 13 h for 2 h; 7 h before 16 Nov) |
 | AC-13 | Shots credited to the right player, including after changeovers | ≥ 99% |
 | AC-14 | Adjacent courts: neighbours' ball detections accepted (synthetic, TV-ADJ-08) | ≤ 0.5% of accepted **[16 Nov]** |
 | AC-15 | Adjacent courts: Chris's ball detections rejected (synthetic), counting only where the ball truly is inside the court of interest (past the box it is rejected by design, counted apart) | ≤ 2% **[16 Nov; 17 Nov]** |

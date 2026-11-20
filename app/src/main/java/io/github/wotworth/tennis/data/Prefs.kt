@@ -48,6 +48,11 @@ class Prefs(context: Context) {
         private set
     fun chooseVisionSample(v: Boolean) { visionSample = v; sp.edit().putBoolean("visionSample", v).apply() }
 
+    /** The shot card's view, "side" or "top" (Chris, 20 Nov: remember the last choice). */
+    var shotView by mutableStateOf(sp.getString("shotView", "side") ?: "side")
+        private set
+    fun chooseShotView(v: String) { shotView = v; sp.edit().putString("shotView", v).apply() }
+
     /** TV-PLY-07, sample session only: the answer to "which one is you?" (real answers go to the PC). */
     var visionSampleIdentity by mutableStateOf(sp.getString("visionSampleIdentity", null))
         private set

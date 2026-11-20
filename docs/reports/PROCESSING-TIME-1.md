@@ -73,6 +73,26 @@ What this does not settle: the test file was made here by re-encoding existing f
 
 **One thing to fix before the first full session:** `tv.media.readFrames` hands frames to MATLAB through a temporary file on disk. A 4K frame is about 25 MB, so the windows of one session alone would write about 12.5 TB to the SSD. Frames must go through memory instead (a pipe or a RAM disk). It does not matter for the short test clips.
 
+## Chris's real case: 1.5 hours at 4K240, every frame (20 Nov)
+
+Chris, 20 Nov: sessions are 1.5 hours (the warm-up is not recorded), recorded at 4K240; every frame is processed (no rally windows from sound for now); the limit is 18 hours (TV-OPS-04 and AC-12 updated). Is it inside 18 h, with the graphics card's own video decoder (NVDEC, through FFmpeg) instead of the processor?
+
+**Frames:** 2 cameras x 240 a second x 5,400 s = **2,592,000**, 1.5 times the 1,728,000 of 2 hours at 120. At 240 frames a second the three frames the detector compares are still 1/30 s apart (8 frames), so the work per frame is the same as at 120.
+
+| Stage | As the code is today (processor only) | With the planned changes | What it rests on |
+| --- | --- | --- | --- |
+| Decoding | 4.8 h on the processor (150 frames a second, scaled from this session's measurement) | **1.2 to 2.4 h on NVDEC**, running at the same time as the detector, so mostly hidden | No stand-alone NVDEC figure for the RTX 5070 Ti was found. Puget Systems says the 50 series has two decoders; I take 300 to 600 4K frames a second for both together. The day-one benchmark measures it. NVDEC reads HEVC 4:2:0 and, new in this generation, 4:2:2, 8 and 10 bit. |
+| Frames into MATLAB | temporary files: about 65 TB of disk writes for one session. Not workable | through memory, cropped to the court box, in the decoder's own format (12.4 MB a 4K frame instead of 25): 1.5 to 2.5 h, alongside the detector | A pipe moved 1.4 GB/s here with a slow reader; 3 to 5 GB/s is usual for a native one. |
+| Finding moving spots | 47 to 63 h (court box only) | **2 to 10 h** on the graphics card | Not built. 2 h is the card's memory speed with three times overhead; 10 h is the cautious figure used before (7 to 14 ms a frame). |
+| Classifier on the spots | inside the line above | under 0.5 h on the card | 13 to 22 cuts a frame pass the first pass on real footage |
+| Flight fits, events, timing | 2 to 3 h | 2 to 3 h | Scales with shots and with points per flight; 240 a second doubles the points, a shorter session has fewer shots |
+| Players, calibration, outputs | about 0.5 to 1 h | about 0.5 to 1 h | Players are sampled at a fixed rate, not every frame |
+| **Total** | **about 55 to 70 h** | **about 5 to 14 h** with decoding and transfer overlapped; **8 to 18 h** if nothing overlaps | |
+
+**Answer: every-frame processing of a 1.5-hour 4K240 session fits 18 hours only once two things are built: spot-finding on the graphics card, and frames passed through memory instead of temporary files.** With those, the projection is 5 to 14 hours, and at worst (no overlap, the cautious spot-finding figure) it touches 18. NVDEC helps (it takes 3 to 4 hours of decoding off the processor and runs beside the detector) but is not what decides it; the spot-finding is. With the code as it is today, a real session would take two to three days.
+
+Nothing here trades accuracy for speed: every frame is still searched at full resolution. The day-one benchmark (TV-HW) measures each line on the Legion, at 4K240.
+
 ## Toolboxes: nothing to buy
 
 - Graphics-card arithmetic in MATLAB (`gpuArray`) and running the cameras' windows in parallel (`parfor`) both need the **Parallel Computing Toolbox. It is in the Home Suite** the spec already lists (TV-ARCH-03), so Chris has it.

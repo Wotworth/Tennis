@@ -12,10 +12,10 @@ on:
   workflow_dispatch:
     inputs:
       only:
-        description: 'Run one job only (a manual run): all, test, fit-study, block-study or error-budget'
+        description: 'Run one job only (a manual run): all, test, fit-study, block-study, error-budget or shot-study'
         type: choice
         default: all
-        options: [all, test, fit-study, block-study, error-budget]
+        options: [all, test, fit-study, block-study, error-budget, shot-study]
 
 concurrency:
   group: vision-${{ github.ref }}-${{ inputs.only || 'all' }}
@@ -157,6 +157,42 @@ jobs:
         if: always()
         run: |
           for f in $(find out -type f -name 'blockstudy*' 2>/dev/null); do
+            echo "=== BEGIN-B64 $f"; base64 -w 0 "$f"; echo; echo "=== END-B64"
+          done
+
+  # Chris, 20 Nov: hundreds of synthetic shots with Tuesday's set-up, one job per ball detector
+  # (tools/shotStudy.m): detectors compared on speed, sideways curve measured, machine repeats.
+  shot-study:
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all' || inputs.only == 'shot-study'
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        detector: [learned, learnedRaw, colour]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v2
+        with:
+          release: latest
+          products: >
+            Image_Processing_Toolbox
+            Optimization_Toolbox
+            Computer_Vision_Toolbox
+            Statistics_and_Machine_Learning_Toolbox
+            Parallel_Computing_Toolbox
+
+      - name: Shot study (${{ matrix.detector }}, about 250 shots at 4K240 Linear)
+        uses: matlab-actions/run-command@v2
+        with:
+          command: addpath('vision', 'vision/tools'); shotStudy('out/shotstudy', struct('detectors', {{'${{ matrix.detector }}'}}, 'targetShots', 250, 'minutes', 60));
+
+      - name: Print results into the log
+        if: always()
+        run: |
+          for f in $(find out -type f \( -name 'shotstudy*' -o -name 'sizestudy*' -o -name 'fitstudy_*.md' \) 2>/dev/null); do
             echo "=== BEGIN-B64 $f"; base64 -w 0 "$f"; echo; echo "=== END-B64"
           done
 

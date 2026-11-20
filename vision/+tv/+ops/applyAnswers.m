@@ -44,7 +44,7 @@ for c = ids
 end
 cal = asList(client.getJson('/calibration/answered'));
 sess = cellfun(@(a) a.sessionId, cal, 'UniformOutput', false);
-for id = unique(sess)
+for id = reshape(unique(sess), 1, [])        % (a row: an empty list must not loop once)
     A = cal(strcmp(sess, id{1}));
     [files, pcfg, outDir] = savedRun(cfg, id{1});
     if isempty(files), continue; end

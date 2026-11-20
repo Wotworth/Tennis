@@ -85,8 +85,12 @@ object VisionDefaults {
     var courtColour = "speed"
     /** The shot card's side view: heights stretched (after a tap) or true proportion. Kept while flipping through shots. */
     var sideStretched by mutableStateOf(false)
+    /** The shot card's view, "side" or "top" (Chris, 20 Nov: the last choice is remembered; kept in the app's settings too). */
+    var shotView by mutableStateOf("side")
     /** Court corners already tapped when the page opens: for the design screenshots only. */
     var cornerPreview: List<androidx.compose.ui.geometry.Offset> = emptyList()
+    /** A finger held down at this point of the corner picture (picture px) when the page opens: design screenshots only. */
+    var cornerLoupePreview: androidx.compose.ui.geometry.Offset? = null
 }
 
 /** Court constants, as in the vision pipeline's tv.court.constants (ITF). */
@@ -547,7 +551,8 @@ fun VisionShotScreen(id: String, rally: Int, index: Int) {
             }.toTypedArray())
         },
     )
-    PivotFrame("shot $rally·$index", "shot", null, bar = { LabeledAppBar(actions) }) {
+    androidx.compose.runtime.LaunchedEffect(Unit) { VisionDefaults.shotView = app.prefs.shotView }
+    PivotFrame("shot $rally·$index", s.type.ifBlank { "shot" }, null, bar = { LabeledAppBar(actions) }) {
         ShotCardA(v, s, answer)
     }
 }
@@ -583,18 +588,20 @@ internal class SideGeometry(tr: Trajectory, marginM: Double, minTopM: Double, mi
 }
 
 /**
- * A shot from the side (Chris, 19 Nov): the whole court in true proportion, with the baselines, service
- * lines and net marked and labelled. A tap stretches the heights [TennisTokens.Vision.sideViewStretch]
- * times, which is said on the picture and shown by height marks at the right; another tap goes back.
- * The choice is kept while flipping through shots ([VisionDefaults.sideStretched]).
+ * A shot from the side (Chris, 19 and 20 Nov): the whole court in true proportion, the baselines,
+ * service lines and net marked with one row of small labels under the ground. A tap stretches the
+ * heights [TennisTokens.Vision.sideViewStretch] times; a small chip in the top-right corner says which
+ * ("×3" or "1:1") and is the only sign of it. The dashed line, the same shot without spin, is labelled
+ * "no spin" where it lands. No sentences on the card. The choice is kept while flipping through shots
+ * ([VisionDefaults.sideStretched]).
  */
 @Composable
-internal fun SideView(tr: Trajectory, s: VisionShot, colour: Color = speedColour(s.speedContact), caption: Boolean = true) {
+internal fun SideView(tr: Trajectory, s: VisionShot, colour: Color = speedColour(s.speedContact)) {
     if (tr.xyz.size < 2) return
     val zpx = LocalZpx.current
     val tok = TennisTokens.Vision
     val measurer = androidx.compose.ui.text.rememberTextMeasurer()
-    val small = io.github.wotworth.tennis.ui.theme.textStyleFor(TennisTokens.Type.listSecondary).copy(color = TennisTokens.Colors.secondary)
+    val small = io.github.wotworth.tennis.ui.theme.textStyleFor(TennisTokens.Type.chartLabel).copy(color = TennisTokens.Colors.secondary)
     val stretched = VisionDefaults.sideStretched
     val stretch = if (stretched) tok.sideViewStretch else 1f
     val times = tok.sideViewStretch.roundToInt()
@@ -607,15 +614,21 @@ internal fun SideView(tr: Trajectory, s: VisionShot, colour: Color = speedColour
         val perMUp = perM * g.along.toFloat() * stretch                  // px per metre of height
         val textH = measurer.measure("baseline", small).size.height.toFloat()
         val pad = with(dens) { zpx(tok.sideViewPad).toPx() }
-        val groundY = pad + (if (stretched) textH + pad else 0f) + g.topM.toFloat() * perMUp
-        // the five labels under the ground line; where they would run into each other on one row (a
-        // phone held upright), the two service lines go on a second row
-        val labels = g.marks.map { (m, name) ->
-            val lay = measurer.measure(name, small)
-            Triple((m.toFloat() * perM - lay.size.width / 2f).coerceIn(0f, constraints.maxWidth - lay.size.width.toFloat()), name, lay)
+        val chipText = if (stretched) "×$times" else "1:1"
+        val chip = measurer.measure(chipText, small.copy(color = TennisTokens.Colors.primary))
+        val chipPad = with(dens) { zpx(tok.chipPad).toPx() }
+        val chipH = chip.size.height + 2 * chipPad
+        val groundY = maxOf(pad + g.topM.toFloat() * perMUp, chipH + pad + 1f)
+        // one row of labels under the ground; where the service lines' labels would run into their
+        // neighbours (a phone held upright) those two are left as ticks only
+        val names = g.marks.map { (m, name) -> m to (if (name == "service line") "service" else name) }
+        fun layOut(skipService: Boolean) = names.mapNotNull { (m, name) ->
+            if (skipService && name == "service") null
+            else measurer.measure(name, small).let { lay -> Triple((m.toFloat() * perM - lay.size.width / 2f).coerceIn(0f, constraints.maxWidth - lay.size.width.toFloat()), name, lay) }
         }
-        val crowded = labels.zipWithNext().any { (a, b) -> b.first < a.first + a.third.size.width + pad }
-        val heightPx = groundY + pad + (if (crowded) 2 else 1) * textH + pad
+        var labels = layOut(false)
+        if (labels.zipWithNext().any { (a, b) -> b.first < a.first + a.third.size.width + pad }) labels = layOut(true)
+        val heightPx = groundY + pad + textH + pad
         Canvas(Modifier.fillMaxWidth().height(with(dens) { heightPx.toDp() })
             .testTag("sideView")
             .semantics { stateDescription = if (stretched) "heights stretched" else "true proportion" }
@@ -623,43 +636,82 @@ internal fun SideView(tr: Trajectory, s: VisionShot, colour: Color = speedColour
             fun map(p: DoubleArray) = Offset(g.across(p).toFloat() * perM, groundY - p[2].toFloat() * perMUp)
             val tick = zpx(tok.sideViewTick).toPx()
             drawLine(TennisTokens.Colors.disabled, Offset(0f, groundY), Offset(size.width, groundY), strokeWidth = density)
-            g.marks.forEachIndexed { i, (m, name) ->
+            g.marks.forEach { (m, name) ->
                 val x = m.toFloat() * perM
-                if (name == "net") {
-                    drawLine(TennisTokens.Colors.primary, Offset(x, groundY), Offset(x, groundY - Court.NET_CENTRE.toFloat() * perMUp), strokeWidth = 2f * density)
-                } else {
-                    drawLine(TennisTokens.Colors.secondary, Offset(x, groundY - tick), Offset(x, groundY + tick), strokeWidth = density)
-                }
-                io.github.wotworth.tennis.vision.CanvasText.log(name)
-                val row = if (crowded && name == "service line") 1 else 0
-                drawText(labels[i].third, topLeft = Offset(labels[i].first, groundY + pad + row * textH))
+                if (name == "net") drawLine(TennisTokens.Colors.primary, Offset(x, groundY), Offset(x, groundY - Court.NET_CENTRE.toFloat() * perMUp), strokeWidth = 2f * density)
+                else drawLine(TennisTokens.Colors.secondary, Offset(x, groundY - tick), Offset(x, groundY + tick), strokeWidth = density)
             }
-            if (stretched) {
-                drawText(measurer, io.github.wotworth.tennis.vision.CanvasText.log("heights stretched ×$times"), Offset(0f, 0f), small)
-                // height marks at the right edge, so the stretch can be read off
-                val stepM = tok.sideViewTickFt / Units.FT_PER_M
-                var k = 1
-                while (k * stepM <= g.topM) {
-                    val y = groundY - (k * stepM).toFloat() * perMUp
-                    drawLine(TennisTokens.Colors.disabled, Offset(size.width - 2 * tick, y), Offset(size.width, y), strokeWidth = density)
-                    val lay = measurer.measure(io.github.wotworth.tennis.vision.CanvasText.log("${(k * tok.sideViewTickFt).roundToInt()} ft"), small)
-                    drawText(lay, topLeft = Offset(size.width - 2 * tick - lay.size.width - 2 * density, y - lay.size.height / 2f))
-                    k++
-                }
-            }
+            labels.forEach { (x, name, lay) -> io.github.wotworth.tennis.vision.CanvasText.log(name); drawText(lay, topLeft = Offset(x, groundY + pad)) }
             fun pathOf(ps: List<DoubleArray>) = Path().apply { ps.forEachIndexed { i, p -> map(p).let { if (i == 0) moveTo(it.x, it.y) else lineTo(it.x, it.y) } } }
+            val noSpin = tr.noSpin.filter { it[2] >= 0 }
             clipRect(0f, 0f, size.width, groundY + density) {
-                drawPath(pathOf(tr.noSpin.filter { it[2] >= 0 }), TennisTokens.Colors.secondary,
+                drawPath(pathOf(noSpin), TennisTokens.Colors.secondary,
                     style = Stroke(1.5f * density, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6 * density, 5 * density))))
                 drawPath(pathOf(tr.xyz), colour, style = Stroke(2.5f * density))
             }
+            // "no spin" just above where the dashed line comes down
+            if (noSpin.size >= 2) {
+                val end = map(noSpin.last())
+                val lay = measurer.measure(io.github.wotworth.tennis.vision.CanvasText.log("no spin"), small)
+                drawText(lay, topLeft = Offset((end.x - lay.size.width / 2f).coerceIn(0f, size.width - lay.size.width), groundY - lay.size.height - tick - pad / 2))
+            }
+            // the stretch chip, top right
+            val cw = chip.size.width + 2 * chipPad
+            drawRect(TennisTokens.Colors.segmentOff, Offset(size.width - cw, 0f), androidx.compose.ui.geometry.Size(cw, chipH))
+            io.github.wotworth.tennis.vision.CanvasText.log(chipText)
+            drawText(chip, topLeft = Offset(size.width - cw + chipPad, chipPad))
         }
     }
-    if (caption) {
-        TennisText("solid: the real path · dashed: the same shot without spin" +
-            (s.spinEffect?.let { " · spin brought it down ${Units.ft(abs(it))}" } ?: ""), TennisTokens.Type.listSecondary)
-        TennisText(if (stretched) "heights stretched ×$times · tap for true proportion"
-            else "true proportion · tap to stretch heights ×$times", TennisTokens.Type.listSecondary)
+}
+
+/**
+ * The same shot from above (Chris, 20 Nov): the court lengthways down the screen in true proportion,
+ * singles and doubles lines, the hitter at the bottom so left and right are as the hitter saw them.
+ * The real path solid in the hitter's colour, the same shot without spin dashed and labelled "no
+ * spin" (straight from above: only spin moves a ball sideways), and the bounce marked.
+ */
+@Composable
+internal fun TopView(tr: Trajectory, s: VisionShot, colour: Color = speedColour(s.speedContact)) {
+    if (tr.xyz.size < 2) return
+    val zpx = LocalZpx.current
+    val tok = TennisTokens.Vision
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val small = io.github.wotworth.tennis.ui.theme.textStyleFor(TennisTokens.Type.chartLabel).copy(color = TennisTokens.Colors.secondary)
+    val g = remember(tr) { SideGeometry(tr, tok.sideViewMarginM.toDouble(), 0.0, 0.0) }
+    val lengthM = 2 * (Court.HALF_LENGTH + tok.topViewMarginM)
+    val widthM = 2 * (Court.HALF_DOUBLES + tok.topViewMarginM)
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val dens = androidx.compose.ui.platform.LocalDensity.current
+        val sc = constraints.maxWidth / widthM.toFloat()                 // px per metre, both ways: true proportion
+        val heightPx = (lengthM * sc).toFloat()
+        Canvas(Modifier.fillMaxWidth().height(with(dens) { heightPx.toDp() }).testTag("topView")) {
+            val cx = size.width / 2;  val cy = size.height / 2
+            val sg = g.sign
+            // the hitter's end at the bottom: along the flight is up the screen, the hitter's left is left
+            val map = { x: Double, y: Double -> Offset(cx - (sg * y * sc).toFloat(), cy - (sg * x * sc).toFloat()) }
+            drawCourtTopDown(map, sc)
+            fun pathOf(ps: List<DoubleArray>) = Path().apply { ps.forEachIndexed { i, p -> map(p[0], p[1]).let { if (i == 0) moveTo(it.x, it.y) else lineTo(it.x, it.y) } } }
+            val before = s.bounce?.let { b -> tr.xyz.indexOfFirst { kotlin.math.hypot(it[0] - b[0], it[1] - b[1]) < 0.05 }.takeIf { it > 0 } }
+            val flight = if (before != null) tr.xyz.subList(0, before + 1) else tr.xyz
+            val noSpin = tr.noSpin.filter { it[2] >= 0 }
+            drawPath(pathOf(noSpin), TennisTokens.Colors.secondary,
+                style = Stroke(1.5f * density, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6 * density, 5 * density))))
+            drawPath(pathOf(tr.xyz), colour, style = Stroke(2.5f * density))
+            s.bounce?.let { b ->
+                val p = map(b[0], b[1])
+                drawCircle(colour, zpx(tok.bounceMark).toPx(), p)
+                drawCircle(TennisTokens.Colors.background, zpx(tok.bounceMark).toPx(), p, style = Stroke(density))
+            }
+            if (noSpin.size >= 2) {
+                val end = map(noSpin.last()[0], noSpin.last()[1])
+                val real = flight.last().let { map(it[0], it[1]) }
+                val lay = measurer.measure(io.github.wotworth.tennis.vision.CanvasText.log("no spin"), small)
+                // beside the dashed line's end, on the side away from the real path
+                val right = end.x >= real.x
+                val x = if (right) end.x + zpx(6f).toPx() else end.x - lay.size.width - zpx(6f).toPx()
+                drawText(lay, topLeft = Offset(x.coerceIn(0f, size.width - lay.size.width), end.y - lay.size.height / 2f))
+            }
+        }
     }
 }
 

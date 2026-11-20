@@ -67,4 +67,13 @@ class FeedbackTest {
         val withCues = AppData(cues = listOf(Cue(id = 1, heading = "forehand", text = "Follow through.")), loaded = true)
         assertEquals("cues", TileCues.state(withCues, liveTile = true, now = 0, checks = 12).state)
     }
+
+    /** Chris, 20 Nov: a session held for the court corners shows on the live tile, ahead of the cues. */
+    @Test fun aSessionWaitingForCornersShowsAheadOfTheCues() {
+        val withCues = AppData(cues = listOf(Cue(id = 1, heading = "forehand", text = "Follow through.")), loaded = true)
+        val t = TileCues.state(withCues, liveTile = true, now = 0, checks = 12, corners = 1)
+        assertEquals("checks", t.state)
+        assertEquals("1", t.big);  assertEquals("session waiting: corners", t.small)
+        assertEquals("off", TileCues.state(withCues, liveTile = false, now = 0, corners = 1).state)
+    }
 }
