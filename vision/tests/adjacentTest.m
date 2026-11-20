@@ -77,7 +77,7 @@ assert(M.falsePos <= M.limits.maxFalsePos)
 % flight fit. Marked so that a new failure cannot hide among old ones (Chris, 19 Nov): this
 % section fails if the shortfall gets worse than known.falseNeg, and fails when the limit is met,
 % so the marker is removed then.
-known = struct('falseNeg', 0.25, 'shotsFound', 6, 'callsOk', 4);
+known = struct('falseNeg', 0.17, 'shotsFound', 7, 'callsOk', 7);   % run 56 (20 Nov): 15.2%, 7, 7
 fprintf('KNOWN SHORTFALL AC-15: Chris''s ball rejected %.2f%% (limit %.2f%%, known ceiling %.0f%%)\n', ...
     100 * M.falseNeg, 100 * M.limits.maxFalseNeg, 100 * known.falseNeg);
 assert(M.falseNeg <= known.falseNeg, 'AC-15 got worse: %.2f%% rejected (known ceiling %.0f%%)', 100 * M.falseNeg, 100 * known.falseNeg)
@@ -88,7 +88,7 @@ assert(M.swaps <= M.limits.maxSwaps)
 
 %% Chris's shots are all still found and called with the neighbours playing (AC-06) - KNOWN SHORTFALL, no worse than measured
 % Not met yet: CI run 49 found 7 shots and called 5 of them right. Same marker as AC-15.
-known = struct('falseNeg', 0.25, 'shotsFound', 6, 'callsOk', 4);
+known = struct('falseNeg', 0.17, 'shotsFound', 7, 'callsOk', 7);   % run 56 (20 Nov): 15.2%, 7, 7
 met = rep.shotsFound >= 0.95 * rep.shotsTrue && all(rep.callOk);
 fprintf('KNOWN SHORTFALL AC-06: %d of %d shots found, %d calls right (known floors %d found, %d right)\n', ...
     rep.shotsFound, rep.shotsTrue, nnz(rep.callOk), known.shotsFound, known.callsOk);

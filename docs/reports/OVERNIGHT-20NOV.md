@@ -24,9 +24,10 @@ Chris's message of 19 Nov (late), Parts 1 to 4. Releases: v0.6.46 and later (see
 | Why | The rolling test asked for *every* 3D point of the stray to be under 0.3 m. 90% were under 5 cm, but a few mis-paired points sat at 0.7 to 1.4 m |
 | What followed | The flight fit takes one ball at a time; it mixed the stray with your ball, the fits failed, and two of your shots went |
 | Fix | The test uses the 90th percentile of the heights (`rollShare` 0.9). Rally 2 then keeps only your ball (checked on the local run) |
-| CI result | Run 55 could not show it: a new fault (rallies from play, item 2) joined the neighbours test into one rally. Fixed; the next run shows it |
+| CI result (run 56) | Rally 2's flights from 20.8 to 24.5 s are all kept now. 7 of 9 shots found and all 7 called right (round 5 before: 4 or 5); your ball rejected 15% of the time (was 17 to 78%) |
+| What is still lost | Rally 2's serve (19.9 to 20.7 s): camera 1 has 94 points of it, camera 2 only 4, and those 4 are the neighbours' ball. Camera 2's track runs through the serve but holds the neighbours' ball there instead of yours. Next: why camera 2's tracker takes the other ball during the serve. The other shot missed is rally 1's at 5.9 s: its flights are there, but its hit was not counted (not yet checked why) |
 
-It is not marked a known shortfall.
+The test's floors are raised to what run 56 measured (7 found, 7 right, at most 17% rejected), so any slip back fails CI.
 
 ### 4. Processing time: 1.5 hours at 4K240, every frame
 In docs/reports/PROCESSING-TIME-1.md. In short: 2,592,000 frames; with the code as it is today about 55 to 70 h; with spot-finding on the graphics card and frames passed through memory, **5 to 14 h, up to 18 h at worst** (no overlap, cautious spot-finding). NVDEC takes 3 to 4 h of decoding off the processor and runs beside the detector, but the spot-finding decides it. Fits 18 h only once those two are built. TV-OPS-04 and AC-12 now read 1.5 h in 18 h (item 26).
