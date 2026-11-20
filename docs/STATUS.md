@@ -86,7 +86,7 @@ Chris's follow-ups (19 Nov, afternoon), all in the reports named: misses on 59 f
 
 Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens calibration and trial sessions). The launcher needs the new "checks" tile state (LAUNCHER-REQUESTS.md), not built.
 
-Overnight 20 Nov (Chris's Parts 1 to 4): see docs/reports/OVERNIGHT-20NOV.md. Releases v0.6.46 and v0.6.47 (shot card, corner snap and magnifier). Neighbours test cause found and fixed (the rolling stray was kept; gate judges a rolling ball on 90% of its points). Every frame searched by default. TV-OPS-04 / AC-12: 1.5 h in 18 h. Tuesday checklist (manual section 16), ground-truth report, camera-file check, quick look.
+Overnight 20 Nov (Chris's Parts 1 to 4): see docs/reports/OVERNIGHT-20NOV.md. Releases v0.6.46, v0.6.47 and a build from 7c8eee6 (shot card, corner snap and magnifier). Neighbours test cause found and fixed (the rolling stray was kept; the gate judges a rolling ball on 90% of its points). Every frame searched by default; rallies from play need both cameras, inside the court of interest, ball-like speed (run 55 showed the first version joined rallies: neighbours test 0 of 9 shots, pipeline test one wrong call). Shot study (run 55, 201 synthetic shots, Tuesday's set-up): speed 0.49 mph median, bounce 1.7 cm, calls all right; detectors within 0.15 mph of each other; sideways curve not good enough at the 0.5 ft limit (half the curve tiles would be wrong); machine feeds were not counted by the study (fixed in the study). Far-end misses (item 25): the ball was found and tracked in 17 of 19; the miss is one-camera ground placement. TV-OPS-04 / AC-12: 1.5 h in 18 h. Tuesday checklist (manual section 16), ground-truth report, camera-file check, quick look. CI run 56 (vision tests, calm-air shot study) running at 03:50 UTC.
 
 ## Next
 
@@ -112,6 +112,7 @@ Overnight 20 Nov (Chris's Parts 1 to 4): see docs/reports/OVERNIGHT-20NOV.md. Re
 
 - **Hero 7 test clips (Chris will record before the nets come down):** one minute in Linear (2.7K, 60 fps, HyperSmooth off) from the side fence at the planned height near a baseline extension with the whole court in view, one minute in Wide, and checkerboard clips in both modes. The side clip is the real test of the two-camera calibration.
 - Round 5 adopted (Chris, 19 Nov evening); pictures from the new videos: private pages only.
+- Asked 20 Nov (morning summary): the curve tile's limit (0.5 ft shows a wrong curve on about half the shots it marks), once run 56's calm-air numbers are in.
 - Answered 20 Nov: (a) wait for his taps (with reminders and the tile); (b) process every frame for now (built: `cfg.frames 'all'`); a cheaper first pass only when it misses under 1% on his real sessions and he agrees.
 
 - Purchase: Claude recommends buying the two cameras now and the PC later (17 Nov); Chris to decide.
