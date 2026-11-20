@@ -8,10 +8,11 @@ function shotStudy(outDir, opts)
 %      from that detector's measured behaviour at the size the ball really is in each frame.
 %   Answers: does the detector change speed accuracy (item 5), how well is sideways curve
 %   measured (item 14), and bounce, speed and spin-effect errors for Tuesday's set-up (item 22).
+%   opts.gustAmp 0 runs it in calm air (only a steady wind), to see what the gusts cost.
 %   Writes sizestudy.md, fitstudy_<detector>.md and shotstudy.md (the comparison).
 if nargin < 1, outDir = fullfile(pwd, 'out', 'shotstudy'); end
 if nargin < 2, opts = struct(); end
-d = struct('targetShots', 300, 'minutes', 75, 'detectors', {{'learned', 'learnedRaw', 'colour'}}, 'trials', 150);
+d = struct('targetShots', 300, 'minutes', 75, 'detectors', {{'learned', 'learnedRaw', 'colour'}}, 'trials', 150, 'gustAmp', 0.6);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 if ~exist(outDir, 'dir'), mkdir(outDir); end
@@ -22,12 +23,12 @@ for i = 1:numel(opts.detectors)
     name = opts.detectors{i};
     M = tv.synth.detectorModel(csv, name);
     R = fitStudy(outDir, struct('scenario', 'tuesday', 'errModel', M, 'sideSpin', true, 'machine', 0.33, ...
-        'targetShots', opts.targetShots, 'minutes', opts.minutes, 'tag', name, ...
-        'title', sprintf('Tuesday set-up, detector: %s', name)));
+        'targetShots', opts.targetShots, 'minutes', opts.minutes, 'gustAmp', opts.gustAmp, 'tag', [name tv.testing.ternary(opts.gustAmp == 0, '_calm', '')], ...
+        'title', sprintf('Tuesday set-up, detector: %s%s', name, tv.testing.ternary(opts.gustAmp == 0, ', calm air', ''))));
     r = R.rows;  f = [r.found];
     sp = abs([r.speedErr]) * 2.23694;  sp = sp(isfinite(sp));
     cv = abs([r.curveErr]) * 100;  cv = cv(isfinite(cv));
-    rows(end+1, :) = {name, nnz(f), numel(f), mean(sp < 2), median(sp), p90(sp), median([r(isfinite([r.bounceErr])).bounceErr]) * 100, ...
+    rows(end+1, :) = {[name tv.testing.ternary(opts.gustAmp == 0, ' (calm)', '')], nnz(f), numel(f), mean(sp < 2), median(sp), p90(sp), median([r(isfinite([r.bounceErr])).bounceErr]) * 100, ...
         median(abs([r(isfinite([r.spinErr])).spinErr])) * 100, median(cv), p90(cv), R.farBallPx}; %#ok<AGROW>
 end
 L = {'# Shot study: the ball detectors on Tuesday''s set-up (SYNTHETIC)', ''};

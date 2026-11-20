@@ -17,11 +17,12 @@ function R = fitStudy(outDir, opts)
 %   opts.errModel: a detector's measured recall and centre error by ball size
 %     (tv.synth.detectorModel) instead of the flat 0.5 px and 5% misses.
 %   opts.sideSpin, opts.machine: tv.synth.studySession's sidespin and ball-machine feeds.
+%   opts.gustAmp: the gusts' amplitude per period, m/s (0: calm, steady wind only).
 %   opts.tag: names the outputs fitstudy_<tag>.md / .csv; opts.title: a line for the report.
 if nargin < 1, outDir = fullfile(pwd, 'out', 'fitstudy'); end
 if nargin < 2, opts = struct(); end
 d = struct('seed', 7, 'minutes', 90, 'targetShots', 400, 'rounds', 3, 'syncRallies', 3, ...
-    'scenario', 'default', 'errModel', [], 'sideSpin', false, 'machine', 0, 'tag', '', 'title', '');
+    'scenario', 'default', 'errModel', [], 'sideSpin', false, 'machine', 0, 'tag', '', 'title', '', 'gustAmp', 0.6);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 if ~exist(outDir, 'dir'), mkdir(outDir); end
@@ -34,7 +35,7 @@ if strcmp(opts.scenario, 'tuesday')
 end
 camsTrue = tv.synth.cameras(sc);
 S = tv.synth.studySession(opts.seed, struct('minutes', opts.minutes, 'targetShots', opts.targetShots, ...
-    'sideSpin', opts.sideSpin, 'machine', opts.machine));
+    'sideSpin', opts.sideSpin, 'machine', opts.machine, 'gustAmp', opts.gustAmp));
 O = tv.synth.observe(S, camsTrue, struct('errModel', opts.errModel));
 R.farBallPx = farBall(camsTrue);
 fprintf('fit study %s: the ball is %.1f px across at the far corner\n', opts.tag, R.farBallPx);
@@ -118,8 +119,8 @@ L{end+1} = '';
 if ~isempty(R.opts.title), L{end+1} = R.opts.title; L{end+1} = ''; end
 L{end+1} = sprintf('Far-corner ball %.1f px across.', R.farBallPx);
 L{end+1} = '';
-L{end+1} = sprintf('SYNTHETIC. %d shots in %d rallies (90-minute singles session, 4K cameras, %s). Truth flights: ode45, spin decay (5 s), C_L following the spin parameter with 15%% per-shot scatter, per-shot C_D (sd 0.024), wind gusts (about 1 m/s). The fitter assumes none of these. Run time %.0f min.', ...
-    numel(rows), numel(S.pieces), noiseText(R.opts), R.seconds / 60);
+L{end+1} = sprintf('SYNTHETIC. %d shots in %d rallies (90-minute singles session, 4K cameras, %s). Truth flights: ode45, spin decay (5 s), C_L following the spin parameter with 15%% per-shot scatter, per-shot C_D (sd 0.024), wind gusts (%s). The fitter assumes none of these. Run time %.0f min.', ...
+    numel(rows), numel(S.pieces), noiseText(R.opts), tv.testing.ternary(R.opts.gustAmp > 0, sprintf('%.1f m/s on each of three periods', R.opts.gustAmp), 'none: calm, steady wind only'), R.seconds / 60);
 L{end+1} = '';
 L{end+1} = '| Measure | Shots | Median | 90th percentile | Target |';
 L{end+1} = '|---|---|---|---|---|';

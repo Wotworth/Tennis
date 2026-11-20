@@ -169,7 +169,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        detector: [learned, learnedRaw, colour]
+        # 20 Nov: the three detectors came out within 0.15 mph and 0.1 cm of each other (run 55);
+        # now the learned one with gusts and in calm air, to see what the sideways curve's error is
+        include:
+          - detector: learned
+            gust: '0.6'
+          - detector: learned
+            gust: '0'
     steps:
       - uses: actions/checkout@v4
 
@@ -184,10 +190,10 @@ jobs:
             Statistics_and_Machine_Learning_Toolbox
             Parallel_Computing_Toolbox
 
-      - name: Shot study (${{ matrix.detector }}, about 250 shots at 4K240 Linear)
+      - name: Shot study (${{ matrix.detector }}, gusts ${{ matrix.gust }} m/s, about 250 shots at 4K240 Linear)
         uses: matlab-actions/run-command@v2
         with:
-          command: addpath('vision', 'vision/tools'); shotStudy('out/shotstudy', struct('detectors', {{'${{ matrix.detector }}'}}, 'targetShots', 250, 'minutes', 60));
+          command: addpath('vision', 'vision/tools'); shotStudy('out/shotstudy', struct('detectors', {{'${{ matrix.detector }}'}}, 'targetShots', 250, 'minutes', 60, 'gustAmp', ${{ matrix.gust }}));
 
       - name: Print results into the log
         if: always()
