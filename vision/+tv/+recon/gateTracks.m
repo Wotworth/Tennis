@@ -24,6 +24,8 @@ function [kept, log, partners] = gateTracks(tracks, cands, cams, rec, sync, box,
 %      other camera worse there gives up those points ("overlaps a better track"), but only
 %      when the two are the same ball: their 3D points over the overlap are within
 %      opts.sameBallM (median). Two balls in view at once are both kept.
+%   0. A track whose points switch from one of the other camera's tracks to another, with a jump
+%      in 3D, is cut there first: a 2D tracker that ran on along the other ball (21 Nov).
 %   1b. A point paired with another track than its partner (where the partner has a gap) is kept
 %      only if it lies on the track's own path; otherwise "paired with another ball" (21 Nov).
 %   4. Candidates that are in no track are logged "isolated".
@@ -39,7 +41,7 @@ function [kept, log, partners] = gateTracks(tracks, cands, cams, rec, sync, box,
 %   RETUNE(real footage): every opts value (tv.pipeline.defaults, cfg.gate).
 if nargin < 7, opts = struct(); end
 d = struct('epipolarPx', 4, 'minInsideFrac', 0.5, 'minPairedFrac', 0.3, 'maxSpeed', 75, 'maxGapFrames', 3, 'sameBallM', 2, 'rollMaxZ', 0.3, 'rollMinS', 0.3, 'rollShare', 0.9, ...
-    'otherPairM', 0.5, 'otherPairS', 0.25);
+    'otherPairM', 0.5, 'otherPairS', 0.25, 'splitRun', 8, 'splitJumpM', 1.5);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 log = emptyLog();
@@ -51,6 +53,13 @@ for k = 1:2
         T{k}{j} = tv.recon.detTimes(k, double(tracks{k}(j).frames(:)), tracks{k}(j).uv(:, 2), rec, sync);
     end
 end
+% 0 (21 Nov, Chris: why does tracking ever take the other ball?): a camera's 2D tracker links by
+% motion alone, so where two balls pass close in its picture a track can run on along the other
+% ball (CI run 56: camera 2 followed the neighbours' ball through Chris's serve, and the track,
+% mostly the neighbours', was dropped whole with his serve in it). The other camera shows the
+% switch: the track's points start pairing with a different track there, and the 3D point jumps.
+% Such a track is cut at the switch, and each piece is judged on its own.
+[tracks, T] = splitAtSwitches(tracks, T, cams, rec, sync, opts);
 % 1-2: pair every point with the other camera's tracks. Tracks are matched first
 % (TV-REC-02): the other camera's track with the lowest median error over their
 % shared time is the partner, so a stray that happens to lie on a sight line
@@ -206,6 +215,78 @@ for k = 1:2
         log(end+1) = struct('cam', k, 'frame', C(iso(m), 1), 'u', C(iso(m), 2), 'v', C(iso(m), 3), 't', t(m), ...
             'X', nan(1, 3), 'track', 0, 'reason', 'isolated', 'errPx', NaN); %#ok<AGROW>
     end
+end
+end
+
+function [tracks, T] = splitAtSwitches(tracks, T, cams, rec, sync, opts)
+% cut a track where its points switch, for opts.splitRun points or more on each side, from pairing
+% with one track of the other camera to pairing with another, the 3D point jumps by more than
+% opts.splitJumpM, and the old partner is still in view after the switch but no longer matches.
+% (One ball's track broken in two by the other camera's tracker pairs continuously and is not cut;
+% a gap in the old partner is not a switch of this track.)
+cuts = cell(1, 2);
+for k = 1:2
+    o = 3 - k;  fps = 1 / median(diff(rec(o).pts));  cuts{k} = cell(1, numel(tracks{k}));
+    for j = 1:numel(tracks{k})
+        trk = tracks{k}(j);  n = numel(trk.frames);
+        if n < 2 * opts.splitRun || numel(tracks{o}) < 2, continue; end
+        E = inf(n, numel(tracks{o}));  XX = nan(n, 3, numel(tracks{o}));
+        for jj = 1:numel(tracks{o})
+            [E(:, jj), XX(:, :, jj)] = pairWith(k, trk, T{k}{j}, tracks{o}(jj), T{o}{jj}, cams, fps, opts);
+        end
+        [em, lab] = min(E, [], 2);  lab(em > opts.epipolarPx) = 0;
+        [~, ord] = sort(T{k}{j});  L = lab(ord);
+        X = nan(n, 3);  for m = 1:n, if lab(m) > 0, X(m, :) = XX(m, :, lab(m)); end, end
+        X = X(ord, :);
+        % runs of one label among the paired points
+        pi_ = find(L > 0);  if isempty(pi_), continue; end
+        rs = pi_(1);  c = [];
+        for q = 2:numel(pi_) + 1
+            if q > numel(pi_) || L(pi_(q)) ~= L(pi_(q - 1))
+                re = pi_(q - 1);
+                if q <= numel(pi_)
+                    nA = nnz(L(rs:re) == L(re));  nB = nnz(L(pi_(q):min(n, pi_(q) + 3 * opts.splitRun)) == L(pi_(q)));
+                    jump = norm(X(pi_(q), :) - X(re, :));
+                    % the old partner is still there after the switch but no longer matches: this
+                    % camera's tracker jumped (a gap in the old partner is not a switch here)
+                    after = ord(pi_(q):min(n, pi_(q) + opts.splitRun - 1));
+                    eOld = E(after, L(re));
+                    stillThere = nnz(isfinite(eOld) & eOld > opts.epipolarPx) >= 0.5 * numel(after);
+                    if nA >= opts.splitRun && nB >= opts.splitRun && jump > opts.splitJumpM && stillThere
+                        c(end+1) = ord(pi_(q)); %#ok<AGROW>   % the first point of the new run (original order)
+                    end
+                end
+                if q <= numel(pi_), rs = pi_(q); end
+            end
+        end
+        cuts{k}{j} = c;
+    end
+end
+for k = 1:2
+    if ~any(cellfun(@numel, cuts{k})), continue; end
+    nextId = max([tracks{k}.id]) + 1;  out = tracks{k}([]);  To = {};
+    for j = 1:numel(tracks{k})
+        trk = tracks{k}(j);  t = T{k}{j};
+        if isempty(cuts{k}{j}), out(end+1) = trk; To{end+1} = t; continue; end %#ok<AGROW>
+        tc = sort(t(cuts{k}{j}));  edges = [-Inf; tc(:); Inf];
+        for p = 1:numel(edges) - 1
+            m = t >= edges(p) & t < edges(p + 1);
+            if ~any(m), continue; end
+            piece = sliceTrack(trk, m);
+            if p > 1, piece.id = nextId;  nextId = nextId + 1; end
+            out(end+1) = piece;  To{end+1} = t(m); %#ok<AGROW>
+        end
+    end
+    tracks{k} = out;  T{k} = To;
+end
+end
+
+function s = sliceTrack(trk, m)
+% the points m of a track (every per-point field)
+s = trk;  n = numel(m);
+for f = fieldnames(trk)'
+    v = trk.(f{1});
+    if size(v, 1) == n && n > 1, s.(f{1}) = v(m, :); end
 end
 end
 

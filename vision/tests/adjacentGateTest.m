@@ -50,8 +50,10 @@ tr{1}(1).uv(i, :) = p(ismember(sw, tr{1}(1).frames), :);
 [kept, log] = tv.recon.gateTracks(tr, cand, cams, rec, sync, box, struct());
 k1 = kept{1}(1);
 assert(~any(ismember(k1.frames, sw)), 'the swapped frames stayed in Chris''s track')
-r = log([log.cam] == 1 & ismember([log.frame], sw) & [log.track] == 1);
-assert(numel(r) == numel(sw) && all(strcmp({r.reason}, 'outside court of interest')))
+% logged once each, from Chris's track or (21 Nov: a track is cut where it switches balls) from the
+% piece cut out of it; never from the candidates (0) or the neighbour's own track
+r = log([log.cam] == 1 & ismember([log.frame], sw) & ~ismember([log.track], [0, tr{1}(2).id]));
+assert(numel(r) == numel(sw) && all(ismember({r.reason}, {'outside court of interest', 'mostly outside'})))
 
 %% A second track wholly inside Chris's track gives up all its points, and the gate finishes
 % (16 Nov: an emptied track made the overlap step loop forever)
@@ -123,3 +125,16 @@ fprintf('camera 1 stray points in the gap: %d logged, reasons %s\n', numel(r), s
 % judged on every point (rollShare 1, the rule before 20 Nov), the stray is recognised as rolling and
 % rejected whole: its points paired with the other ball no longer count as its own
 assert(isempty(kept{1}) && all(strcmp({r.reason}, 'rolling on the ground')))
+
+%% A track that runs on from the neighbours' ball onto Chris's is cut, and his part kept (21 Nov,
+% Chris: CI run 56 lost his serve in camera 2 inside a track that was mostly the neighbours' ball)
+[tr, cand, rec, sync] = tv.testing.ballTracks(cams, {mine, theirs}, fps, 0.3);
+a = tr{2}(1);  b = tr{2}(2);                              % camera 2: 1 = mine, 2 = theirs
+A = b.frames < 80;  B = a.frames >= 80;                 % theirs until frame 79, then mine
+mixed = struct('frames', [b.frames(A); a.frames(B)], 'uv', [b.uv(A, :); a.uv(B, :)], 'area', [b.area(A); a.area(B)], 'id', 1);
+tr{2} = mixed;
+[kept, log] = tv.recon.gateTracks(tr, cand, cams, rec, sync, box, struct());
+km = [];  for q = 1:numel(kept{2}), km = [km; kept{2}(q).frames(:)]; end %#ok<AGROW>
+fprintf('camera 2 keeps %d of Chris''s %d points after the switch\n', nnz(ismember(a.frames(B), km)), nnz(B));
+assert(nnz(ismember(a.frames(B), km)) >= 0.9 * nnz(B))
+assert(~any(ismember(b.frames(A), km)))                  % and none of the neighbours'
