@@ -130,7 +130,7 @@ M = tv.pipeline.stage(outDir, 'metrics', k(cfg.lines, P.info.chris, h(kRec), h(k
 result = struct('summaryForUpload', up.summary, 'dataForUpload', up.data, 'rec', rec, 'cams', cams, 'calib', C.report, 'symmetry', Y.symmetry, 'crossing', Y.crossing, ...
     'rallyWindows', R.windows, 'rallyFinding', {rallyFinding(R)}, ...
     'sync', X.sync, 'air', X.air, 'segs', {X.segs}, 'events', {X.events}, 'players', P, ...
-    'gateLog', {G.log}, 'dropped', {X.dropped}, 'candidates', {D.candidates}, 'ballTracks', {G.tracks}, ...
+    'gateLog', {G.log}, 'gatePoints', {pointsOr(G)}, 'dropped', {X.dropped}, 'candidates', {D.candidates}, 'ballTracks', {G.tracks}, ...
     'shots', M.shots, 'rallies', M.rallies, 'summary', M.summary, 'refine', X.report);
 tv.out.write(outDir, result, cfg);
 end
@@ -311,13 +311,19 @@ Y.sync.delta = Y.symmetry.delta;
 Y.crossing = tv.calib.crossingReport(Y.cams, struct('minDeg', cfg.minCrossDeg));
 end
 
+function p = pointsOr(G)
+% the gate stage's kept 3D points (stages cached before 22 Nov have none)
+if isfield(G, 'points'), p = G.points; else, p = {}; end
+end
+
 function G = gateAll(D, cams, rec, sync, cfg)
 box = tv.court.interest(cfg.court);
 G.tracks = cell(size(D.tracks));  G.partners = cell(size(D.tracks));  G.log = cell(size(D.tracks, 1), 1);
+G.points = cell(size(D.tracks, 1), 1);
 for r = 1:size(D.tracks, 1)
     cand = {zeros(0, 3), zeros(0, 3)};
     if isfield(D, 'candidates'), cand = D.candidates(r, :); end
-    [kt, lg, pt] = tv.recon.gateTracks(D.tracks(r, :), cand, cams, rec, sync, box, cfg.gate);
+    [kt, lg, pt, G.points{r}] = tv.recon.gateTracks(D.tracks(r, :), cand, cams, rec, sync, box, cfg.gate);
     G.tracks(r, :) = kt;  G.partners(r, :) = pt;
     for m = 1:numel(lg), lg(m).rally = r; end
     G.log{r} = lg;

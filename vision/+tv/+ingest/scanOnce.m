@@ -49,7 +49,8 @@ for s = sessions(:)'
     end
     cfg.lightFn('processing');
     cfg.notify('Processing started', id);
-    files = {R(s.cam1).files{1}, R(s.cam2).files{1}};
+    % every chapter of each recording (22 Nov: only the first was passed, cutting long sessions short)
+    files = {tv.media.joinChapters(R(s.cam1).files), tv.media.joinChapters(R(s.cam2).files)};
     pcfg = keepCalibrationAnswer(cfg.pipeline, out);
     if isempty(cfg.client), pcfg.doubtfulCalibration = 'continue'; end   % no cloud, so nobody to ask: process with the alert
     try

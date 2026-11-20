@@ -1,4 +1,4 @@
-function [kept, log, partners] = gateTracks(tracks, cands, cams, rec, sync, box, opts)
+function [kept, log, partners, points] = gateTracks(tracks, cands, cams, rec, sync, box, opts)
 %GATETRACKS  Keep only the ball on Chris's court (TV-ADJ-02 to 04, 06), one rally.
 %   tracks: 1-by-2 cell of 2D tracks per camera (tv.track.ball2d); cands: 1-by-2
 %   cell of that rally's candidates [frame u v ...] (for the isolated ones).
@@ -37,6 +37,7 @@ function [kept, log, partners] = gateTracks(tracks, cands, cams, rec, sync, box,
 %   kept: 1-by-2 cell of the kept tracks (points removed as above).
 %   partners: 1-by-2 cell; for each kept track, the id of its stereo partner track in the
 %   other camera (0 if none), so two balls in view at once are fitted apart (tv.recon.ballGroups).
+%   points: [t x y z] of every kept camera-1 point paired with camera 2, where the sight lines cross.
 %   log: struct array, one row per rejected candidate: cam, frame, u, v, t,
 %   X (1-by-3, NaN if never triangulated), track (that camera's track id, 0 if
 %   none), reason, errPx.
@@ -204,7 +205,16 @@ for k = 1:2
     end
     short = arrayfun(@(x) numel(x.frames) < 3, kept{k});
     kept{k} = kept{k}(~short);  partners{k} = partners{k}(~short);
+    keptT{k} = keptT{k}(~short);  keptX{k} = keptX{k}(~short);
 end
+% the kept points' own 3D positions, where the two sight lines cross (camera 1's tracks; no physics
+% assumed): [t x y z], for checks that must not lean on the flight model (Tuesday's drops, 22 Nov)
+points = zeros(0, 4);
+for j = 1:numel(keptT{1})
+    P = [keptT{1}{j}(:), keptX{1}{j}];
+    points = [points; P(all(isfinite(P), 2), :)]; %#ok<AGROW>
+end
+points = sortrows(points);
 % 4: candidates in no track
 for k = 1:2
     C = cands{k};

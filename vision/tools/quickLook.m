@@ -15,6 +15,8 @@ function res = quickLook(files, outDir, calibFrom)
 %   A doubtful calibration does not hold the stretch (there is no app to ask yet): the alert is
 %   printed and processing goes on.
 if nargin < 3, calibFile = ''; else, calibFile = calibFrom; end
+% a clip GoPro split into chapters: its other chapters beside it are read with it (22 Nov)
+for k = 1:numel(files), files{k} = withChapters(files{k}); end
 cfg = tv.pipeline.defaults();
 cfg.calibFrom = calibFile;
 cfg.doubtfulCalibration = 'continue';
@@ -23,4 +25,15 @@ cfg.outputs.reel = false;
 cfg.notify = @(title, text) fprintf('[alert] %s: %s\n', title, text);
 res = tv.pipeline.run(files, outDir, cfg);
 fprintf('quick look: %d rallies, %d shots; camera 2 clock offset %.4f s\n', numel(res.rallies), numel(res.shots), res.sync.startOffset(2) + res.sync.delta);
+end
+
+function f = withChapters(file)
+[d, b, e] = fileparts(file);
+t = regexp(b, '^G([XH])\d{2}(\d{4})$', 'tokens', 'once');
+if isempty(t) || ~strcmpi(e, '.MP4'), f = file; return; end
+L = dir(fullfile(d, sprintf('G%s*%s%s', t{1}, t{2}, e)));
+g = tv.ingest.chapters({L.name});
+k = find(cellfun(@(x) any(strcmp(x, [b e])), {g.files}), 1);
+if isempty(k), f = file; return; end
+f = tv.media.joinChapters(fullfile(d, g(k).files));
 end

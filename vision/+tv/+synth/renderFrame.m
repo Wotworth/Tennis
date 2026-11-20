@@ -29,8 +29,10 @@ for p = order(:)'
 end
 
 % --- balls ----------------------------------------------------------------------
-if all(isfinite(sc.staticBall))
-    img = drawBall(img, cam, sc, @(T) repmat(sc.staticBall, numel(T), 1), clock);
+for sb = 1:size(sc.staticBall, 1)                   % balls lying still (one or several rows; 22 Nov)
+    if ~all(isfinite(sc.staticBall(sb, :))), continue; end
+    p = sc.staticBall(sb, :);
+    img = drawBall(img, cam, sc, @(T) repmat(p, numel(T), 1), clock);
 end
 if isfield(truth, 'others')
     for o = truth.others.balls(:)'

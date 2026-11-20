@@ -83,15 +83,13 @@ end
 end
 
 function D = dropCheck(res, drops)
-% the falls: the 3D points the two cameras agree on (the gate's log), split where the ball goes up
-% again (a bounce) or where the points stop for a while
+% the falls: the 3D points the two cameras agree on (kept points, where the sight lines cross; no
+% physics assumed), split where the ball goes up again (a bounce) or where the points stop a while.
+% 22 Nov (dress rehearsal): this read the gate's log, which holds only rejected points, so a kept
+% drop was never seen; it now reads the kept points (result.gatePoints)
 X = zeros(0, 4);
-for r = 1:numel(res.gateLog)
-    lg = res.gateLog{r};
-    if isempty(lg), continue; end
-    ok = arrayfun(@(e) all(isfinite(e.X)), lg);
-    lg = lg(ok);
-    X = [X; [[lg.t]', reshape([lg.X], 3, [])']]; %#ok<AGROW>
+if isfield(res, 'gatePoints')
+    for r = 1:numel(res.gatePoints), X = [X; res.gatePoints{r}]; end %#ok<AGROW>
 end
 X = sortrows(X);
 [~, iu] = unique(round(X(:, 1) * 1e4));  X = X(iu, :);

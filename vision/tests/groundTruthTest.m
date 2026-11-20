@@ -5,13 +5,12 @@ addpath(fullfile(fileparts(mfilename('fullpath')), '..', 'tools'));
 %% Drops: gravity and release height from the 3D points of each fall; cameras against the tape
 tv.util.seed(1);
 M = tv.readJson(fullfile(fileparts(mfilename('fullpath')), '..', 'groundtruth', 'template.json'));
-res.gateLog = {};
+res.gatePoints = {};                                        % the gate's kept 3D points [t x y z] (22 Nov)
 t0 = 2;
 for d = 1:3
     t = (0:1 / 240:0.6)';                                   % 0.6 s of fall (2.03 m takes 0.64 s)
     z = 2.0335 - 0.5 * 9.81 * t .^ 2 + 0.004 * randn(size(t));
-    lg = struct('t', num2cell(t0 + t), 'X', num2cell([zeros(numel(t), 2), z], 2));
-    res.gateLog{end+1} = lg(:)';
+    res.gatePoints{end+1} = [t0 + t, zeros(numel(t), 2), z];
     t0 = t0 + 5;
 end
 res.events = {};  res.shots = [];

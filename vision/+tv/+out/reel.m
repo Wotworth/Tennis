@@ -11,7 +11,7 @@ fid = fopen(list, 'w');
 for r = 1:size(R.rallyWindows, 1)
     w = R.rallyWindows(r, :);
     clip = fullfile(d, sprintf('rally_%02d.mp4', r));
-    args = sprintf('-ss %.3f -t %.3f -i "%s" -vf scale=-2:%d -c:a aac', w(1), w(2) - w(1), src, h);
+    args = sprintf('-ss %.3f -t %.3f %s -vf scale=-2:%d -c:a aac', w(1), w(2) - w(1), tv.media.inputArgs(src), h);
     ok = false;
     if tv.util.useGpu()
         st = tv.util.shell(sprintf('%s -y -v error %s -c:v h264_nvenc -preset p5 -cq 23 "%s"', tv.util.ffmpeg(), args, clip));

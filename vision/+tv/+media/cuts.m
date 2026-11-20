@@ -13,8 +13,8 @@ d = struct('minScore', 0.03, 'factor', 8, 'halfWin', 6, 'minClipS', 1);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 meta = [tempname() '.txt'];
-tv.util.run(sprintf('%s -v error -i "%s" -an -vf "scale=480:-2,select=''gte(scene,0)'',metadata=print:file=%s" -f null -', ...
-    tv.util.ffmpeg(), info.file, strrep(meta, '\', '/')));
+tv.util.run(sprintf('%s -v error %s -an -vf "scale=480:-2,select=''gte(scene,0)'',metadata=print:file=%s" -f null -', ...
+    tv.util.ffmpeg(), tv.media.inputArgs(info.file), strrep(meta, '\', '/')));
 txt = fileread(meta);  delete(meta);
 v = regexp(txt, 'scene_score=([0-9.]+)', 'tokens');
 score = cellfun(@(c) str2double(c{1}), v)';
