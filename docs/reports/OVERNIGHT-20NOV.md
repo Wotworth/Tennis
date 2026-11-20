@@ -56,7 +56,7 @@ Two steps (drawing whole 4K frames for hundreds of shots is out of reach here):
 
 **What it says:** with two cameras and the whole flight fitted, the detector hardly changes speed (0.5 vs 0.6 mph median); the colour detector's weakness at 3 px costs a few shots and a little speed. The learned one stays. Processing time is a different matter: the colour detector is cheaper, but it misses balls under 4 px, and accuracy comes first.
 
-**Shots found, 177 of 201 (target 95%):** 17 of the 24 misses are the ball machine's feeds. The app already starts a shot at a rally's first flight when nobody tossed (`tv.metrics.rallies`), but the study only counted hit events, so it marked every feed missed. Fixed in the study (it now scores as the app does) and it now lists each miss and why. The next CI run says what the other 7 are.
+**Shots found, 177 of 201 in run 55 (target 95%):** 17 of the 24 misses are the ball machine's feeds. The app already starts a shot at a rally's first flight when nobody tossed (`tv.metrics.rallies`), but the study only counted hit events, so it marked every feed missed. Fixed in the study (it now scores as the app does) and it now lists each miss and why. Run 56: 193 of 201 found; the other 7 had their hit found 31 to 55 ms off (section 22 and 14).
 
 ## Part 2: the shot card
 | Side, 1:1 | Side, ×3 | Top | A slice serve from above |
@@ -114,9 +114,20 @@ Linear lens, 4K, 240 frames a second, cameras 2.5 m behind the baselines' extens
 | Spin rate with the true lift known, % | 12 | 33 | 10% (AC-11) | not met |
 | **Sideways curve**, cm | 8.9 | 35.8 | | see below |
 
-**Sideways curve (item 14): not good enough at 0.5 ft.** Of the shots that truly curved 0.5 ft or more, the tile showed for 44 of 57; but it also showed for 44 of the 110 that did not. As it stands, about half the "curved" tiles in a real session would be wrong. The 90th-percentile error (36 cm, 1.2 ft) is more than twice the 0.5 ft limit. My guess at the cause: a gust blows the ball sideways in the same way sidespin does, and the fit cannot tell one from the other within one flight. The next CI run tests that guess (the same session in calm air), and it also counts what a 1, 1.5 or 2 ft limit would show. The app is unchanged until you choose (question 2 in the summary).
+**Sideways curve (item 14): not good enough at 0.5 ft.** CI run 56 flew the same 201 shots with gusts (about 1 m/s) and in calm air (only a steady wind):
 
-**Ball machine (item 21's consistency, synthetic):** not measured in this run: the feeds were not counted (see item 5). The next run gives the spread found per setting against the truth.
+| Curve tile limit | With gusts: shown when truly over the limit | With gusts: shown on a shot truly under 0.5 ft | Calm: shown when truly over | Calm: shown truly under 0.5 ft | Shown on the wrong side (gusts / calm) |
+|---|---|---|---|---|---|
+| 0.5 ft (now) | 46 of 63 | **50 of 118** | 51 of 63 | **26 of 119** | 18 / 0 |
+| 1 ft | 15 of 18 | 13 of 118 | 14 of 18 | 1 of 119 | 5 / 0 |
+| 1.5 ft | 4 of 8 | 6 of 118 | 7 of 7 | 0 of 119 | 1 / 0 |
+| 2 ft | 2 of 3 | 1 of 118 | 2 of 3 | 0 of 119 | 0 / 0 |
+
+Curve error, median / 90th percentile: 9.3 / 35.6 cm with gusts, 6.2 / 14.5 cm calm. So gusts cause most of the large errors: within one flight, a gust pushes the ball sideways just as sidespin does. Even in calm air, 0.5 ft (15 cm) is about the measurement's own 90th-percentile error, so a quarter of straight shots would show a curve. At 1 ft, a curve is shown wrongly on 1 in 119 shots in calm air and about 1 in 9 in gusts. The app is unchanged until you choose (question 1 in the summary).
+
+**Ball machine (item 21's consistency, synthetic, run 56 with gusts):** feeds found 16 of 17. The speed spread found per setting was 1.91, 0.68, 0.20 and 0.61 mph, against true spreads of 2.08, 0.59, 0.11 and 0.94: within 0.35 mph. The landing figures in run 56 are not usable: the machine feeds from both ends and the study mixed the two, giving true spreads of 9 to 13 m. Fixed in the study (each landing is measured from the machine's own end); the next study run gives them.
+
+**Shots found with the feeds counted (run 56): 193 of 201 (96%, AC-06's 95% met).** 1 feed missed, and 7 rally shots whose hit was found 31 to 55 ms from the truth, just outside the 30 ms the study allows. Speed 0.48 mph median, 1.25 mph 90th; bounce 1.7 cm; calls 183 of 183. In calm air the spin rate with the true lift known is 10% median (AC-11 at the limit); with gusts 12%.
 
 ## 25. The 19 far-end misses (video 8, round 5, Python twin)
 Video 8's SwingVision marks: 59 bounces, 28 missed by the one-camera bounce scoring, 19 of them at the far end. For each one (`far_miss.py`, `far_miss2.py`; numbers only, no frames):

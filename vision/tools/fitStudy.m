@@ -165,8 +165,10 @@ if any(st > 0)
     for k = unique(st(st > 0))
         g = rows(st == k & f);
         tr = S.shots([S.shots.setting] == k);
-        bf = reshape([g.bounceFound], 2, [])';  bf = bf(all(isfinite(bf), 2), :);
-        bt = reshape([tr.pBounce], 3, [])';  bt = bt(all(isfinite(bt), 2), 1:2);
+        % the machine feeds from either end: landings are measured from its own end (x mirrored)
+        eg = arrayfun(@(s) sign(s.pHit(1)), S.shots(st == k & f));  et = arrayfun(@(s) sign(s.pHit(1)), tr);
+        bf = reshape([g.bounceFound], 2, [])';  bf(:, 1) = -eg(:) .* bf(:, 1);  bf = bf(all(isfinite(bf), 2), :);
+        bt = reshape([tr.pBounce], 3, [])';  bt(:, 1) = -et(:) .* bt(:, 1);  bt = bt(all(isfinite(bt), 2), 1:2);
         L{end+1} = sprintf('| %d | %d of %d | %.2f (%.2f) | %.1f | %.1f (%.1f) |', k, numel(g), numel(tr), ...
             2.23694 * std([g.speedFound], 'omitnan'), 2.23694 * std([tr.speedHit]), 100 * std([g.spinFound], 'omitnan'), ...
             100 * sqrt(sum(var(bf, 0, 1))), 100 * sqrt(sum(var(bt, 0, 1)))); %#ok<AGROW>
