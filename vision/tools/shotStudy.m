@@ -12,7 +12,7 @@ function shotStudy(outDir, opts)
 %   Writes sizestudy.md, fitstudy_<detector>.md and shotstudy.md (the comparison).
 if nargin < 1, outDir = fullfile(pwd, 'out', 'shotstudy'); end
 if nargin < 2, opts = struct(); end
-d = struct('targetShots', 300, 'minutes', 75, 'detectors', {{'learned', 'learnedRaw', 'colour'}}, 'trials', 150, 'gustAmp', 0.6, 'liftModel', 'constant');
+d = struct('targetShots', 300, 'minutes', 75, 'detectors', {{'learned', 'learnedRaw', 'colour'}}, 'trials', 150, 'gustAmp', 0.6, 'liftModel', 'spin');
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 if ~exist(outDir, 'dir'), mkdir(outDir); end

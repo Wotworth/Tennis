@@ -82,7 +82,20 @@ Built as an option: the lift follows the spin parameter as the ball slows, and t
 | spin decays faster than the fit assumes (3 s against 5) | 4.7 / 20 cm | 4.6 / 13 cm |
 | decays slower (8 s), lift 15% stronger | 13.5 / 44 cm | 2.6 / 7.5 cm |
 
-It helps even when its own assumptions are wrong. One caveat: its lift curve has the same shape as the synthetic truth's, so on real balls the gain may be smaller. It stays off until the shot study compares both on the same 201 shots (CI running now).
+It helps even when its own assumptions are wrong. One caveat: its lift curve has the same shape as the synthetic truth's, so on real balls the gain may be smaller.
+
+**On the same 201 shots with gusts (CI run 58):**
+
+| | Constant lift | Lift following spin |
+|---|---|---|
+| Spin effect error, median / 90th | 8.8 / 26.4 cm | **7.4 / 22.8 cm** |
+| rpm error, true lift known, median / 90th | 12% / 31% | **6% / 16%** |
+| Sideways curve error, median / 90th | 9.3 / 35.6 cm | 9.2 / 33.4 cm |
+| Curve tile: wrong / wrong side (1 ft) | 13 / 5 | 11 / 4 |
+| Speed, bounce, calls | 0.48 mph, 1.7 cm, 183 of 183 | 0.47 mph, 1.7 cm, 183 of 183 |
+| Fitting time (the study) | 47 min | 89 min |
+
+**Adopted as the default** (decision logged; one setting to undo). It meets AC-11 as written at the median (6% against 10%), but not for every shot (90th percentile 16%). So the question changes: either AC-11 stays as it is and I report the 90th percentile beside it, or it is relaxed as proposed above.
 
 ## 5. Tuesday checklist (manual 16)
 - Recording: **about 40 minutes** (the clips add up to 37 to 41), corrected from 20.

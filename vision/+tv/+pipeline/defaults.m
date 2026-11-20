@@ -14,7 +14,7 @@ cfg.ballNetFile = '';               % its classifier's weights; empty = round 5 
 cfg.calibFrom = '';                 % a calib.mat (outDir/stages) from another clip of the same session: its cameras are used as they are
 cfg.frames = 'all';                 % Chris, 20 Nov: 'all' searches every frame; 'sound' only the sound's rally windows (not before a
                                     % first pass is shown to miss under 1% of rally frames on real sessions and Chris agrees)
-cfg.liftModel = 'constant';        % 'spin': lift follows the spin parameter as the ball slows, spin decays (21 Nov; tv.physics.simulate). RETUNE(lab data)
+cfg.liftModel = 'spin';            % 'constant': one lift per flight (before 21 Nov). 'spin': lift follows the spin parameter as the ball slows, spin decays (21 Nov; tv.physics.simulate). RETUNE(lab data)
 cfg.spinTau = 5;                   % s, spin decay with liftModel 'spin'
 cfg.play = struct('score', 0.5, 'binS', 0.25, 'binShare', 0.25, 'mergeS', 4, 'leadS', 1.5, 'tailS', 2, 'pairGapM', 0.75, 'minHeightM', 0.2, 'linkS', 0.05, 'minSpeed', 4, 'maxSpeed', 75);   % rallies from the ball in play (tv.rally.fromPlay); RETUNE(real footage)
 cfg.ballCut = 0.05;                 % spots the classifier scores under this are not tracked

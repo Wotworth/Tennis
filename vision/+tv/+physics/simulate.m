@@ -28,14 +28,17 @@ if spin
     tau = 5;  if isfield(prm, 'spinTau'), tau = prm.spinTau; end
     S0 = prm.CL / cm;  if prm.CL >= ca + cb * s1, S0 = (prm.CL - ca) / cb; end
     u0 = norm(v0(:)' - w);  w0 = S0 * u0 / r;
+    rw = r * w0 * exp(-(0:2 * n)' * (dt / 2) / tau);  % r * omega at every half step
+else
+    rw = zeros(2 * n + 1, 1);
 end
 last = n + 1;
 for i = 1:n
-    p = P(i, :);  v = V(i, :);  ti = (i - 1) * dt;
-    k1v = acc(v, ti);              k1p = v;
-    k2v = acc(v + dt/2*k1v, ti + dt/2); k2p = v + dt/2*k1v;
-    k3v = acc(v + dt/2*k2v, ti + dt/2); k3p = v + dt/2*k2v;
-    k4v = acc(v + dt*k3v, ti + dt);     k4p = v + dt*k3v;
+    p = P(i, :);  v = V(i, :);  h = 2 * i - 1;          % half-step index of this step's start
+    k1v = acc(v, rw(h));               k1p = v;
+    k2v = acc(v + dt/2*k1v, rw(h + 1)); k2p = v + dt/2*k1v;
+    k3v = acc(v + dt/2*k2v, rw(h + 1)); k3p = v + dt/2*k2v;
+    k4v = acc(v + dt*k3v, rw(h + 2));   k4p = v + dt*k3v;
     V(i+1, :) = v + dt/6 * (k1v + 2*k2v + 2*k3v + k4v);
     P(i+1, :) = p + dt/6 * (k1p + 2*k2p + 2*k3p + k4p);
     if P(i+1, 3) < stopZ, last = i + 1; break; end
@@ -43,13 +46,13 @@ end
 P = P(1:last, :);  V = V(1:last, :);
 t = (0:last-1)' * dt;
 
-    function a = acc(v, tt)
+    function a = acc(v, rwt)
         u = v - w;  s = sqrt(u * u');
         a = g - kD * s * u;
         if kL ~= 0 && s > 0
             kk = kL;
             if spin
-                S = r * w0 * exp(-tt / tau) / s;
+                S = rwt / s;
                 if S >= s1, cl = ca + cb * S; else, cl = cm * S; end
                 kk = k * cl;
             end

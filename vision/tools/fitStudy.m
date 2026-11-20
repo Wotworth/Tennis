@@ -23,7 +23,7 @@ function R = fitStudy(outDir, opts)
 if nargin < 1, outDir = fullfile(pwd, 'out', 'fitstudy'); end
 if nargin < 2, opts = struct(); end
 d = struct('seed', 7, 'minutes', 90, 'targetShots', 400, 'rounds', 3, 'syncRallies', 3, ...
-    'scenario', 'default', 'errModel', [], 'sideSpin', false, 'machine', 0, 'tag', '', 'title', '', 'gustAmp', 0.6, 'liftModel', 'constant');
+    'scenario', 'default', 'errModel', [], 'sideSpin', false, 'machine', 0, 'tag', '', 'title', '', 'gustAmp', 0.6, 'liftModel', 'spin');
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 if ~exist(outDir, 'dir'), mkdir(outDir); end
