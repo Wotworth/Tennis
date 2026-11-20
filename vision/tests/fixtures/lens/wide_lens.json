@@ -1,0 +1,21 @@
+{
+ "type": "calibFisheye",
+ "serial": "SYN",
+ "mode": "wide",
+ "widthPx": 3840,
+ "heightPx": 2160,
+ "f": 1450.0,
+ "aspect": 1.000551724137931,
+ "cx": -9.0,
+ "cy": 5.0,
+ "k": [
+  0.04,
+  -0.01,
+  0.002,
+  -0.0005
+ ],
+ "rmsPx": 0.0,
+ "views": 0,
+ "gridCells": 0,
+ "note": "cx, cy: centre offset from the middle of the picture, px; OpenCV conventions (0-based pixels)"
+}

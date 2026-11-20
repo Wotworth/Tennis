@@ -220,7 +220,8 @@ object TennisTokens {
         var chipPad by mutableFloatStateOf(3f)               // the side view's "×3" / "1:1" chip, padding round its text (zpx)
         var topViewMarginM by mutableFloatStateOf(1.5f)      // the shot card's top view: court shown this far past its lines (m)
         var bounceMark by mutableFloatStateOf(4f)            // the bounce's dot on the top view (zpx)
-        var curveShowFt by mutableFloatStateOf(0.5f)         // the sideways-curve tile shows from this curve up (ft; Chris, 20 Nov)
+        var curveShowFt by mutableFloatStateOf(1.0f)         // the sideways-curve tile shows from this curve up (ft; Chris, 21 Nov: B, 1 ft; was 0.5)
+        var curveSureSd by mutableFloatStateOf(2f)           // ...and only when the curve is this many times its own uncertainty (Chris, 21 Nov)
         var sideViewMinAlong by mutableFloatStateOf(0.5f)    // a flight nearly across the court is drawn no flatter than this share
         var view3dHeight by mutableFloatStateOf(230f)        // zpx
         var view3dDistanceM by mutableFloatStateOf(34f)      // orbit radius

@@ -8,7 +8,9 @@ function rows = scoreShots(S, segs, ev, air, cams)
 %   found, hitDtMs, speedErr (m/s), bounceErr (m), spinErr (m), netErr (m), rpmErrPct, call,
 %   truthCall, shortAfterBounce, toNextHit, rms; curveErr (m, sideways curve from spin) and
 %   curveTrue; setting (ball-machine setting, 0 for none); what was found (speedFound, spinFound,
-%   curveFound, bounceFound) for the machine-consistency figures.
+%   curveFound, bounceFound) for the machine-consistency figures; the fit's own uncertainty of the
+%   curve and spin effect (curveSd, effectSd), and what the spin-effect tail is studied by (spinTrue,
+%   speedTrue, flightS and flightN of the flight to the bounce, hitX, bounceX).
 nR = numel(segs);
 mcfg = struct('cams', cams, 'lines', 'singles');  info = struct('chris', 0);
 rows = [];
@@ -17,7 +19,9 @@ for s = S.shots'
         'shortAfterBounce', s.shortFlight, 'toNextHit', s.toNextHit, 'found', false, 'hitDtMs', NaN, ...
         'speedErr', NaN, 'bounceErr', NaN, 'spinErr', NaN, 'netErr', NaN, 'rpmErrPct', NaN, 'rpmKnownClPct', NaN, 'call', '', ...
         'bounceSegN', NaN, 'bounceSegS', NaN, 'rms', NaN, 'curveErr', NaN, 'curveTrue', NaN, 'setting', 0, ...
-        'speedFound', NaN, 'spinFound', NaN, 'curveFound', NaN, 'bounceFound', [NaN NaN]);
+        'speedFound', NaN, 'spinFound', NaN, 'curveFound', NaN, 'bounceFound', [NaN NaN], ...
+        'curveSd', NaN, 'effectSd', NaN, 'spinTrue', s.spinEffect, 'speedTrue', s.speedHit, 'flightS', NaN, ...
+        'flightN', NaN, 'hitX', s.pHit(1), 'bounceX', s.pBounce(1));
     if isfield(s, 'spinCurve'), row.curveTrue = s.spinCurve; end
     if isfield(s, 'setting'), row.setting = s.setting; end
     E = ev{s.rally};  G = segs{s.rally};
@@ -43,7 +47,8 @@ for s = S.shots'
     if strcmp(s.result, 'net') && ~isempty(nn), nEv = nn(1); end
     m = tv.metrics.shot(seg, segAfter, hitEv, bEv, nEv, air, mcfg, [], info, s.isServe, sign(s.pHit(2)));
     row.speedErr = m.speedContact - s.speedHit;  row.speedFound = m.speedContact;
-    row.rms = seg.rmsPx;
+    row.rms = seg.rmsPx;  row.flightS = max(seg.t) - min(seg.t);  row.flightN = sum(seg.n);
+    row.curveSd = m.spinCurveSd;  row.effectSd = m.spinEffectSd;
     if ~isempty(bEv)
         row.bounceErr = norm(m.bounce - s.pBounce(1:2));
         row.spinErr = m.spinEffect - s.spinEffect;

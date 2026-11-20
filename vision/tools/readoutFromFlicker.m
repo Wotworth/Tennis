@@ -1,6 +1,6 @@
 function [tau, info] = readoutFromFlicker(file, opts)
 %READOUTFROMFLICKER  A camera's readout time from about 10 s of a wall lit by a flickering lamp (TV-SYNC-06).
-%   tau = readoutFromFlicker('GX010042.MP4') reads up to 1200 frames (10 s), averages
+%   tau = readoutFromFlicker('GX010042.MP4') reads up to 10 s of frames (2400 at 240), averages
 %   each frame across its columns (the bands are horizontal) and fits the
 %   bands (tv.sync.readoutFromBands). Record it at the session's shutter
 %   speed, in each mode used, once per camera; the PC stores the result per
@@ -8,7 +8,7 @@ function [tau, info] = readoutFromFlicker(file, opts)
 %   opts.fNominal: twice the mains frequency (120 in the US, 100 in Europe).
 if nargin < 2, opts = struct(); end
 rec = tv.media.probe(file);
-n = min(rec.nFrames, 1200);                        % about 10 s: the bands drift a full cycle
+n = min(rec.nFrames, round(10 * rec.fps));         % 10 s at any frame rate: the bands drift about a cycle
 bin = 16;  nb = floor(rec.height / bin);           % 16-row bins: plenty for bands about a frame tall
 prof = zeros(n, nb);
 for k = 1:n

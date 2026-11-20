@@ -7,5 +7,8 @@ rhoPx = tv.lens.radius(lens, theta) * lens.widthPx / 2;
 r(r == 0) = eps;
 u  = rhoPx .* Xc ./ r;
 v  = rhoPx .* Yc ./ r;
+if isfield(lens, 'cxPx')                      % a calibrated lens: its own centre and pixel aspect
+    v = v * lens.aspect + lens.cyPx;  u = u + lens.cxPx;
+end
 ok = theta < deg2rad(lens.thetaMax);
 end

@@ -147,6 +147,20 @@ if any(isfinite(cv) & abs(cv) > 0.01)
             nnz(sh & sign(cf) ~= sign(cv))); %#ok<AGROW>
     end
     L{end+1} = sprintf('| Limit 0.5 ft: shown on the wrong side | %d of %d shown | | | |', nnz(shown & ok & sign(cf) ~= sign(cv)), nnz(shown & ok));
+    % per-shot rule (Chris, 21 Nov): shown only when the curve is k times its own fitted uncertainty
+    sdc = [rows.curveSd];
+    rules = {'2 x its uncertainty', abs(cf) >= 2 * sdc; '3 x its uncertainty', abs(cf) >= 3 * sdc; ...
+        '2 x and 0.5 ft', abs(cf) >= 2 * sdc & abs(cf) >= 0.1524; '2 x and 1 ft', abs(cf) >= 2 * sdc & abs(cf) >= 0.3048; ...
+        '1 ft (now)', abs(cf) >= 0.3048};
+    for q = 1:size(rules, 1)
+        sh = rules{q, 2} & ok & isfinite(sdc);  o2 = ok & isfinite(sdc);
+        L{end+1} = sprintf(['| Rule %s: shown when truly 1 ft or more / 0.5 to 1 ft / under 0.5 ft (wrong) / wrong side | ' ...
+            '%d of %d / %d of %d / %d of %d / %d | | | |'], rules{q, 1}, nnz(sh & abs(cv) >= 0.3048), nnz(o2 & abs(cv) >= 0.3048), ...
+            nnz(sh & abs(cv) >= 0.1524 & abs(cv) < 0.3048), nnz(o2 & abs(cv) >= 0.1524 & abs(cv) < 0.3048), ...
+            nnz(sh & abs(cv) < 0.1524), nnz(o2 & abs(cv) < 0.1524), nnz(sh & sign(cf) ~= sign(cv))); %#ok<AGROW>
+    end
+    ce = abs([rows.curveErr]);  okc = isfinite(ce) & isfinite(sdc);
+    L{end+1} = sprintf('| Curve error within twice its own uncertainty | %d of %d | | | |', nnz(ce(okc) < 2 * sdc(okc)), nnz(okc));
 end
 L{end+1} = line('rpm error, %', abs([rows.rpmErrPct]), '(rpm +/-25% shown, TV-SPN-03)', 0);
 L{end+1} = line('rpm error with the true lift known, %', abs([rows.rpmKnownClPct]), '10% (AC-11)', 0);
@@ -174,15 +188,38 @@ if any(st > 0)
             100 * sqrt(sum(var(bf, 0, 1))), 100 * sqrt(sum(var(bt, 0, 1)))); %#ok<AGROW>
     end
 end
+% the spin-effect tail (Chris, 21 Nov): the worst tenth of the shots against the rest
+se = abs([rows.spinErr]);  okS = isfinite(se);
+if nnz(okS) >= 20
+    ss = sort(se(okS));  cut = ss(ceil(0.9 * numel(ss)));  tail = okS & se >= cut;  rest = okS & ~tail;
+    kinds = {rows.kind};
+    feat = {'flight to the bounce, s', [rows.flightS]; 'points in that flight (both cameras)', [rows.flightN]; ...
+        'fit error, px', [rows.rms]; 'speed, mph', 2.23694 * [rows.speedTrue]; 'true spin effect, cm', 100 * abs([rows.spinTrue]); ...
+        'its own uncertainty, cm', 100 * [rows.effectSd]; 'error / own uncertainty', se ./ [rows.effectSd]; ...
+        'hit distance from the net, m', abs([rows.hitX]); 'bounce distance from the net, m', abs([rows.bounceX])};
+    L{end+1} = '';
+    L{end+1} = sprintf('Spin effect tail: the %d shots with errors of %.0f cm or more (the worst tenth) against the other %d, medians:', nnz(tail), 100 * cut, nnz(rest));
+    L{end+1} = '';
+    L{end+1} = '| | Tail | Rest |';
+    L{end+1} = '|---|---|---|';
+    for q = 1:size(feat, 1)
+        v = feat{q, 2};
+        L{end+1} = sprintf('| %s | %.2f | %.2f |', feat{q, 1}, median(v(tail & isfinite(v))), median(v(rest & isfinite(v)))); %#ok<AGROW>
+    end
+    u = unique(kinds(okS));
+    L{end+1} = sprintf('| kinds in the tail | %s | |', strjoin(cellfun(@(k) sprintf('%s %d of %d', k, nnz(tail & strcmp(kinds, k)), nnz(okS & strcmp(kinds, k))), u, 'UniformOutput', false), ', '));
+    L{end+1} = sprintf('| serves in the tail | %d of %d | |', nnz(tail & [rows.serve]), nnz(okS & [rows.serve]));
+end
 base = 'fitstudy';  if ~isempty(R.opts.tag), base = ['fitstudy_' R.opts.tag]; end
 fid = fopen(fullfile(outDir, [base '.md']), 'w', 'n', 'UTF-8');  fprintf(fid, '%s\n', L{:});  fclose(fid);
 fprintf('%s\n', L{:});
 fid = fopen(fullfile(outDir, [base '_shots.csv']), 'w');
-fprintf(fid, 'rally,index,kind,serve,truthCall,call,found,hitDtMs,speedErr_mps,bounceErr_m,spinErr_m,netErr_m,rpmErrPct,rpmKnownClPct,shortAfterBounce,toNextHit_s,bounceSegN,bounceSegS,rmsPx,curveErr_m,curveTrue_m,setting\n');
+fprintf(fid, 'rally,index,kind,serve,truthCall,call,found,hitDtMs,speedErr_mps,bounceErr_m,spinErr_m,netErr_m,rpmErrPct,rpmKnownClPct,shortAfterBounce,toNextHit_s,bounceSegN,bounceSegS,rmsPx,curveErr_m,curveTrue_m,setting,curveSd_m,effectSd_m,spinTrue_m,speedTrue_mps,flightS,flightN,hitX,bounceX\n');
 for r = rows'
-    fprintf(fid, '%d,%d,%s,%d,%s,%s,%d,%.2f,%.3f,%.4f,%.4f,%.4f,%.1f,%.1f,%d,%.3f,%g,%.3f,%.2f,%.4f,%.4f,%d\n', r.rally, r.index, r.kind, r.serve, ...
+    fprintf(fid, '%d,%d,%s,%d,%s,%s,%d,%.2f,%.3f,%.4f,%.4f,%.4f,%.1f,%.1f,%d,%.3f,%g,%.3f,%.2f,%.4f,%.4f,%d,%.4f,%.4f,%.4f,%.3f,%.3f,%g,%.2f,%.2f\n', r.rally, r.index, r.kind, r.serve, ...
         r.truthCall, r.call, r.found, r.hitDtMs, r.speedErr, r.bounceErr, r.spinErr, r.netErr, r.rpmErrPct, r.rpmKnownClPct, r.shortAfterBounce, ...
-        r.toNextHit, r.bounceSegN, r.bounceSegS, r.rms, r.curveErr, r.curveTrue, r.setting);
+        r.toNextHit, r.bounceSegN, r.bounceSegS, r.rms, r.curveErr, r.curveTrue, r.setting, r.curveSd, r.effectSd, r.spinTrue, ...
+        r.speedTrue, r.flightS, r.flightN, r.hitX, r.bounceX);
 end
 fclose(fid);
 end

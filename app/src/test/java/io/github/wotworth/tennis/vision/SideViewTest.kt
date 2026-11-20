@@ -116,7 +116,7 @@ class SideViewTest {
         app.prefs.chooseVisionSample(true)
         val v = app.vision.session(VisionStore.SAMPLE_ID)!!
         VisionDefaults.shotView = "side";  app.prefs.chooseShotView("side")
-        val curved = v.shots.first { it.isServe && it.spinCurve != null && kotlin.math.abs(it.spinCurve!!) * Units.FT_PER_M >= 0.5 }
+        val curved = v.shots.first { it.isServe && it.spinCurve != null && kotlin.math.abs(it.spinCurve!!) * Units.FT_PER_M >= TennisTokens.Vision.curveShowFt }
         try {
             CanvasText.record = true; CanvasText.seen.clear()
             rule.setContent { AppRoot(app, Navigator(Screen.VisionShot(v.id, curved.rally, curved.index))) }
@@ -135,16 +135,19 @@ class SideViewTest {
         }
     }
 
-    @Test fun theCurveTileHidesUnderHalfAFootAndSaysLeftOrRightAsTheHitterSawIt() {
+    @Test fun theCurveTileHidesUnderAFootAndSaysLeftOrRightAsTheHitterSawIt() {
         val app = Sample.empty()
         app.prefs.chooseVisionSample(true)
         val v = app.vision.session(VisionStore.SAMPLE_ID)!!
         val s = v.shots.first { it.bounce != null }
         assertEquals(null, curveStat(s.copy(spinCurve = null)))
-        assertEquals(null, curveStat(s.copy(spinCurve = 0.4 / Units.FT_PER_M)))
+        assertEquals(null, curveStat(s.copy(spinCurve = 0.9 / Units.FT_PER_M)))
         assertEquals("curved left from slice", curveStat(s.copy(isServe = false, spinLabel = "slice", spinCurve = 1.3 / Units.FT_PER_M))!!.second)
         assertEquals("curved right from sidespin", curveStat(s.copy(isServe = false, spinLabel = "topspin", spinCurve = -1.3 / Units.FT_PER_M))!!.second)
         assertEquals("1.3 ft", curveStat(s.copy(isServe = false, spinLabel = "topspin", spinCurve = -1.3 / Units.FT_PER_M))!!.first)
+        // not sure enough of it: 1.3 ft with an uncertainty of 0.8 ft is hidden; with 0.5 ft it shows
+        assertEquals(null, curveStat(s.copy(isServe = false, spinLabel = "topspin", spinCurve = -1.3 / Units.FT_PER_M, spinCurveSd = 0.8 / Units.FT_PER_M)))
+        assertEquals("1.3 ft", curveStat(s.copy(isServe = false, spinLabel = "topspin", spinCurve = -1.3 / Units.FT_PER_M, spinCurveSd = 0.5 / Units.FT_PER_M))!!.first)
         assertEquals("shorter from topspin", spinEffectStat(s.copy(isServe = false, spinLabel = "topspin", spinEffect = -1.0)).second)
     }
 }

@@ -4,6 +4,9 @@ function [d, ok] = unproject(lens, u, v)
 %   d is N-by-3 unit vectors in camera axes (right, down, forward), one per
 %   pixel. Inverse of tv.lens.toPixels.
 u = u(:);  v = v(:);
+if isfield(lens, 'cxPx')                      % a calibrated lens: its own centre and pixel aspect
+    u = u - lens.cxPx;  v = (v - lens.cyPx) / lens.aspect;
+end
 rhoPx = hypot(u, v);
 theta = tv.lens.angleAt(lens, rhoPx / (lens.widthPx / 2));
 ok    = theta < deg2rad(lens.thetaMax);

@@ -20,6 +20,8 @@ Contents:
 13. Court-day quick reference
 14. Preliminary single-camera test (HERO7 Black + ball machine)
 15. iPhone match footage: the earliest pipeline test
+16. Tuesday: the first two-camera session
+17. Home tests (the weekend before Tuesday)
 
 ---
 
@@ -788,7 +790,9 @@ My session's machine is wiped when the session ends. Google Drive stays the mast
 
 ## 16. Tuesday: the first two-camera session (ball machine, about 90 minutes)
 
-Chris, 20 Nov: the two Mission 1 Pros arrive Friday. About 20 minutes of recording on an outdoor court with a ball machine, both cameras on internal batteries, started and stopped together from the GoPro app, one clip per test, cameras not touched between clips, one ball bounced at the start of every clip in view of both cameras. Mostly machine balls you hit back.
+Chris, 20 Nov: the two Mission 1 Pros arrive Friday. **About 40 minutes of recording** (the clips in 16.3 add up to 37 to 41 minutes; corrected 21 Nov, it said 20) on an outdoor court with a ball machine, both cameras on internal batteries, started and stopped together from the GoPro app, one clip per test, cameras not touched between clips, one ball bounced at the start of every clip in view of both cameras. Mostly machine balls you hit back.
+
+**Done at home first (section 17):** the checkerboard, the flicker clip, the timing drift and the battery runtime. Any of them done at home is skipped here (marked *home* below).
 
 Every test below gives a number that is **not graded against our own labels or synthetic data**: a tape measure, a known height, gravity, or a machine that repeats itself. The PC turns them into an accuracy report by itself (`tools/groundTruthReport.m`, section 16.4).
 
@@ -804,10 +808,13 @@ Every test below gives a number that is **not graded against our own labels or s
    1. Resolution and rate **4K at 240**. Check the lens choice at 4K240: write down whether **Linear** is offered. If it is, use Linear; if not, Wide.
    2. **HyperSmooth off**, **Horizon Lock off** (and any horizon levelling).
    3. **Shutter 1/1920 s** if the menu offers it at 240 (else 1/960, and write which). ISO auto, maximum 1600. White balance 5500 K. Colour Natural. Bitrate high. GPS on. Audio on.
-   4. Record 10 seconds, play it back, and on the phone check the file says 3840 × 2160 and 240 frames a second. Look for a small second file (LRV) beside it on the card.
+   4. Record **30 seconds** (not 10), play it back, and on the phone check the file says 3840 × 2160 and 240 frames a second, and that it is 30 seconds long. Look for a small second file (LRV) beside it on the card.
+      - **If the camera stops by itself after 10 seconds, tell me before Tuesday:** some reviews say the Mission 1 Pro limits 4K240 to 10-second clips (others say it doesn't). If it does, Tuesday changes: either 4K at 120, or every test cut into 10-second clips.
    - **Proves:** that both cameras record the mode the calibration and the detector will assume.
-2. **Checkerboard, each camera on its own, in the `TENNIS` preset, handheld board, camera on a table** (section 4.3–4.6): 90 seconds per camera. If you have time, also 60 seconds in **Wide** per camera (only if Linear was offered), so we have both lenses measured.
+2. *Home:* **Checkerboard, each camera on its own, in the `TENNIS` preset, handheld board, camera on a table** (section 4.3–4.6, and 17.2): 90 seconds per camera. If you have time, also 60 seconds in **Wide** per camera (only if Linear was offered), so we have both lenses measured. Skip if done at home.
    - **Proves:** each lens's exact bending, instead of GoPro's published angles.
+3. *Home:* **Flicker clip, each camera, 15 seconds** (section 17.3): a plain wall lit by a plugged-in LED or fluorescent lamp, in the `TENNIS` preset at Tuesday's shutter. Skip if done at home.
+   - **Proves:** each camera's rolling-shutter readout time (TV-SYNC-06): when each row of the picture is taken, which the timing between the two cameras is built on.
 
 ### 16.3 At the court (about 75 min)
 1. **Mount the cameras (10 min).** Use the Linear placement table in section 6 for the side fence's distance from the doubles sideline: both cameras on the same side fence, one beyond each baseline, the height and aim in the table.
@@ -851,10 +858,18 @@ My session has about 4 GB of disk, so I fetch **short stretches** of each file, 
 5. the rest when the first ones work.
 File names: keep the camera's own names (GX01xxxx.MP4); put each camera's files in its own folder `CAM1` and `CAM2`. Include the small LRV files too.
 
-### 16.6 Checklist
+### 16.6 Batteries, cold and cards
+- **How long will a battery last at 4K240?** Not known yet. GoPro's pages can't be reached from my session; one review gives about 74 minutes of continuous 4K240 with air round the camera and about 35 minutes boxed in. Batteries also give 20 to 40% less near freezing. Tuesday needs about 40 minutes of recording plus the camera switched on between clips, so on one internal battery in the cold it is **tight**. The weekend runtime test (17.4) gives the real number for your cameras in the cold; I'll redo this plan from it.
+- **To stretch it:** keep the cameras (or their batteries) in an inside pocket until you mount them; screens off or dimmed; don't play clips back on the camera; if the camera can run from a USB power bank, bring one and a cable.
+- **If the battery runs short, drop in this order:** (1) the optional 4K200 clip; (2) the last empty-court clip; (3) machine settings from four to two (keep medium topspin and slow slice); (4) at the targets, the drops only, no tosses. **Never drop** clip 1 (still balls) or clip 2 (the 2-metre drops): they check the calibration and the scale.
+- **Cards:** 4K240 at high bitrate fills a card fast; the 30-second check file's size gives the real rate (I'll work it out). Use the largest card you have in each camera (256 GB if you have it) and start empty.
+
+### 16.7 Checklist
 - [ ] Both cameras: 4K240, Linear offered? (write down), HyperSmooth off, Horizon Lock off, shutter written down
-- [ ] 10-second test file checked: 3840 × 2160, 240
-- [ ] Checkerboard 90 s per camera (and Wide if possible)
+- [ ] 30-second test file checked: 3840 × 2160, 240, 30 seconds long (not cut at 10)
+- [ ] *Home:* checkerboard 90 s per camera (and Wide if possible)
+- [ ] *Home:* flicker clip 15 s per camera, at Tuesday's shutter
+- [ ] Batteries charged and kept warm until mounting; biggest cards in; card space checked (16.6)
 - [ ] Cameras mounted from the Linear table; four corners in view on each; positions taped and written
 - [ ] Court widths measured
 - [ ] Timecode sync
@@ -864,3 +879,57 @@ File names: keep the camera's own names (GX01xxxx.MP4); put each camera's files 
 - [ ] Clips 4–7: one per machine setting, settings written; first 10 balls untouched
 - [ ] (Optional) 4K200 clip; battery and heat noted
 - [ ] Last empty-court clip
+
+---
+
+## 17. Home tests (the weekend before Tuesday)
+
+Chris, 21 Nov: move everything that doesn't need a court off the court, and send each piece as it's done so it's processed before Tuesday. About 2 hours of your time, most of it waiting. Each test gives a number Tuesday then doesn't have to: **section 16 skips every step marked *home* that is done here.**
+
+Before any of it: both cameras in the `TENNIS` preset (16.2 step 1: 4K at 240, HyperSmooth and Horizon Lock off, Tuesday's shutter), a **CAM 1** / **CAM 2** sticker on each, and the 30-second check file recorded (16.2 step 1.4). Say the camera and the test out loud when you start each clip ("camera one, Linear, checkerboard"): the microphone records it, so the files sort themselves.
+
+### 17.1 What you need
+- The checkerboard (4.1).
+- A plain **mains-powered lamp** with an ordinary LED bulb (not battery or USB powered), a plain light-coloured wall, and a room you can darken.
+- A cold spot: porch, garage or shed, where the cameras can sit for about 1.5 hours. A phone timer.
+
+### 17.2 Lens: checkerboard, each camera, Linear and Wide (about 15 min)
+For each camera, and for **each lens offered at 4K240** (Linear and Wide), one clip of **90 seconds**:
+1. Camera on a table or tripod, not moving. Good light: daylight by a big window or on the porch (at 1/1920 a dim room gives a grainy picture; if it still looks dark on the phone, set the shutter to 1/480 for these clips only: the lens's bending doesn't depend on the shutter).
+2. Hold the board and move it **slowly** through the whole picture: the centre, then each corner and each edge (the corners matter most: that's where the bending is). Near (board filling half the picture) and far (a quarter of the picture). Tilted up to about 45° left, right, up and down.
+3. **Hold each pose still for a second**; a blurred board is thrown away.
+4. Keep the whole board in the picture in most poses, but going partly off the edge now and then is fine.
+- **Gives:** each lens's exact bending, centre and focal length (TV-CAL-01): one file per camera and lens, which replaces GoPro's published angles. Target: under 0.5 px of error. (`vision/ml/lens_from_checkerboard.py` here, read by `tv.lens.fromCalibration`; on synthetic views it finds the focal length within 0.4 px and the centre within 0.15 px.)
+- **Removes from Tuesday:** 16.2 step 2.
+
+### 17.3 Readout: the flicker clip, each camera (about 5 min)
+1. Lamp about 1 m from the wall, pointed at it; curtains closed, other lights off, no daylight.
+2. **Check the lamp flickers:** point your phone at the lit wall in slow-motion video. Dark bands rolling across the picture: good. None: try another bulb (cheap LED bulbs and fluorescent tubes flicker; "flicker-free" bulbs don't; a dimmer set to half helps).
+3. Camera on a table about 50 cm from the wall, so the **lit wall fills the whole picture**. Focus doesn't matter.
+4. Record **15 seconds** in the `TENNIS` preset at Tuesday's shutter speed. If you'll use Wide too, a second clip in Wide.
+- **Gives:** each camera's readout time to under 1% (TV-SYNC-06; `tools/readoutFromFlicker.m`, which I've checked works at 240 frames a second). It is the time between the top and bottom rows of each frame being taken, and the timing between the two cameras is built on it.
+- **Removes from Tuesday:** 16.2 step 3.
+
+### 17.4 Timing drift, and battery and heat: one long recording (about 1.5 hours, mostly waiting)
+Tests c and d in one go, because both need the cameras recording for a long time.
+1. Batteries full; empty cards (the largest you have). Leave the cameras in the cold spot for 15 minutes first, switched off, so they start cold. Write down the temperature (your phone's weather app).
+2. **Timecode sync** both cameras (section 5).
+3. Put them side by side, both seeing the same spot about 1 to 2 m away. Screens off or dimmed, as on Tuesday.
+4. Start both. Within the first minute **clap once, sharply**, at the spot both see (or drop a ball on a hard floor there). Say "start".
+5. **Clap again at 10, 20 and 30 minutes** (phone timer).
+6. Then leave them. When each camera stops, write down the time and anything it showed: a heat warning, a cold warning, a flat battery, or a full card.
+7. Note whether the files are split into pieces (chapters) and how big each is.
+- **Gives:** (c) how far apart the two cameras' clocks really are after timecode sync, and how fast they drift apart (from the claps: start, 10, 20, 30 minutes; `tools/syncFromClaps.m`, which on a made-up recording finds the offset within 0.02 ms and a 40 ppm drift exactly); (d) how long each camera really records 4K240 in the cold, and what stops it (`tools/runtimeFromFiles.m`: minutes recorded, gaps between chapters, card used per minute). The Tuesday clip plan (16.6) is redone from it.
+- **Removes from Tuesday:** the guesswork in 16.6, and the optional 4K200 clip's battery part (16.3 step 8) if you also do a short 4K200 run here.
+- **Sending it:** these files are very large. Send the **small LRV files** of this recording if the cameras write them, plus a list of the big files' names and sizes; I fetch only the minutes round each clap from the big ones.
+
+### 17.5 Sending me the home clips
+Same Drive folder, a folder `HOME` with `CAM1` and `CAM2` inside. Order: the flicker clips (small, quick to process), the checkerboard clips, then the long recording's LRV files and the list of sizes. I process each as it arrives and write the result into docs/reports/HOME-TESTS.md.
+
+### 17.6 Checklist
+- [ ] 30-second check file per camera (16.2 step 1.4)
+- [ ] Checkerboard: CAM 1 Linear, CAM 1 Wide, CAM 2 Linear, CAM 2 Wide (90 s each)
+- [ ] Lamp flickers (phone slow-motion shows bands)
+- [ ] Flicker: CAM 1, CAM 2 (15 s each, Tuesday's shutter; Wide too if used)
+- [ ] Long recording: temperature written, timecode synced, claps at 0, 10, 20, 30 min, stop times and warnings written, chapter sizes noted
+- [ ] Uploaded: flicker, checkerboard, LRVs and the list

@@ -1,0 +1,20 @@
+{
+ "type": "calibStandard",
+ "serial": "SYN",
+ "mode": "linear",
+ "widthPx": 3840,
+ "heightPx": 2160,
+ "f": 1950.0,
+ "aspect": 1.0007692307692309,
+ "cx": 12.0,
+ "cy": -7.0,
+ "k": [
+  -0.03,
+  0.01,
+  -0.002
+ ],
+ "rmsPx": 0.0,
+ "views": 0,
+ "gridCells": 0,
+ "note": "cx, cy: centre offset from the middle of the picture, px; OpenCV conventions (0-based pixels)"
+}

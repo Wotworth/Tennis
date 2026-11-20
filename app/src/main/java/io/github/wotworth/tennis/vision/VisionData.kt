@@ -60,6 +60,8 @@ data class VisionShot(
     val spinSide: Double? = null,
     /** How far spin curved the ball sideways at the bounce, m (Chris, 17 Nov; older files: none). */
     val spinCurve: Double? = null,
+    /** The curve's own uncertainty from the fit, m (one standard deviation; Chris, 21 Nov; older files: none). */
+    val spinCurveSd: Double? = null,
     val rpm: Double?,
     val rpmSd: Double?,
     val spinLabel: String,
@@ -123,7 +125,7 @@ object VisionJson {
         netClearance = o.num("netClearance"), apex = o.num("apex"), flightTime = o.num("flightTime"),
         bounce = doubles(o.optJSONArray("bounce")).takeIf { it.size == 2 && it.all { v -> !v.isNaN() } },
         bounceSd = o.num("bounceSd"), depth = o.num("depth"), call = o.optString("call"),
-        spinEffect = o.num("spinEffect"), spinTop = o.num("spinTop"), spinSide = o.num("spinSide"), spinCurve = o.num("spinCurve"), rpm = o.num("rpm"), rpmSd = o.num("rpmSd"),
+        spinEffect = o.num("spinEffect"), spinTop = o.num("spinTop"), spinSide = o.num("spinSide"), spinCurve = o.num("spinCurve"), spinCurveSd = o.num("spinCurveSd"), rpm = o.num("rpm"), rpmSd = o.num("rpmSd"),
         spinLabel = o.optString("spinLabel"), kickAngleDeg = o.num("kickAngleDeg"), confidence = o.num("confidence"),
     )
 

@@ -73,7 +73,7 @@ q = air;  q.CD = x(9);  q.CL = 0;
 [~, P0] = tv.physics.simulate(x(1:3), x(4:6), q, 4, 1e-3, c.ballRadius);
 h0 = tv.physics.groundHit(P0);
 dirH = x(4:5) / norm(x(4:5));
-m.spinEffect = NaN;  m.spinEffectNet = NaN;  m.spinCurve = NaN;
+m.spinEffect = NaN;  m.spinEffectNet = NaN;  m.spinCurve = NaN;  m.spinEffectSd = NaN;  m.spinCurveSd = NaN;
 if ~isempty(h0) && ~isempty(bounceEv)
     hb = segGround(x, seg.t0, air, c);
     m.spinEffect = (hb(1:2) - h0(1:2)) * dirH';           % negative: landed shorter
@@ -81,6 +81,9 @@ if ~isempty(h0) && ~isempty(bounceEv)
     % it isn't backspin), positive to the left of the direction of flight
     m.spinCurve = (hb(1:2) - h0(1:2)) * [-dirH(2); dirH(1)];
 end
+% their uncertainty from the fit (Chris, 21 Nov): the curve tile shows only when the curve is
+% clearly larger than this shot's own uncertainty, and never a direction the fit isn't sure of
+[m.spinEffectSd, m.spinCurveSd] = effectSd(seg, air, c, m.spinEffect, m.spinCurve);
 i0 = find(sign(P0(1:end-1, 1)) ~= sign(P0(2:end, 1)), 1);
 if ~isempty(i0) && ~isnan(m.netClearance)
     f = P0(i0, 1) / (P0(i0, 1) - P0(i0+1, 1));
@@ -101,6 +104,35 @@ q.CL = norm(a);  if q.CL > 0, q.spinAxis = a / q.CL; end
 [~, P] = tv.physics.simulate(x(1:3), x(4:6), q, 4, 1e-3, c.ballRadius);
 hb = tv.physics.groundHit(P);
 if isempty(hb), hb = P(end, :); end
+end
+
+function [sdE, sdC] = effectSd(seg, air, c, e0, c0)
+% first-order propagation of the fit's covariance to the spin effect and the sideways curve
+sdE = NaN;  sdC = NaN;
+if ~isfinite(e0) || ~isfield(seg, 'cov') || any(~isfinite(seg.cov(:))), return; end
+x = seg.x;  C = (seg.cov + seg.cov') / 2;
+g = zeros(2, 9);
+for j = 1:9
+    h = max(1e-4, 0.05 * sqrt(max(C(j, j), 0)));
+    xp = x;  xp(j) = xp(j) + h;
+    v = effects(xp, seg.t0, air, c);
+    if any(~isfinite(v)), return; end
+    g(:, j) = (v - [e0; c0]) / h;
+end
+S = g * C * g';
+sdE = sqrt(max(S(1, 1), 0));  sdC = sqrt(max(S(2, 2), 0));
+end
+
+function v = effects(x, t0, air, c)
+% [spin effect; sideways curve] of parameters x, as computed above
+v = [NaN; NaN];
+q = air;  q.CD = x(9);  q.CL = 0;
+[~, P0] = tv.physics.simulate(x(1:3), x(4:6), q, 4, 1e-3, c.ballRadius);
+h0 = tv.physics.groundHit(P0);
+if isempty(h0), return; end
+dirH = x(4:5) / norm(x(4:5));
+hb = segGround(x, t0, air, c);
+v = [(hb(1:2) - h0(1:2)) * dirH'; (hb(1:2) - h0(1:2)) * [-dirH(2); dirH(1)]];
 end
 
 function t = shotType(isServe, p, segAfter)

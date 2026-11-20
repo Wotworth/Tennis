@@ -587,11 +587,15 @@ fun spinEffectStat(s: VisionShot): Pair<String, String> {
 
 /**
  * The sideways curve from spin, left or right as the hitter saw it (Chris, 20 Nov): "1.2 ft" /
- * "curved left from slice"; null under [TennisTokens.Vision.curveShowFt] (the tile is hidden).
+ * "curved left from slice"; null under [TennisTokens.Vision.curveShowFt] (the tile is hidden), and
+ * null when the curve is under [TennisTokens.Vision.curveSureSd] times its own fitted uncertainty
+ * (Chris, 21 Nov: never a curve or a direction the fit isn't sure of).
  */
 fun curveStat(s: VisionShot): Pair<String, String>? {
     val c = s.spinCurve ?: return null
     if (abs(c) * Units.FT_PER_M < TennisTokens.Vision.curveShowFt) return null
+    val sd = s.spinCurveSd
+    if (sd != null && abs(c) < TennisTokens.Vision.curveSureSd * sd) return null
     val slice = (s.isServe && serveSpinKind(s) == "slice") || s.spinLabel == "slice"
     return Units.ft(abs(c)) to "curved ${if (c > 0) "left" else "right"} from ${if (slice) "slice" else "sidespin"}"
 }

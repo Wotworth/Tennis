@@ -199,7 +199,7 @@ jobs:
       - name: Print results into the log
         if: always()
         run: |
-          for f in $(find out -type f \( -name 'shotstudy*' -o -name 'sizestudy*' -o -name 'fitstudy_*.md' \) 2>/dev/null); do
+          for f in $(find out -type f \( -name 'shotstudy*' -o -name 'sizestudy*' -o -name 'fitstudy_*.md' -o -name 'fitstudy_*_shots.csv' \) 2>/dev/null); do
             echo "=== BEGIN-B64 $f"; base64 -w 0 "$f"; echo; echo "=== END-B64"
           done
 

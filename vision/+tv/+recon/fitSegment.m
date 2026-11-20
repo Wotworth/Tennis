@@ -12,7 +12,10 @@ function seg = fitSegment(obs, cams, rec, sync, air, prior, x0)
 %   soak up noise, which moves the bounce found from it (an 11 cm bounce
 %   error on a 0.19 s flight after a bounce, 16 Nov).
 %   obs rows: [cam frame u v]. x0: starting values (tv.recon.initSegment).
-%   Returns seg: x, t0, rmsPx, n (detections per camera), obs, t, weights.
+%   Returns seg: x, t0, rmsPx, n (detections per camera), obs, t, weights, and cov: the 9-by-9
+%   covariance of x from the fit itself (pixel noise at the fit's own error, the priors), for the
+%   per-shot uncertainty of what is shown (Chris, 21 Nov: the curve tile only when the curve is
+%   clearly larger than its own uncertainty). Wind gusts and timing are not in it.
 %   One camera only (Chris, 18 Nov): when the other camera is blocked for a whole flight, one
 %   camera's sight lines and the physics still give the path, but its distance from the camera
 %   only weakly. prior.anchors pins it: rows [t x y z sd], points the flight must pass at
@@ -44,7 +47,7 @@ if nargin < 7 || isempty(x0)
 else, ok = true;
 end
 seg = struct('x', [], 't0', t0, 'rmsPx', Inf, 'n', [nnz(obs(:,1) == 1), nnz(obs(:,1) == 2)], ...
-             'obs', obs, 't', t, 'w', [], 'ok', false, 'oneCam', oneCam, 'anchors', A, 'res', []);
+             'obs', obs, 't', t, 'w', [], 'ok', false, 'oneCam', oneCam, 'anchors', A, 'res', [], 'cov', NaN(9));
 if ~ok, return; end
 clSd = prior.CLsd;  if max(t) - min(t) < prior.shortS, clSd = prior.shortCLsd; end
 w = ones(size(obs, 1), 1);
@@ -85,7 +88,24 @@ r = pixelErrors(x);
 seg.x = x;  seg.w = w;  seg.ok = true;
 seg.rmsPx = sqrt(mean(r(w > 0).^2));             % every detection kept (Huber-weighted ones too)
 seg.res = r;
+seg.cov = covariance(x, w);
 
+    function C = covariance(x, w)
+        % Gauss-Newton: J'J of the residuals with the pixel rows scaled by the fit's own pixel
+        % error (at least 0.3 px), the prior rows as they are (already in sd units)
+        nPix = 2 * numel(t);
+        r0 = residuals(x, w);
+        J = zeros(numel(r0), 9);
+        for j = 1:9
+            h = 1e-6 * max(1, abs(x(j)));
+            xp = x;  xp(j) = xp(j) + h;
+            J(:, j) = (residuals(xp, w) - r0) / h;
+        end
+        keep = [w > 0; w > 0];
+        sPx = max(0.3, sqrt(sum(r0([keep; false(numel(r0) - nPix, 1)]).^2) / max(1, nnz(keep) - 9)));
+        J(1:nPix, :) = J(1:nPix, :) / sPx;
+        C = pinv(J' * J);
+    end
     function res = residuals(x, w)
         [du, dv, da] = diffs(x);
         sw = sqrt(w);
