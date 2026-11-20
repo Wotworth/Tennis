@@ -154,3 +154,20 @@ tr{2} = alt;
 km = [];  for q = 1:numel(kept{2}), km = [km; kept{2}(q).frames(:)]; end %#ok<AGROW>
 fprintf('alternating: camera 2 keeps %d of Chris''s %d points, %d of the neighbours'' %d\n', nnz(ismember(fa, km)), numel(fa), nnz(ismember(fb, km)), numel(fb));
 assert(nnz(ismember(fa, km)) >= 0.9 * numel(fa) && ~any(ismember(fb, km)))
+
+%% Two camera-2 tracks that swap the two balls in blocks: camera 1's clean tracks stay whole, and
+% Chris's points come back from both (21 Nov: CI run 59, a first split-by-ball cut camera 1's clean
+% track of his ball and lost 40% of it)
+[tr, cand, rec, sync] = tv.testing.ballTracks(cams, {mine, theirs}, fps, 0.3);
+a = tr{2}(1);  b = tr{2}(2);  f = (0:N - 1)';
+blk = mod(floor(f / 20), 2) == 0;                        % blocks of 20 frames
+mk2 = @(useA) struct('frames', f, 'uv', [a.uv .* useA + b.uv .* ~useA], 'area', 20 * ones(N, 1), 'id', 0);
+assert(isequal(a.frames, f) && isequal(b.frames, f))
+t1 = mk2(blk);  t1.id = 1;  t2 = mk2(~blk);  t2.id = 2;
+tr{2} = [t1, t2];
+[kept, log] = tv.recon.gateTracks(tr, cand, cams, rec, sync, box, struct());
+km = [];  for q = 1:numel(kept{2}), km = [km; kept{2}(q).frames(:), kept{2}(q).uv]; end %#ok<AGROW>
+mineKept = ismember(round([f, a.uv]), round(km), 'rows');
+fprintf('blocks: camera 1 keeps %d tracks (%d points); camera 2 keeps %d of Chris''s %d points\n', numel(kept{1}), sum(arrayfun(@(x) numel(x.frames), kept{1})), nnz(mineKept), N);
+assert(numel(kept{1}) == 1 && numel(kept{1}.frames) >= 0.95 * N)
+assert(nnz(mineKept) >= 0.9 * N)

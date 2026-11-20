@@ -37,7 +37,7 @@ cfg.gate = struct('epipolarPx', 4, ...      % TV-ADJ-02: summed reprojection err
                   'sameBallM', 2, ...       % two overlapping tracks in one camera are one ball only within this (m)
                   'rollMaxZ', 0.3, 'rollMinS', 0.3, 'rollShare', 0.9, ... % a track this low (m) for this long (s) is a rolling ball
                   'otherPairM', 0.5, 'otherPairS', 0.25, ... % a point paired with another ball's track: kept only within this (m) of its own path, judged within this (s) of an own point (21 Nov)
-                  'splitRun', 8, 'splitJumpM', 1.5, ... % a 2D track is cut where it switches balls: this many points each side, a 3D jump of this (m) (21 Nov)
+                  'splitRun', 8, 'splitJumpM', 1.5, 'splitNearS', 0.15, ... % a track holding two balls is split by ball: this many points, this far (m) off its own path, judged within this (s) of its own points (21 Nov)
                   'perBall', false, ...     % fit a second ball in view at once apart (tv.recon.ballGroups); off: CI 17 Nov lost more flights with it
                   'playerInsideFrac', 0.6); % TV-ADJ-05: share of a person's time inside
 cfg.adjacentTest = struct('maxFalsePos', 0.005, 'maxFalseNeg', 0.02, 'maxSwaps', 0);   % AC-14 to AC-16

@@ -43,7 +43,7 @@ function [kept, log, partners] = gateTracks(tracks, cands, cams, rec, sync, box,
 %   RETUNE(real footage): every opts value (tv.pipeline.defaults, cfg.gate).
 if nargin < 7, opts = struct(); end
 d = struct('epipolarPx', 4, 'minInsideFrac', 0.5, 'minPairedFrac', 0.3, 'maxSpeed', 75, 'maxGapFrames', 3, 'sameBallM', 2, 'rollMaxZ', 0.3, 'rollMinS', 0.3, 'rollShare', 0.9, ...
-    'otherPairM', 0.5, 'otherPairS', 0.25, 'splitRun', 8, 'splitJumpM', 1.5);
+    'otherPairM', 0.5, 'otherPairS', 0.25, 'splitRun', 8, 'splitJumpM', 1.5, 'splitNearS', 0.15);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 log = emptyLog();
@@ -181,6 +181,11 @@ for k = 1:2
                 lo = max(min(ta), min(tb));  hi = min(max(ta), max(tb));
                 if lo >= hi, continue; end
                 ia = ta >= lo & ta <= hi;  ib = tb >= lo & tb <= hi;
+                % only where both really have points at the same moments (21 Nov: two pieces of one
+                % ball split out of tracks that swapped balls interleave in time, and are not twins)
+                tol = opts.maxGapFrames * median(diff(rec(k).pts));
+                ia = ia & nearAny(ta, tb, tol);  ib = ib & nearAny(tb, ta, tol);
+                if ~any(ia) || ~any(ib), continue; end
                 % only two tracks of the same ball: over the overlap their 3D points lie
                 % within opts.sameBallM (two balls in view at once both stay; 17 Nov, AC-15)
                 if ~sameBall(ta(ia), keptX{k}{a}(ia, :), tb(ib), keptX{k}{b}(ib, :), opts.sameBallM), continue; end
@@ -229,16 +234,17 @@ function [tracks, T] = splitAtSwitches(tracks, T, cams, rec, sync, opts)
 % moments, they are moved into a track of their own: a clean switch and a tracker that alternates
 % between two balls frame by frame are both split. A gap in the main partner is not contested (the
 % stray case: its points are judged later by onOwnPath).
+orig = tracks;  origT = T;                          % both cameras are judged against the other's tracks as found
 for k = 1:2
     o = 3 - k;  fps = 1 / median(diff(rec(o).pts));
-    if numel(tracks{o}) < 2, continue; end
-    nextId = max([tracks{k}.id, 0]) + 1;  out = tracks{k}([]);  To = {};
-    for j = 1:numel(tracks{k})
-        trk = tracks{k}(j);  t = T{k}{j};  n = numel(trk.frames);
+    if numel(orig{o}) < 2, continue; end
+    nextId = max([orig{k}.id, 0]) + 1;  out = orig{k}([]);  To = {};
+    for j = 1:numel(orig{k})
+        trk = orig{k}(j);  t = origT{k}{j};  n = numel(trk.frames);
         if n < 2 * opts.splitRun, out(end+1) = trk; To{end+1} = t; continue; end %#ok<AGROW>
-        E = inf(n, numel(tracks{o}));  XX = nan(n, 3, numel(tracks{o}));
-        for jj = 1:numel(tracks{o})
-            [E(:, jj), XX(:, :, jj)] = pairWith(k, trk, t, tracks{o}(jj), T{o}{jj}, cams, fps, opts);
+        E = inf(n, numel(orig{o}));  XX = nan(n, 3, numel(orig{o}));
+        for jj = 1:numel(orig{o})
+            [E(:, jj), XX(:, :, jj)] = pairWith(k, trk, t, orig{o}(jj), origT{o}{jj}, cams, fps, opts);
         end
         [em, lab] = min(E, [], 2);  lab(em > opts.epipolarPx) = 0;
         if ~any(lab), out(end+1) = trk; To{end+1} = t; continue; end %#ok<AGROW>
@@ -250,12 +256,16 @@ for k = 1:2
         if numel(tm) >= 2
             contested = lab > 0 & lab ~= main & isfinite(E(:, main)) & E(:, main) > opts.epipolarPx;
             for b = reshape(unique(lab(contested)), 1, [])
-                m = find(contested & lab == b);
+                mAll = find(contested & lab == b);
+                % is it another ball? judged only where the track's own points are near in time (the
+                % path between them, never extrapolated across a long gap); if so, all go
+                near = arrayfun(@(q) min(abs(tm - t(q))) <= opts.splitNearS, mAll);
+                m = mAll(near);
                 if numel(m) < opts.splitRun, continue; end
                 Pm = [interp1(tm, Xm(:, 1), t(m), 'linear', 'extrap'), interp1(tm, Xm(:, 2), t(m), 'linear', 'extrap'), ...
                       interp1(tm, Xm(:, 3), t(m), 'linear', 'extrap')];
                 d = sqrt(sum((XX(m, :, b) - Pm) .^ 2, 2));
-                if median(d) > opts.splitJumpM, group(m) = b; end
+                if median(d) > opts.splitJumpM, group(mAll) = b; end
             end
         end
         if ~any(group), out(end+1) = trk; To{end+1} = t; continue; end %#ok<AGROW>
@@ -274,6 +284,14 @@ for k = 1:2
     end
     tracks{k} = out;  T{k} = To;
 end
+end
+
+function ok = nearAny(t, u, tol)
+% each time in t has a time in u within tol
+ok = false(size(t));
+if isempty(u), return; end
+u = u(:);
+for i = 1:numel(t), ok(i) = min(abs(u - t(i))) <= tol; end
 end
 
 function s = sliceTrack(trk, m)
