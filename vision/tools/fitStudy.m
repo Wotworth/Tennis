@@ -71,6 +71,21 @@ for r = 1:min(3, nR)
 end
 
 rows = tv.synth.scoreShots(S, segs, ev, air, cams);
+% every shot not found, with what was found near it, so the CI log says why
+for k = find(~[rows.found])
+    s = S.shots(k);  r = s.rally;  near = '';
+    if ~isempty(ev{r})
+        [~, o] = sort(abs([ev{r}.t] - s.tHit));  o = o(1:min(3, end));
+        near = strjoin(arrayfun(@(e) sprintf('%s %+.0f ms', e.type, 1000 * (e.t - s.tHit)), ev{r}(o), 'UniformOutput', false), ', ');
+    end
+    g = '';
+    if ~isempty(segs{r})
+        t0s = arrayfun(@(x) min(x.t), segs{r});  [~, j] = min(abs(t0s - s.tHit));
+        g = sprintf('nearest flight starts %+.0f ms', 1000 * (t0s(j) - s.tHit));
+    end
+    fprintf('missed: rally %d shot %d (%s%s, setting %d, hit %.3f): %s; %s\n', r, s.index, s.kind, ...
+        tv.testing.ternary(s.isServe, ', serve', ''), rows(k).setting, s.tHit, near, g);
+end
 R.rows = rows;  R.sync = sync;  R.air = air;  R.report = rep;
 % timing at mid-session, middle row (as tv.synth.compare)
 n = round(rec(2).nFrames / 2);  vMid = rec(2).height / 2;

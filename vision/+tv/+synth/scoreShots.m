@@ -1,7 +1,9 @@
 function rows = scoreShots(S, segs, ev, air, cams)
 %SCORESHOTS  Each synthetic shot against what the reconstruction found (fit study, error budget).
 %   S: tv.synth.studySession; segs, ev: flights and events per rally; air, cams: what the
-%   reconstruction used. A shot is found when a hit event lies within 30 ms of its truth.
+%   reconstruction used. A shot is found when a hit event lies within 30 ms of its truth; a
+%   rally's first flight with no toss before it counts as a hit at its first point, as the
+%   pipeline's shot list (tv.metrics.rallies) counts it.
 %   Its metrics come from tv.metrics.shot, exactly as the pipeline computes them. Rows:
 %   found, hitDtMs, speedErr (m/s), bounceErr (m), spinErr (m), netErr (m), rpmErrPct, call,
 %   truthCall, shortAfterBounce, toNextHit, rms; curveErr (m, sideways curve from spin) and
@@ -21,6 +23,11 @@ for s = S.shots'
     E = ev{s.rally};  G = segs{s.rally};
     if isempty(E) || isempty(G), rows = [rows; row]; continue; end %#ok<AGROW>
     hits = E(strcmp({E.type}, 'hit'));
+    % as tv.metrics.rallies: with no toss, the rally's first flight starts a shot even when
+    % its hit was not seen (a ball-machine feed, a hand feed); it is timed from its first point
+    if ~any(strcmp({E.type}, 'toss')) && (isempty(hits) || ~any([hits.segAfter] == 1))
+        hits(end+1) = struct('type', 'hit', 't', G(1).t0, 'p', G(1).x(1:3), 'segBefore', 0, 'segAfter', 1); %#ok<AGROW>
+    end
     [dt, i] = min(abs([hits.t] - s.tHit));
     if isempty(dt) || dt > 0.03, rows = [rows; row]; continue; end %#ok<AGROW>
     row.found = true;  row.hitDtMs = 1000 * (hits(i).t - s.tHit);
