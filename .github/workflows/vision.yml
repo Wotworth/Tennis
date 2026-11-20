@@ -170,13 +170,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 20 Nov: the three detectors came out within 0.15 mph and 0.1 cm of each other (run 55);
-        # now the learned one with gusts and in calm air, to see what the sideways curve's error is
+        # 21 Nov: the fit's lift held constant (today) against lift following the spin, with gusts
         include:
           - detector: learned
             gust: '0.6'
+            lift: constant
           - detector: learned
-            gust: '0'
+            gust: '0.6'
+            lift: spin
     steps:
       - uses: actions/checkout@v4
 
@@ -191,10 +192,10 @@ jobs:
             Statistics_and_Machine_Learning_Toolbox
             Parallel_Computing_Toolbox
 
-      - name: Shot study (${{ matrix.detector }}, gusts ${{ matrix.gust }} m/s, about 250 shots at 4K240 Linear)
+      - name: Shot study (${{ matrix.detector }}, gusts ${{ matrix.gust }} m/s, lift ${{ matrix.lift }}, about 250 shots at 4K240 Linear)
         uses: matlab-actions/run-command@v2
         with:
-          command: addpath('vision', 'vision/tools'); shotStudy('out/shotstudy', struct('detectors', {{'${{ matrix.detector }}'}}, 'targetShots', 250, 'minutes', 60, 'gustAmp', ${{ matrix.gust }}));
+          command: addpath('vision', 'vision/tools'); shotStudy('out/shotstudy', struct('detectors', {{'${{ matrix.detector }}'}}, 'targetShots', 250, 'minutes', 60, 'gustAmp', ${{ matrix.gust }}, 'liftModel', '${{ matrix.lift }}'));
 
       - name: Print results into the log
         if: always()

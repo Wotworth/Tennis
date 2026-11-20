@@ -17,12 +17,13 @@ function R = fitStudy(outDir, opts)
 %   opts.errModel: a detector's measured recall and centre error by ball size
 %     (tv.synth.detectorModel) instead of the flat 0.5 px and 5% misses.
 %   opts.sideSpin, opts.machine: tv.synth.studySession's sidespin and ball-machine feeds.
+%   opts.liftModel: the fit's lift, 'constant' or 'spin' (follows the spin parameter; 21 Nov).
 %   opts.gustAmp: the gusts' amplitude per period, m/s (0: calm, steady wind only).
 %   opts.tag: names the outputs fitstudy_<tag>.md / .csv; opts.title: a line for the report.
 if nargin < 1, outDir = fullfile(pwd, 'out', 'fitstudy'); end
 if nargin < 2, opts = struct(); end
 d = struct('seed', 7, 'minutes', 90, 'targetShots', 400, 'rounds', 3, 'syncRallies', 3, ...
-    'scenario', 'default', 'errModel', [], 'sideSpin', false, 'machine', 0, 'tag', '', 'title', '', 'gustAmp', 0.6);
+    'scenario', 'default', 'errModel', [], 'sideSpin', false, 'machine', 0, 'tag', '', 'title', '', 'gustAmp', 0.6, 'liftModel', 'constant');
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 if ~exist(outDir, 'dir'), mkdir(outDir); end
@@ -41,7 +42,7 @@ R.farBallPx = farBall(camsTrue);
 fprintf('fit study %s: the ball is %.1f px across at the far corner\n', opts.tag, R.farBallPx);
 fprintf('fit study: %d shots in %d rallies, generated in %.0f s\n', numel(S.shots), numel(S.pieces), toc(t0));
 cfg = tv.pipeline.defaults();
-air = tv.physics.defaultParams();
+air = tv.physics.defaultParams();  air.liftModel = opts.liftModel;  air.spinTau = 5;
 air.rho = S.air.rho;                                          % weather from the forecast: temperature etc. right
 wind10 = 2 * S.air.wind(1:2) + [0.8 -0.5];                    % the forecast wind, not the truth
 air.wind = [0.5 * wind10, 0];

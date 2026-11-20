@@ -37,3 +37,16 @@ prm = base;  still = tv.physics.acceleration([25 0 0], prm);
 prm.wind = [-3 0 0];  head = tv.physics.acceleration([25 0 0], prm);
 assert(abs(head(1) / still(1) - (28/25)^2) < 1e-9)
 
+
+%% Lift following the spin (liftModel 'spin', 21 Nov) matches an ode45 flight made the same way
+c = tv.court.constants();  q = tv.physics.defaultParams();
+q.CD = 0.507;  q.CL0 = 0.25;  q.clScale = 1;  q.spinTau = 5;  q.gust = [];  q.t0 = 0;
+v0 = [28 1 3];  ax = cross(v0 / norm(v0), [0 0 1]);  q.spinAxis = -ax / norm(ax);
+[tT, PT] = tv.physics.truthFlight([-11.9 0 1], v0, q, 1.2);
+p = tv.physics.defaultParams();  p.CD = 0.507;  p.CL = 0.25;  p.spinAxis = q.spinAxis;  p.liftModel = 'spin';  p.spinTau = 5;
+[tS, PS] = tv.physics.simulate([-11.9 0 1], v0, p, 1.2);
+d = max(sqrt(sum((interp1(tS, PS, tT) - PT) .^ 2, 2)));
+p.liftModel = 'constant';  [~, PC] = tv.physics.simulate([-11.9 0 1], v0, p, 1.2);
+dc = max(sqrt(sum((interp1(tS, PC, tT) - PT) .^ 2, 2)));
+fprintf('lift following spin: %.2f mm from ode45 over 1.2 s (constant lift: %.0f mm)\n', 1000 * d, 1000 * dc);
+assert(d < 0.002 && dc > 0.05)

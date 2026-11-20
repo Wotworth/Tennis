@@ -104,7 +104,7 @@ kGate = k(sync, Y.symmetry.chosen, cfg.court, cfg.gate, h(kSync));
 G = tv.pipeline.stage(outDir, 'gate', kGate, @() gateAll(D, cams, rec, sync, cfg));
 
 % --- reconstruction ---------------------------------------------------------------------------------
-air0 = tv.physics.defaultParams();
+air0 = tv.physics.defaultParams();  air0.liftModel = cfg.liftModel;  air0.spinTau = cfg.spinTau;   % 21 Nov: lift following the spin, or constant
 air0.rho = tv.air.density(cfg.weather.tempC, cfg.weather.relHumidity, cfg.weather.pressurePa);
 if cfg.indoor   % TV-IND-01: indoor temperature and humidity, pressure from the weather, no wind
     air0.rho = tv.air.density(cfg.indoorDefaults.tempC, cfg.indoorDefaults.relHumidity, cfg.weather.pressurePa);
