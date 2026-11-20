@@ -24,8 +24,10 @@ function [kept, log, partners] = gateTracks(tracks, cands, cams, rec, sync, box,
 %      other camera worse there gives up those points ("overlaps a better track"), but only
 %      when the two are the same ball: their 3D points over the overlap are within
 %      opts.sameBallM (median). Two balls in view at once are both kept.
-%   0. A track whose points switch from one of the other camera's tracks to another, with a jump
-%      in 3D, is cut there first: a 2D tracker that ran on along the other ball (21 Nov).
+%   0. A track holding two balls is split by ball first: points whose main partner is in view but
+%      doesn't match, while another of the other camera's tracks does, metres off the track's own
+%      path, go into a track of their own (a 2D tracker that ran on along, or alternated with, the
+%      other ball; 21 Nov).
 %   1b. A point paired with another track than its partner (where the partner has a gap) is kept
 %      only if it lies on the track's own path; otherwise "paired with another ball" (21 Nov).
 %   4. Candidates that are in no track are logged "isolated".
@@ -219,61 +221,54 @@ end
 end
 
 function [tracks, T] = splitAtSwitches(tracks, T, cams, rec, sync, opts)
-% cut a track where its points switch, for opts.splitRun points or more on each side, from pairing
-% with one track of the other camera to pairing with another, the 3D point jumps by more than
-% opts.splitJumpM, and the old partner is still in view after the switch but no longer matches.
-% (One ball's track broken in two by the other camera's tracker pairs continuously and is not cut;
-% a gap in the old partner is not a switch of this track.)
-cuts = cell(1, 2);
+% A track holding two balls is split by ball, using the other camera. Its main partner is the other
+% camera's track its points pair with most. A point is "contested" when that main partner is in view
+% at its moment (covered) but doesn't match it (over opts.epipolarPx), while another of the other
+% camera's tracks does. When opts.splitRun or more contested points pair with one other track, and
+% those points lie more than opts.splitJumpM from the track's own (main-partner) path at the same
+% moments, they are moved into a track of their own: a clean switch and a tracker that alternates
+% between two balls frame by frame are both split. A gap in the main partner is not contested (the
+% stray case: its points are judged later by onOwnPath).
 for k = 1:2
-    o = 3 - k;  fps = 1 / median(diff(rec(o).pts));  cuts{k} = cell(1, numel(tracks{k}));
+    o = 3 - k;  fps = 1 / median(diff(rec(o).pts));
+    if numel(tracks{o}) < 2, continue; end
+    nextId = max([tracks{k}.id, 0]) + 1;  out = tracks{k}([]);  To = {};
     for j = 1:numel(tracks{k})
-        trk = tracks{k}(j);  n = numel(trk.frames);
-        if n < 2 * opts.splitRun || numel(tracks{o}) < 2, continue; end
+        trk = tracks{k}(j);  t = T{k}{j};  n = numel(trk.frames);
+        if n < 2 * opts.splitRun, out(end+1) = trk; To{end+1} = t; continue; end %#ok<AGROW>
         E = inf(n, numel(tracks{o}));  XX = nan(n, 3, numel(tracks{o}));
         for jj = 1:numel(tracks{o})
-            [E(:, jj), XX(:, :, jj)] = pairWith(k, trk, T{k}{j}, tracks{o}(jj), T{o}{jj}, cams, fps, opts);
+            [E(:, jj), XX(:, :, jj)] = pairWith(k, trk, t, tracks{o}(jj), T{o}{jj}, cams, fps, opts);
         end
         [em, lab] = min(E, [], 2);  lab(em > opts.epipolarPx) = 0;
-        [~, ord] = sort(T{k}{j});  L = lab(ord);
-        X = nan(n, 3);  for m = 1:n, if lab(m) > 0, X(m, :) = XX(m, :, lab(m)); end, end
-        X = X(ord, :);
-        % runs of one label among the paired points
-        pi_ = find(L > 0);  if isempty(pi_), continue; end
-        rs = pi_(1);  c = [];
-        for q = 2:numel(pi_) + 1
-            if q > numel(pi_) || L(pi_(q)) ~= L(pi_(q - 1))
-                re = pi_(q - 1);
-                if q <= numel(pi_)
-                    nA = nnz(L(rs:re) == L(re));  nB = nnz(L(pi_(q):min(n, pi_(q) + 3 * opts.splitRun)) == L(pi_(q)));
-                    jump = norm(X(pi_(q), :) - X(re, :));
-                    % the old partner is still there after the switch but no longer matches: this
-                    % camera's tracker jumped (a gap in the old partner is not a switch here)
-                    after = ord(pi_(q):min(n, pi_(q) + opts.splitRun - 1));
-                    eOld = E(after, L(re));
-                    stillThere = nnz(isfinite(eOld) & eOld > opts.epipolarPx) >= 0.5 * numel(after);
-                    if nA >= opts.splitRun && nB >= opts.splitRun && jump > opts.splitJumpM && stillThere
-                        c(end+1) = ord(pi_(q)); %#ok<AGROW>   % the first point of the new run (original order)
-                    end
-                end
-                if q <= numel(pi_), rs = pi_(q); end
+        if ~any(lab), out(end+1) = trk; To{end+1} = t; continue; end %#ok<AGROW>
+        main = mode(lab(lab > 0));
+        own = lab == main;
+        Xm = XX(own, :, main);  tm = t(own);
+        [tm, u] = unique(tm);  Xm = Xm(u, :);
+        group = zeros(n, 1);                                % 0: stays; b: moved to ball b's piece
+        if numel(tm) >= 2
+            contested = lab > 0 & lab ~= main & isfinite(E(:, main)) & E(:, main) > opts.epipolarPx;
+            for b = reshape(unique(lab(contested)), 1, [])
+                m = find(contested & lab == b);
+                if numel(m) < opts.splitRun, continue; end
+                Pm = [interp1(tm, Xm(:, 1), t(m), 'linear', 'extrap'), interp1(tm, Xm(:, 2), t(m), 'linear', 'extrap'), ...
+                      interp1(tm, Xm(:, 3), t(m), 'linear', 'extrap')];
+                d = sqrt(sum((XX(m, :, b) - Pm) .^ 2, 2));
+                if median(d) > opts.splitJumpM, group(m) = b; end
             end
         end
-        cuts{k}{j} = c;
-    end
-end
-for k = 1:2
-    if ~any(cellfun(@numel, cuts{k})), continue; end
-    nextId = max([tracks{k}.id]) + 1;  out = tracks{k}([]);  To = {};
-    for j = 1:numel(tracks{k})
-        trk = tracks{k}(j);  t = T{k}{j};
-        if isempty(cuts{k}{j}), out(end+1) = trk; To{end+1} = t; continue; end %#ok<AGROW>
-        tc = sort(t(cuts{k}{j}));  edges = [-Inf; tc(:); Inf];
-        for p = 1:numel(edges) - 1
-            m = t >= edges(p) & t < edges(p + 1);
+        if ~any(group), out(end+1) = trk; To{end+1} = t; continue; end %#ok<AGROW>
+        % unpaired points go with the nearest paired point in time
+        un = find(lab == 0);  pd = find(lab > 0);
+        for q = un(:)'
+            [~, a] = min(abs(t(pd) - t(q)));  group(q) = group(pd(a));
+        end
+        for g = reshape(unique(group), 1, [])
+            m = group == g;
             if ~any(m), continue; end
             piece = sliceTrack(trk, m);
-            if p > 1, piece.id = nextId;  nextId = nextId + 1; end
+            if g ~= 0, piece.id = nextId;  nextId = nextId + 1; end
             out(end+1) = piece;  To{end+1} = t(m); %#ok<AGROW>
         end
     end

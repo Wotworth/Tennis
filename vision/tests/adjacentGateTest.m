@@ -138,3 +138,19 @@ km = [];  for q = 1:numel(kept{2}), km = [km; kept{2}(q).frames(:)]; end %#ok<AG
 fprintf('camera 2 keeps %d of Chris''s %d points after the switch\n', nnz(ismember(a.frames(B), km)), nnz(B));
 assert(nnz(ismember(a.frames(B), km)) >= 0.9 * nnz(B))
 assert(~any(ismember(b.frames(A), km)))                  % and none of the neighbours'
+
+%% A track that alternates between the neighbours' ball and Chris's, frame by frame, is split by ball
+% (21 Nov: CI run 58 showed a camera-2 track with 153 of his points and 463 of the neighbours',
+% dropped whole as "mostly outside")
+[tr, cand, rec, sync] = tv.testing.ballTracks(cams, {mine, theirs}, fps, 0.3);
+a = tr{2}(1);  b = tr{2}(2);
+fa = a.frames(mod(a.frames, 3) == 0 & a.frames >= 20);   % his ball every third frame from 20 on
+fb = setdiff(b.frames, fa);                              % the neighbours' the rest
+[~, ia] = ismember(fa, a.frames);  [~, ib] = ismember(fb, b.frames);
+alt = struct('frames', [fa; fb], 'uv', [a.uv(ia, :); b.uv(ib, :)], 'area', [a.area(ia); b.area(ib)], 'id', 1);
+[~, o] = sort(alt.frames);  alt.frames = alt.frames(o);  alt.uv = alt.uv(o, :);  alt.area = alt.area(o);
+tr{2} = alt;
+[kept, log] = tv.recon.gateTracks(tr, cand, cams, rec, sync, box, struct());
+km = [];  for q = 1:numel(kept{2}), km = [km; kept{2}(q).frames(:)]; end %#ok<AGROW>
+fprintf('alternating: camera 2 keeps %d of Chris''s %d points, %d of the neighbours'' %d\n', nnz(ismember(fa, km)), numel(fa), nnz(ismember(fb, km)), numel(fb));
+assert(nnz(ismember(fa, km)) >= 0.9 * numel(fa) && ~any(ismember(fb, km)))
