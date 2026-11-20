@@ -25,7 +25,8 @@ jobs:
   test:
     if: github.event_name != 'workflow_dispatch' || inputs.only == 'all' || inputs.only == 'test'
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    # 180 since 20 Nov: every frame is now searched in the pipeline tests (run 53 took 81 min)
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
