@@ -204,20 +204,32 @@ Tailscale makes a private network between your own devices. The PC is never on t
 7. In the Tailscale admin page (login.tailscale.com > Machines), turn off key expiry for the PC, so it never drops off.
 8. **Never** turn on "Funnel": that would publish the PC.
 
-### 2.3 Cloudflare (when the cloud service is deployed, TV-PH-4)
-1. Sign in at dash.cloudflare.com. Workers & Pages > copy the **Account ID**.
-2. Profile > My Profile > API Tokens > Create Token > Create Custom Token:
-   - name `tennis-vision-deploy`;
-   - permissions, each "Account": **Workers Scripts: Edit**, **D1: Edit**, **Workers R2 Storage: Edit**;
-   - Account Resources: Include > your account;
-   - Zone Resources: empty;
-   - IP filtering: empty;
-   - TTL: one year.
-3. Create it, and **copy the token now**: it is shown once.
-4. github.com/Wotworth/Tennis > Settings > Secrets and variables > Actions. Add two secrets:
-   - `CLOUDFLARE_API_TOKEN` (the token);
-   - `CLOUDFLARE_ACCOUNT_ID`.
-5. Tell me. The next session deploys.
+### 2.3 Cloudflare: deploying the cloud service (about 20 minutes, from the tablet)
+Chris, 22 Nov: deploy it this weekend; every secret goes into Cloudflare, never into chat or GitHub. Cloudflare builds and deploys the Worker from this repository itself, so nothing needs a computer.
+
+1. **Sign in** at dash.cloudflare.com.
+2. **The database:** Storage & Databases > D1 > Create database > name `tennis` > Create. Open it and copy the **Database ID** (a long code of letters, numbers and dashes). **Send me the ID**: it is not a secret. I put it into `cloud/wrangler.toml` and push (about 5 minutes); wait for my "ready" before step 4.
+3. **The storage:** R2 Object Storage > Create bucket > name `tennis-sessions` > Create (location: automatic; nothing public).
+4. **The Worker, built from GitHub:** Workers & Pages > Create > Import a repository > connect GitHub if asked (allow the Cloudflare app access to `Wotworth/Tennis` only) > pick `Wotworth/Tennis`. Then:
+   - Project name: `tennis-api`
+   - Root directory (advanced settings): `cloud`
+   - Build command: `npm ci`
+   - Deploy command: `npx wrangler d1 migrations apply tennis --remote && npx wrangler deploy`
+   - Deploy. The first build takes 1 to 2 minutes; it must end with "Success".
+   - Then `tennis-api` > Settings > Build > Build watch paths: include `cloud/*` (so it rebuilds only when the cloud code changes, not on every app change).
+5. **The three passphrases** (your password manager can make them; at least 20 characters each, all different): Workers & Pages > `tennis-api` > Settings > Variables and Secrets > Add, type **Secret** each time:
+   - `READ_TOKEN`: the phone's passphrase (you type it into the app in step 8, so a long phrase of words is easiest);
+   - `WRITE_TOKEN`: the PC's passphrase (you type it into the PC's settings when the PC exists);
+   - `LINK_KEY`: anything long; nobody types it again.
+   Save, then Deployments > the latest > **Redeploy** so the Worker has them.
+6. **The address:** Workers & Pages > `tennis-api`: copy the address under "Domains" (`tennis-api.<your-name>.workers.dev`) and **send it to me**: not a secret. I build it into the app (the app can talk to that host only, besides Anthropic's) and release.
+7. **Install** that release on the phone.
+8. **Self-test:** Settings > vision cloud > type the `READ_TOKEN` passphrase > save passphrase > **self-test**. It must say "self-test passed", and **Sessions** then shows "Self-test: the cloud reached your phone" and a **court corners** row. Open court corners: the synthetic court picture with its lines; tap "the lines are right". Back in Settings, tap the address line: "1 answers sent".
+   - If it says the passphrase is not the Worker's read passphrase: check `READ_TOKEN` in step 5 (no space at either end) and redeploy.
+   - If the self-test can't fetch the sample picture: Cloudflare couldn't reach GitHub; try again in a minute.
+9. From then on the app checks the cloud every 15 minutes. It posts no notifications (TV-UP-03): what the PC wants you to know reaches the phone through ntfy (section 2.1).
+
+Costs: the free plan covers this; Workers Paid ($5 a month) only once real sessions arrive in volume.
 
 ### 2.4 The app
 - Install the latest release APK from github.com/Wotworth/Tennis/releases on the phone.

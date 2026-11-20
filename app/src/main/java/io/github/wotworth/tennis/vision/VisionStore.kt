@@ -34,18 +34,30 @@ class VisionStore(private val context: Context) {
     private val cornersAnswered = androidx.compose.runtime.mutableStateListOf<Int>()
 
     /** "Court corners" (TV-CAL-21): cameras whose court-line fit the PC doubts (the sample's synthetic one until the cloud exists). */
-    fun cornerChecks(showSample: Boolean): List<CornerCheck> = if (!showSample) emptyList() else runCatching {
-        CornerJson.read(context.assets.open("vision/sample/corners.json").bufferedReader().use { it.readText() })
-    }.getOrDefault(emptyList()).filter { it.id !in cornersAnswered }
+    fun cornerChecks(showSample: Boolean): List<CornerCheck> {
+        // the cloud's requests (TV-API-07, kept by CloudSync), then the sample's synthetic one
+        val cloud = CloudSync.cachedCorners(context)?.let { t -> runCatching { CornerJson.read(t) }.getOrNull() }.orEmpty()
+            .map { it.copy(file = "cloud:${it.id}") }
+        val sample = if (!showSample) emptyList() else runCatching {
+            CornerJson.read(context.assets.open("vision/sample/corners.json").bufferedReader().use { it.readText() })
+        }.getOrDefault(emptyList())
+        return (cloud + sample).filter { it.file !in cornersAnsweredFiles && (it.file.startsWith("cloud:") || it.id !in cornersAnswered) }
+    }
 
     fun cornerImage(c: CornerCheck): android.graphics.Bitmap? = runCatching {
-        context.assets.open("vision/sample/corners/${c.file}").use { android.graphics.BitmapFactory.decodeStream(it) }
+        if (c.file.startsWith("cloud:")) android.graphics.BitmapFactory.decodeFile(CloudSync.cornerPicture(context, c.id).path)
+        else context.assets.open("vision/sample/corners/${c.file}").use { android.graphics.BitmapFactory.decodeStream(it) }
     }.getOrNull()
+
+    private val cornersAnsweredFiles = androidx.compose.runtime.mutableStateListOf<String>()
 
     fun answerCorners(c: CornerCheck, a: CornerAnswer) {
         outbox.add("/calibration/${c.id}/answer", CornerJson.body(a))
-        cornersAnswered += c.id
+        if (c.file.startsWith("cloud:")) { cornersAnsweredFiles += c.file; CloudWork.sendSoon(context) } else cornersAnswered += c.id
     }
+
+    /** Sessions the cloud has (id, headline), as of the last check (CloudSync). */
+    fun cloudSessions(): List<Pair<String, String>> = if (CloudConfig.enabled) CloudSync.cachedSessions(context) else emptyList()
 
     fun sessions(showSample: Boolean): List<VisionSession> = if (showSample) listOfNotNull(sample) else emptyList()
 

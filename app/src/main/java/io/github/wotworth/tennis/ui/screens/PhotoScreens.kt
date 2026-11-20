@@ -39,6 +39,7 @@ import io.github.wotworth.tennis.ui.LocalApp
 import io.github.wotworth.tennis.ui.appData
 import io.github.wotworth.tennis.ui.components.FieldLabel
 import io.github.wotworth.tennis.ui.components.FlowRowSimple
+import io.github.wotworth.tennis.ui.components.LocalOverlays
 import io.github.wotworth.tennis.ui.components.SectionHeader
 import io.github.wotworth.tennis.ui.components.SmallAction
 import io.github.wotworth.tennis.ui.components.TextBox
@@ -181,6 +182,50 @@ fun ApiKeySection() {
         TextBox("Anthropic API key (for \"retry with Claude\")", typing, { typing = it.trim() })
         if (typing.length > 20) TextRow("save key", "Kept encrypted on this phone; never exported or shown again") {
             runCatching { store.set(typing) }; typing = ""; hint = runCatching { store.hint() }.getOrNull()
+        }
+    }
+}
+
+/**
+ * The Tennis Vision cloud (Chris, 22 Nov; manual 2.3): the Worker's read passphrase, a check now, and the
+ * self-test that puts a sample session and a court-corners request in the cloud and pulls them back.
+ * Until the Worker's address is built in (CloudConfig.HOST) the row only says it is not set up.
+ */
+@Composable
+fun CloudSection() {
+    val app = LocalApp.current
+    val o = LocalOverlays.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    SectionHeader("vision cloud")
+    if (!io.github.wotworth.tennis.vision.CloudConfig.enabled) {
+        TextRow("not set up yet", "Deploy the cloud service first (manual, section 2.3)") {}
+        return
+    }
+    val store = remember { io.github.wotworth.tennis.vision.CloudTokenStore(app) }
+    var set by remember { mutableStateOf(store.isSet()) }
+    var typing by remember { mutableStateOf("") }
+    var status by remember { mutableStateOf("") }
+    fun run(selfTest: Boolean) = scope.launch {
+        status = if (selfTest) "self-test…" else "checking…"
+        val r = runCatching {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val token = store.get() ?: error("no passphrase")
+                if (selfTest) io.github.wotworth.tennis.vision.CloudClient(io.github.wotworth.tennis.vision.CloudConfig.HOST, token).post("/selftest", null)
+                io.github.wotworth.tennis.vision.CloudWork.sync(app)!!.run()
+            }
+        }
+        status = r.fold({ "${it.sessions} sessions, ${it.corners} corners requests, ${it.sent} answers sent" }, { it.message ?: "couldn't reach the cloud" })
+        if (selfTest) o.tell(if (r.isSuccess) "self-test passed" else "self-test failed",
+            r.fold({ "In Sessions: the self-test session and a court corners request." }, { it.message ?: "" }))
+    }
+    if (set) {
+        TextRow(io.github.wotworth.tennis.vision.CloudConfig.HOST, status.ifEmpty { "Checked every 15 minutes. Tap to check now." }) { run(false) }
+        TextRow("self-test", "A sample session and a court corners request, sent and pulled back") { run(true) }
+        TextRow("remove passphrase", "The cloud stops being checked") { store.clear(); set = false; io.github.wotworth.tennis.vision.CloudWork.schedule(app) }
+    } else {
+        TextBox("read passphrase (the Worker's READ_TOKEN)", typing, { typing = it.trim() })
+        if (typing.length >= 12) TextRow("save passphrase", "Kept encrypted on this phone; never shown again") {
+            runCatching { store.set(typing) }; typing = ""; set = store.isSet(); io.github.wotworth.tennis.vision.CloudWork.schedule(app)
         }
     }
 }

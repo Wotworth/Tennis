@@ -67,6 +67,7 @@ fun SettingsScreen() {
         TennisText("A session found from your Fitbit shows on the tile either way, until you answer it.", TennisTokens.Type.listSecondary)
         DetectionSettingsSection()
         ApiKeySection()
+        CloudSection()
         SettingsExtras.sections.forEach { it() }
         SectionHeader("backup")
         TextRow("export", "Save everything, with photos, to a file") {

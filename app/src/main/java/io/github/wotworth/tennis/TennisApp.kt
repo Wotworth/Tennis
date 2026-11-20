@@ -70,6 +70,8 @@ class TennisApp : Application() {
         installCrashHandler()
         // DET-20: the hourly check. (Robolectric tests have no WorkManager.)
         runCatching { io.github.wotworth.tennis.health.DetectionRunner.schedule(this, io.github.wotworth.tennis.health.DetectionPrefs.load(prefs)) }
+        // the vision cloud check, once the Worker is deployed and the passphrase saved (22 Nov)
+        runCatching { io.github.wotworth.tennis.vision.CloudWork.schedule(this) }
     }
 
     /** NFR-02: record every uncaught exception, then let Android handle it as usual. */

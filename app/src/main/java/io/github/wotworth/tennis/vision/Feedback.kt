@@ -35,6 +35,12 @@ class Outbox(private val dir: File) {
     }
     @Synchronized fun read(): JSONArray = if (file.exists()) JSONArray(file.readText()) else JSONArray()
     fun size() = read().length()
+    /** Drop the first n entries (sent to the cloud). */
+    @Synchronized fun keepFrom(n: Int) {
+        val a = read();  val b = JSONArray()
+        for (i in n until a.length()) b.put(a.get(i))
+        file.writeText(b.toString())
+    }
 }
 
 /**

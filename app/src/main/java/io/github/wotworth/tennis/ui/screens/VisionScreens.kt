@@ -125,6 +125,8 @@ fun VisionTiles() {
     if (app.vision.cornerChecks(app.prefs.visionSample).isNotEmpty()) {
         TextRow("court corners", "a session is waiting: tap the four corners of its court") { nav.open(Screen.CourtCorners) }
     }
+    // sessions in the cloud (CloudSync's last check): listed by headline until the PC sends full sessions
+    app.vision.cloudSessions().forEach { (id, headline) -> TextRow(headline, "in the cloud · $id") {} }
     val d = io.github.wotworth.tennis.ui.appData()
     app.vision.sessions(app.prefs.visionSample).forEach { v ->
         val fastest = v.shots.mapNotNull { it.speedContact }.maxOrNull()

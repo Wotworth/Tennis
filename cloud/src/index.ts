@@ -8,6 +8,7 @@ export interface Env {
   WRITE_TOKEN: string;
   READ_TOKEN: string;
   LINK_KEY: string; // signs upload and video links
+  SAMPLE_BASE?: string; // where the self-test takes its synthetic sample (default: this public repository)
 }
 
 const MULTIPART_ABOVE = 100 * 1024 * 1024; // TV-UP-01: multipart above 100 MB
@@ -125,6 +126,12 @@ async function route(req: Request, env: Env): Promise<Response> {
     need(req, env, "read"); // for the tile: the rows, the app counts them
     const r = await env.DB.prepare("SELECT id FROM ball_checks WHERE answer IS NULL").all();
     return json(r.results);
+  }
+  // self-test (Chris, 22 Nov): with the app's read token, a sample session and a court-corners request
+  // appear, as if the PC had sent them, so the phone shows both end to end before the PC exists
+  if (m === "POST" && p[0] === "selftest" && p.length === 1) {
+    need(req, env, "read");
+    return selfTest(env);
   }
   // court corners (TV-CAL-21, 22): the PC asks, the app answers, the PC pulls
   if (m === "POST" && p[0] === "calibration" && p.length === 1) {
@@ -248,6 +255,35 @@ async function route(req: Request, env: Env): Promise<Response> {
     return json({ ok: true });
   }
   throw new HttpError(404, "not found");
+}
+
+// ---------- self-test ----------
+const SAMPLE_BASE = "https://raw.githubusercontent.com/Wotworth/Tennis/main/app/src/main/assets/vision/sample";
+
+async function selfTest(env: Env): Promise<Response> {
+  const base = env.SAMPLE_BASE ?? SAMPLE_BASE;
+  const id = "selftest";
+  const startUtc = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+  await createSession(env, { id, startUtc, court: null, mode: "selftest" });
+  await putData(env, id, {
+    session: { durationS: 60, headline: "Self-test: the cloud reached your phone", identityPending: false },
+    rallies: [{ index: 1, start: 1, stop: 9, shots: 2, duration: 6, ending: "winner", fastest: 28 }],
+    shots: [
+      { rally: 1, index: 1, t: 2, hitter: "Chris", type: "serve", isServe: true, speedContact: 45, bounce: [5.1, 2.2], call: "in" },
+      { rally: 1, index: 2, t: 3.4, hitter: "Player A", type: "groundstroke", isServe: false, speedContact: 28, bounce: [-8.4, -1.6], call: "in" },
+    ],
+    stats: [], complete: true,
+  });
+  // the court-corners request: the synthetic sample picture and its fitted lines, from the repository
+  const pic = await fetch(`${base}/corners/cam1.jpg`);
+  const meta = await fetch(`${base}/corners.json`);
+  if (!pic.ok || !meta.ok) throw new HttpError(502, "could not fetch the sample picture for the self-test");
+  const data = await pic.arrayBuffer();
+  await env.BUCKET.put(key(id, "calibration/cam1.jpg"), data, { customMetadata: { sha256: await sha256(data) } });
+  const c: any = ((await meta.json()) as any).checks[0];
+  await postCalibration(env, { checks: [{ sessionId: id, cam: 1, picturePath: "calibration/cam1.jpg", width: c.width,
+    height: c.height, scale: 1, support: c.support, reason: "lines", lines: c.lines }] });
+  return json({ ok: true, session: id });
 }
 
 // ---------- auth ----------

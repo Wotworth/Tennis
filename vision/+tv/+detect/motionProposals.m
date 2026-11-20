@@ -14,9 +14,15 @@ function [C, tau, prevA, nxtA] = motionProposals(prev, cur, nxt, sizeMap, opts)
 %   (tv.detect.ballCrops), so they are not lined up twice.
 %   opts.align false: the frames are taken as already lined up (a fixed camera; small test patches,
 %   where lining up could follow the ball itself).
+%   opts.backend (Chris, 22 Nov: spot-finding on the graphics card, with a CPU fallback giving
+%   identical results): 'cpu' works out the shift-tolerant difference only at the pixels that could
+%   pass (the loop below); 'array' works it out over the whole frame as array operations, on the
+%   graphics card when there is one (gpuArray), else on the processor; 'auto' (default) is 'array'
+%   with a graphics card and 'cpu' without. Every value is a whole number held exactly in single
+%   precision, so both give the same spots, to the last digit (motionBackendTest).
 %   No value here depends on the court, the light or the ball's colour.
 if nargin < 5, opts = struct(); end
-d = struct('R', 2, 'nsig', 8, 'floor', 18, 'floorRel', 0.05, 'align', true);
+d = struct('R', 2, 'nsig', 8, 'floor', 18, 'floorRel', 0.05, 'align', true, 'backend', 'auto');
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 c = int16(cur);
@@ -46,21 +52,28 @@ tau = max(fl, med + opts.nsig * mad);
 % threshold only where the plain one does: it is worked out at those pixels and one pixel round
 % (closing can add those), which gives the same blobs as working it out everywhere
 [H, W] = size(plain);  R = opts.R;  HW = H * W;
-M = zeros(H, W, 'single');
-idx = find(imdilate(plain > tau, true(3)));
-if ~isempty(idx)
-    [ys, xs] = ind2sub([H W], idx);
-    cv = [c(idx), c(idx + HW), c(idx + 2 * HW)];
-    ba = Inf(numel(idx), 1);  bb = ba;
-    for dy = -R:R
-        yy = min(max(ys - dy, 1), H);
-        for dx = -R:R
-            j = yy + (min(max(xs - dx, 1), W) - 1) * H;
-            ba = min(ba, double(sum(abs(cv - [a(j), a(j + HW), a(j + 2 * HW)]), 2)));
-            bb = min(bb, double(sum(abs(cv - [b(j), b(j + HW), b(j + 2 * HW)]), 2)));
+backend = opts.backend;
+if strcmp(backend, 'auto'), backend = 'cpu'; if tv.util.useGpu(), backend = 'array'; end, end
+cand = imdilate(plain > tau, true(3));
+if strcmp(backend, 'array')
+    M = shiftMinArray(c, a, b, R, cand);
+else
+    M = zeros(H, W, 'single');
+    idx = find(cand);
+    if ~isempty(idx)
+        [ys, xs] = ind2sub([H W], idx);
+        cv = [c(idx), c(idx + HW), c(idx + 2 * HW)];
+        ba = Inf(numel(idx), 1);  bb = ba;
+        for dy = -R:R
+            yy = min(max(ys - dy, 1), H);
+            for dx = -R:R
+                j = yy + (min(max(xs - dx, 1), W) - 1) * H;
+                ba = min(ba, double(sum(abs(cv - [a(j), a(j + HW), a(j + 2 * HW)]), 2)));
+                bb = min(bb, double(sum(abs(cv - [b(j), b(j + HW), b(j + 2 * HW)]), 2)));
+            end
         end
+        M(idx) = min(ba, bb);
     end
-    M(idx) = min(ba, bb);
 end
 M([1:ey, end - ey + 1:end], :) = 0;  M(:, [1:ex, end - ex + 1:end]) = 0;
 B = imclose(M > tau, true(3)) & mask;
@@ -86,3 +99,30 @@ for k = 1:cc.NumObjects
 end
 end
 
+
+function M = shiftMinArray(c, a, b, R, cand)
+% the shift-tolerant difference over the whole frame: for each pixel, the smallest summed RGB
+% difference from either neighbour shifted by up to R px (edges repeated, as the loop clamps them),
+% kept only at the candidate pixels. On the graphics card when there is one.
+useG = tv.util.useGpu();
+if useG, c = gpuArray(single(c)); a = gpuArray(single(a)); b = gpuArray(single(b)); else, c = single(c); a = single(a); b = single(b); end
+[H, W, ~] = size(c);
+Pa = padRep(a, R);  Pb = padRep(b, R);
+ba = Inf(H, W, 'like', c);  bb = ba;
+for dy = -R:R
+    for dx = -R:R
+        ys = (1:H) - dy + R;  xs = (1:W) - dx + R;
+        ba = min(ba, sum(abs(c - Pa(ys, xs, :)), 3));
+        bb = min(bb, sum(abs(c - Pb(ys, xs, :)), 3));
+    end
+end
+M = min(ba, bb);
+if useG, M = gather(M); end
+M = single(M) .* single(cand);
+end
+
+function P = padRep(x, R)
+% edges repeated R px on every side (padarray's 'replicate', without the toolbox call on a gpuArray)
+[H, W, ~] = size(x);
+P = x([ones(1, R), 1:H, H * ones(1, R)], [ones(1, R), 1:W, W * ones(1, R)], :);
+end

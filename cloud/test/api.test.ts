@@ -301,3 +301,31 @@ describe("opponents (Chris, 15 Nov)", () => {
     expect(t.map((r: any) => r.median)).toEqual([27]);
   });
 });
+
+describe("self-test (Chris, 22 Nov)", () => {
+  it("with the read token, adds a ready sample session and a court-corners request with its picture", async () => {
+    const realFetch = globalThis.fetch;
+    const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+    globalThis.fetch = (async (u: string) => u.endsWith("cam1.jpg")
+      ? new Response(jpg)
+      : new Response(JSON.stringify({ checks: [{ width: 1920, height: 1080, support: 0.33, lines: [[[1, 2], [3, 4]]] }] }))) as any;
+    try {
+      expect((await call("POST", "/selftest", W)).status).toBe(401);          // the write token is not the app's
+      const r = await call("POST", "/selftest", R);
+      expect(r.status).toBe(200);
+      const list: any[] = await (await call("GET", "/sessions", R)).json();
+      expect(list.map((s) => s.id)).toContain("selftest");
+      const cal: any[] = await (await call("GET", "/calibration/next", R)).json();
+      expect(cal.length).toBe(1);
+      expect(cal[0].sessionId).toBe("selftest");
+      expect(cal[0].url).toContain("sig=");
+      const pic = await call("GET", cal[0].url);
+      expect(new Uint8Array(await pic.arrayBuffer())).toEqual(jpg);
+      // running it again replaces, it doesn't pile up
+      await call("POST", "/selftest", R);
+      expect(((await (await call("GET", "/calibration/next", R)).json()) as any[]).length).toBe(1);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+});
