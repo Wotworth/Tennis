@@ -47,7 +47,7 @@ for s = truth.shots'
     want = names{s.hitter};
     got = m.hitter;  if ~strcmp(got, 'Chris') && ~strcmp(got, 'unknown'), got = 'Opponent'; end
     rep.hitterOk(end+1) = strcmp(got, want);
-    rep.callOk(end+1) = strcmp(m.call, s.result);
+    rep.callOk(end+1) = tv.synth.fairCall(m.call, s.result, s.pBounce, s.pHit, s.isServe);   % "too close" is right only near a line (21 Nov)
     rep.calls{end+1} = sprintf('%.2f %s->%s', s.tHit, s.result, m.call);
 end
 end

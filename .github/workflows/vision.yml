@@ -170,13 +170,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 21 Nov: the fit's lift held constant (today) against lift following the spin, with gusts
+        # 22 Nov: the default (lift following spin) with gusts and in calm air: the model-error term's
+        # coverage in both (Chris, item 3)
         include:
           - detector: learned
             gust: '0.6'
-            lift: constant
+            lift: spin
           - detector: learned
-            gust: '0.6'
+            gust: '0'
             lift: spin
     steps:
       - uses: actions/checkout@v4

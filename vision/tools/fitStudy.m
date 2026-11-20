@@ -112,7 +112,7 @@ rows = R.rows;
 f = [rows.found];
 inCall = ismember({rows.truthCall}, {'in', 'out'});
 callable = f & (inCall | strcmp({rows.truthCall}, 'net'));
-callOk = callable & strcmp({rows.call}, {rows.truthCall});
+callOk = callable & [rows.callFair];                % the same call, or "too close" when it truly was (21 Nov)
 short = [rows.shortAfterBounce];
 L = {};
 L{end+1} = '# Fit study: the flight fit against truth it was not built from';
@@ -211,16 +211,30 @@ if nnz(okS) >= 20
     L{end+1} = sprintf('| kinds in the tail | %s | |', strjoin(cellfun(@(k) sprintf('%s %d of %d', k, nnz(tail & strcmp(kinds, k)), nnz(okS & strcmp(kinds, k))), u, 'UniformOutput', false), ', '));
     L{end+1} = sprintf('| serves in the tail | %d of %d | |', nnz(tail & [rows.serve]), nnz(okS & [rows.serve]));
 end
+% coverage (Chris, 21 Nov, item 3): the share of shots whose true error falls inside the stated band
+% (1 and 2 sd), with the model-error term (what the app and the line calls use) and the fit's own alone
+L{end+1} = '';
+L{end+1} = '| Coverage: true error inside the stated band | within 1 sd | within 2 sd | fit alone: 1 sd | fit alone: 2 sd | median stated sd, cm |';
+L{end+1} = '|---|---|---|---|---|---|';
+cov = {'bounce point (2D)', [rows.bounceErr], [rows.bounceSd], [rows.bounceSdFit]; ...
+       'spin effect', abs([rows.spinErr]), [rows.effectSd], [rows.effectSdFit]; ...
+       'sideways curve', abs([rows.curveErr]), [rows.curveSd], [rows.curveSdFit]};
+for q = 1:size(cov, 1)
+    e = cov{q, 2};  sd = cov{q, 3};  sf = cov{q, 4};  ok = isfinite(e) & isfinite(sd) & isfinite(sf);
+    L{end+1} = sprintf('| %s (%d) | %.0f%% | %.0f%% | %.0f%% | %.0f%% | %.1f |', cov{q, 1}, nnz(ok), 100 * mean(e(ok) <= sd(ok)), ...
+        100 * mean(e(ok) <= 2 * sd(ok)), 100 * mean(e(ok) <= sf(ok)), 100 * mean(e(ok) <= 2 * sf(ok)), 100 * median(sd(ok))); %#ok<AGROW>
+end
+L{end+1} = sprintf('| "too close to call" | %d of %d calls | | | | |', nnz(strcmp({rows.call}, 'too close')), nnz(~cellfun(@isempty, {rows.call})));
 base = 'fitstudy';  if ~isempty(R.opts.tag), base = ['fitstudy_' R.opts.tag]; end
 fid = fopen(fullfile(outDir, [base '.md']), 'w', 'n', 'UTF-8');  fprintf(fid, '%s\n', L{:});  fclose(fid);
 fprintf('%s\n', L{:});
 fid = fopen(fullfile(outDir, [base '_shots.csv']), 'w');
-fprintf(fid, 'rally,index,kind,serve,truthCall,call,found,hitDtMs,speedErr_mps,bounceErr_m,spinErr_m,netErr_m,rpmErrPct,rpmKnownClPct,shortAfterBounce,toNextHit_s,bounceSegN,bounceSegS,rmsPx,curveErr_m,curveTrue_m,setting,curveSd_m,effectSd_m,spinTrue_m,speedTrue_mps,flightS,flightN,hitX,bounceX\n');
+fprintf(fid, 'rally,index,kind,serve,truthCall,call,found,hitDtMs,speedErr_mps,bounceErr_m,spinErr_m,netErr_m,rpmErrPct,rpmKnownClPct,shortAfterBounce,toNextHit_s,bounceSegN,bounceSegS,rmsPx,curveErr_m,curveTrue_m,setting,curveSd_m,effectSd_m,spinTrue_m,speedTrue_mps,flightS,flightN,hitX,bounceX,bounceSd_m,bounceSdFit_m,curveSdFit_m,effectSdFit_m\n');
 for r = rows'
-    fprintf(fid, '%d,%d,%s,%d,%s,%s,%d,%.2f,%.3f,%.4f,%.4f,%.4f,%.1f,%.1f,%d,%.3f,%g,%.3f,%.2f,%.4f,%.4f,%d,%.4f,%.4f,%.4f,%.3f,%.3f,%g,%.2f,%.2f\n', r.rally, r.index, r.kind, r.serve, ...
+    fprintf(fid, '%d,%d,%s,%d,%s,%s,%d,%.2f,%.3f,%.4f,%.4f,%.4f,%.1f,%.1f,%d,%.3f,%g,%.3f,%.2f,%.4f,%.4f,%d,%.4f,%.4f,%.4f,%.3f,%.3f,%g,%.2f,%.2f,%.4f,%.4f,%.4f,%.4f\n', r.rally, r.index, r.kind, r.serve, ...
         r.truthCall, r.call, r.found, r.hitDtMs, r.speedErr, r.bounceErr, r.spinErr, r.netErr, r.rpmErrPct, r.rpmKnownClPct, r.shortAfterBounce, ...
         r.toNextHit, r.bounceSegN, r.bounceSegS, r.rms, r.curveErr, r.curveTrue, r.setting, r.curveSd, r.effectSd, r.spinTrue, ...
-        r.speedTrue, r.flightS, r.flightN, r.hitX, r.bounceX);
+        r.speedTrue, r.flightS, r.flightN, r.hitX, r.bounceX, r.bounceSd, r.bounceSdFit, r.curveSdFit, r.effectSdFit);
 end
 fclose(fid);
 end

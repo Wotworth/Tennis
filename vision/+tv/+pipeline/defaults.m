@@ -14,6 +14,13 @@ cfg.ballNetFile = '';               % its classifier's weights; empty = round 5 
 cfg.calibFrom = '';                 % a calib.mat (outDir/stages) from another clip of the same session: its cameras are used as they are
 cfg.frames = 'all';                 % Chris, 20 Nov: 'all' searches every frame; 'sound' only the sound's rally windows (not before a
                                     % first pass is shown to miss under 1% of rally frames on real sessions and Chris agrees)
+% Chris, 21 Nov (item 3): what the flight model leaves out (gusts, lift and drag that change in flight)
+% adds to the fit's own uncertainty. Measured from the shot study (CI run 60, 181 shots, gusts, lift
+% following spin): with these terms 2 sd covers 96% (spin effect), 90% (curve), 95% (bounce, 2D) of
+% the true errors; the fit's own bands alone covered 8 to 17%. RETUNE(Tuesday's targets and machine).
+cfg.modelErr = struct('bounceM', 0.018, ...      % m, added to the bounce point's 1-sigma (line calls)
+                      'effectM', 0.04, 'effectFrac', 0.075, ... % spin effect: m plus a share of the effect
+                      'curveM', 0.15, 'curveFrac', 0.12);       % sideways curve: m plus a share of the curve
 cfg.liftModel = 'spin';            % 'constant': one lift per flight (before 21 Nov). 'spin': lift follows the spin parameter as the ball slows, spin decays (21 Nov; tv.physics.simulate). RETUNE(lab data)
 cfg.spinTau = 5;                   % s, spin decay with liftModel 'spin'
 cfg.play = struct('score', 0.5, 'binS', 0.25, 'binShare', 0.25, 'mergeS', 4, 'leadS', 1.5, 'tailS', 2, 'pairGapM', 0.75, 'minHeightM', 0.2, 'linkS', 0.05, 'minSpeed', 4, 'maxSpeed', 75);   % rallies from the ball in play (tv.rally.fromPlay); RETUNE(real footage)

@@ -48,7 +48,7 @@ if ~isempty(i)
     m.netClearance = pc(3) - c.ballRadius - tv.court.netHeight(pc(2));
 end
 % bounce, depth, in/out with uncertainty (TV-EVT-04)
-m.bounce = [NaN NaN];  m.bounceSd = NaN;  m.speedBounce = NaN;  m.depth = NaN;
+m.bounce = [NaN NaN];  m.bounceSd = NaN;  m.bounceSdFit = NaN;  m.speedBounce = NaN;  m.depth = NaN;
 m.call = 'no bounce';  m.margin = NaN;
 if ~isempty(netEv)
     m.call = 'net';
@@ -57,7 +57,9 @@ elseif ~isempty(bounceEv)
     [~, vb] = tv.recon.segmentModel(x, seg.t0, bounceEv.t, air);
     m.speedBounce = norm(vb);
     m.depth = c.halfLength - abs(m.bounce(1));
-    m.bounceSd = tv.metrics.bounceSd(seg, air, cfg);
+    me = modelErr(cfg);
+    m.bounceSdFit = tv.metrics.bounceSd(seg, air, cfg);
+    m.bounceSd = hypot(m.bounceSdFit, me.bounceM);     % 21 Nov: with the model-error term (line calls)
     [m.call, m.margin] = tv.metrics.lineCall(m.bounce, m.bounceSd, isServe, serverSide, -sign(pHit(1)), cfg);
 end
 % after the bounce: kick (rebound angle and speed ratio)
@@ -74,6 +76,7 @@ q = air;  q.CD = x(9);  q.CL = 0;
 h0 = tv.physics.groundHit(P0);
 dirH = x(4:5) / norm(x(4:5));
 m.spinEffect = NaN;  m.spinEffectNet = NaN;  m.spinCurve = NaN;  m.spinEffectSd = NaN;  m.spinCurveSd = NaN;
+m.spinEffectSdFit = NaN;  m.spinCurveSdFit = NaN;
 if ~isempty(h0) && ~isempty(bounceEv)
     hb = segGround(x, seg.t0, air, c);
     m.spinEffect = (hb(1:2) - h0(1:2)) * dirH';           % negative: landed shorter
@@ -83,7 +86,12 @@ if ~isempty(h0) && ~isempty(bounceEv)
 end
 % their uncertainty from the fit (Chris, 21 Nov): the curve tile shows only when the curve is
 % clearly larger than this shot's own uncertainty, and never a direction the fit isn't sure of
-[m.spinEffectSd, m.spinCurveSd] = effectSd(seg, air, c, m.spinEffect, m.spinCurve);
+[m.spinEffectSdFit, m.spinCurveSdFit] = effectSd(seg, air, c, m.spinEffect, m.spinCurve);
+% 21 Nov (Chris, item 3): the fit's own uncertainty is 4 to 10 times too small; what the flight
+% model leaves out is added (cfg.modelErr, measured from the shot study), and only that is used
+me = modelErr(cfg);
+m.spinEffectSd = sqrt(m.spinEffectSdFit ^ 2 + me.effectM ^ 2 + (me.effectFrac * m.spinEffect) ^ 2);
+m.spinCurveSd = sqrt(m.spinCurveSdFit ^ 2 + me.curveM ^ 2 + (me.curveFrac * m.spinCurve) ^ 2);
 i0 = find(sign(P0(1:end-1, 1)) ~= sign(P0(2:end, 1)), 1);
 if ~isempty(i0) && ~isnan(m.netClearance)
     f = P0(i0, 1) / (P0(i0, 1) - P0(i0+1, 1));
@@ -104,6 +112,14 @@ q.CL = norm(a);  if q.CL > 0, q.spinAxis = a / q.CL; end
 [~, P] = tv.physics.simulate(x(1:3), x(4:6), q, 4, 1e-3, c.ballRadius);
 hb = tv.physics.groundHit(P);
 if isempty(hb), hb = P(end, :); end
+end
+
+function me = modelErr(cfg)
+% the model-error terms: from cfg (the pipeline passes cfg.modelErr), else the defaults
+if isfield(cfg, 'modelErr'), me = cfg.modelErr; return; end
+persistent d
+if isempty(d), q = tv.pipeline.defaults(); d = q.modelErr; end
+me = d;
 end
 
 function [sdE, sdC] = effectSd(seg, air, c, e0, c0)

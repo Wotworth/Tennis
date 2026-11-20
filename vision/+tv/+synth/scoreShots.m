@@ -20,7 +20,7 @@ for s = S.shots'
         'speedErr', NaN, 'bounceErr', NaN, 'spinErr', NaN, 'netErr', NaN, 'rpmErrPct', NaN, 'rpmKnownClPct', NaN, 'call', '', ...
         'bounceSegN', NaN, 'bounceSegS', NaN, 'rms', NaN, 'curveErr', NaN, 'curveTrue', NaN, 'setting', 0, ...
         'speedFound', NaN, 'spinFound', NaN, 'curveFound', NaN, 'bounceFound', [NaN NaN], ...
-        'curveSd', NaN, 'effectSd', NaN, 'spinTrue', s.spinEffect, 'speedTrue', s.speedHit, 'flightS', NaN, ...
+        'callFair', false, 'curveSd', NaN, 'effectSd', NaN, 'bounceSd', NaN, 'curveSdFit', NaN, 'effectSdFit', NaN, 'bounceSdFit', NaN, 'spinTrue', s.spinEffect, 'speedTrue', s.speedHit, 'flightS', NaN, ...
         'flightN', NaN, 'hitX', s.pHit(1), 'bounceX', s.pBounce(1));
     if isfield(s, 'spinCurve'), row.curveTrue = s.spinCurve; end
     if isfield(s, 'setting'), row.setting = s.setting; end
@@ -48,7 +48,8 @@ for s = S.shots'
     m = tv.metrics.shot(seg, segAfter, hitEv, bEv, nEv, air, mcfg, [], info, s.isServe, sign(s.pHit(2)));
     row.speedErr = m.speedContact - s.speedHit;  row.speedFound = m.speedContact;
     row.rms = seg.rmsPx;  row.flightS = max(seg.t) - min(seg.t);  row.flightN = sum(seg.n);
-    row.curveSd = m.spinCurveSd;  row.effectSd = m.spinEffectSd;
+    row.curveSd = m.spinCurveSd;  row.effectSd = m.spinEffectSd;  row.bounceSd = m.bounceSd;
+    row.curveSdFit = m.spinCurveSdFit;  row.effectSdFit = m.spinEffectSdFit;  row.bounceSdFit = m.bounceSdFit;
     if ~isempty(bEv)
         row.bounceErr = norm(m.bounce - s.pBounce(1:2));
         row.spinErr = m.spinEffect - s.spinEffect;
@@ -65,6 +66,7 @@ for s = S.shots'
         row.rpmKnownClPct = 100 * (m.rpm - ref) / ref;
     end
     row.call = m.call;
+    row.callFair = tv.synth.fairCall(m.call, s.result, s.pBounce, s.pHit, s.isServe);
     rows = [rows; row]; %#ok<AGROW>
 end
 end

@@ -1,7 +1,8 @@
 % Per-shot uncertainty of the spin effect and sideways curve (Chris, 21 Nov: show the curve tile only
 % when the curve is clearly larger than that shot's own fitted uncertainty, and never a direction the
 % fit isn't sure of). The fit's covariance (tv.recon.fitSegment, seg.cov) is propagated to both
-% figures (tv.metrics.shot); here it is checked against the scatter of repeated fits with fresh noise.
+% figures (tv.metrics.shot, the *SdFit fields); here it is checked against the scatter of repeated fits
+% with fresh noise. The stated bands (spinEffectSd, spinCurveSd) add cfg.modelErr on top (21 Nov).
 
 %% The predicted uncertainty matches the scatter over repeated fits
 sc = tv.synth.defaultScenario();  cams = tv.synth.cameras(sc);
@@ -30,7 +31,8 @@ for trial = 1:30
         truth = [m0.spinEffect, m0.spinCurve];
     end
     m = tv.metrics.shot(seg, [], [], b, [], air, mcfg, [], info, false, -1);
-    got(end+1, :) = [m.spinEffect, m.spinCurve, m.spinEffectSd, m.spinCurveSd]; %#ok<AGROW>
+    got(end+1, :) = [m.spinEffect, m.spinCurve, m.spinEffectSdFit, m.spinCurveSdFit]; %#ok<AGROW>
+    assert(m.spinCurveSd >= m.spinCurveSdFit && m.spinEffectSd >= m.spinEffectSdFit)   % the stated bands add the model error
 end
 sdE = std(got(:, 1));  sdC = std(got(:, 2));
 fprintf('spin effect: scatter %.1f cm, predicted %.1f cm (median)\n', 100 * sdE, 100 * median(got(:, 3)));
@@ -40,3 +42,10 @@ assert(median(got(:, 3)) > sdE / 2 && median(got(:, 3)) < 2 * sdE)
 inside = abs(got(:, 2) - truth(2)) < 2 * got(:, 4);
 fprintf('curve within twice its own uncertainty: %d of %d\n', nnz(inside), numel(inside));
 assert(nnz(inside) >= 0.8 * numel(inside))
+
+%% "too close" counts as right only when the ball truly landed near the line (tv.synth.fairCall)
+c = tv.court.constants();  hit = [-11 1 1];
+assert(tv.synth.fairCall('in', 'in', [5 0 0], hit, false))
+assert(tv.synth.fairCall('too close', 'in', [c.halfLength - 0.03, 0, 0], hit, false))     % 3 cm inside the baseline
+assert(~tv.synth.fairCall('too close', 'in', [5 0 0], hit, false))                        % metres from any line
+assert(~tv.synth.fairCall('out', 'in', [c.halfLength - 0.03, 0, 0], hit, false))
