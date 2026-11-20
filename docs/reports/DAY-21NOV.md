@@ -18,7 +18,16 @@ In calm air (only a steady wind), shots with a curve truly of each size:
 | **1 ft (now)** | 14 of 18 | 12 of 45 | **1 of 119** | 0 |
 
 **The per-shot rule as asked does much worse than the fixed 1 ft.** The fit's own uncertainty is about 1.5 cm, because 450 points at 4K240 pin the path down very well. But the curve's real error is about 6 cm (median) even in calm air: the real error sat within twice the fit's own uncertainty in only 18 of 182 shots. Nearly all of it is **model error**, not noise: the fit holds lift constant through a flight, while real lift falls as the ball slows and the spin decays (section 4b). A rule built on the fit's uncertainty can only work once that model error is in the uncertainty, or gone.
-- **What the app does now:** 1 ft, and the twice-its-uncertainty guard on top. The guard almost never bites (the uncertainty is tiny), so in practice it is the 1 ft rule. With gusts: section 1c.
+- **What the app does now:** 1 ft, and the twice-its-uncertainty guard on top. The guard almost never bites (the uncertainty is tiny), so in practice it is the 1 ft rule.
+
+### 1c. With gusts (about 1 m/s)
+| Rule | Shown: truly 1 ft or more | 0.5 to 1 ft | under 0.5 ft (wrong) | wrong side |
+|---|---|---|---|---|
+| 2 × its own uncertainty | 18 of 18 | 42 of 43 | 112 of 120 | 46 |
+| 2 × and 0.5 ft | 16 of 18 | 30 of 43 | 50 of 120 | 18 |
+| **1 ft (now)** | 15 of 18 | 5 of 43 | **13 of 120** | **5** |
+
+With gusts even 1 ft shows a curve on about 1 straight shot in 9, and 5 on the wrong side. The fit's uncertainty can't flag them: within one flight a gust looks exactly like sidespin. **My recommendation:** keep 1 ft. Make the per-shot rule work only once the model error is in the uncertainty; that needs real flights to measure it, so the earliest is after Tuesday (the machine repeats show the real scatter).
 
 ## 3. Real test-set balls of 5 px and more that round 5 missed (4)
 Looked at by eye in private crops (frames not in the repository):
@@ -63,7 +72,17 @@ CI run 57, calm air, the worst tenth of the shots (errors of 26 cm or more, 19 s
 | error ÷ the fit's own uncertainty | **19** | 6 |
 | kinds | 12 forehands, 4 serves, 2 backhands, 1 machine | |
 
-**The tail is the heavy-spin, fast, deep shots, and the error is model error.** Fitting the fit's own constant-lift model to perfect true flights (no noise, no wind) gives a median error of 11 cm and up to 34 cm on the heaviest spins, always the same way (about 3% of the effect, overstated). The path itself fits to 1 mm; the error comes when the spin is taken away to find where the same shot would have landed without it. A fit whose lift follows the spin as the ball slows is being tested now (section 4c).
+**The tail is the heavy-spin, fast, deep shots, and the error is model error.** Fitting the fit's own constant-lift model to perfect true flights (no noise, no wind) gives a median error of 11 cm and up to 34 cm on the heaviest spins, always the same way (about 3% of the effect, overstated). The path itself fits to 1 mm; the error comes when the spin is taken away to find where the same shot would have landed without it.
+
+### 4c. A fit whose lift follows the spin
+Built as an option: the lift follows the spin parameter as the ball slows, and the spin decays (matches an ode45 flight to 0.01 mm). On perfect flights (12 shots each, median / worst spin-effect error):
+
+| The true ball | Constant lift (today) | Lift following spin |
+|---|---|---|
+| spin decays faster than the fit assumes (3 s against 5) | 4.7 / 20 cm | 4.6 / 13 cm |
+| decays slower (8 s), lift 15% stronger | 13.5 / 44 cm | 2.6 / 7.5 cm |
+
+It helps even when its own assumptions are wrong. One caveat: its lift curve has the same shape as the synthetic truth's, so on real balls the gain may be smaller. It stays off until the shot study compares both on the same 201 shots (CI running now).
 
 ## 5. Tuesday checklist (manual 16)
 - Recording: **about 40 minutes** (the clips add up to 37 to 41), corrected from 20.
