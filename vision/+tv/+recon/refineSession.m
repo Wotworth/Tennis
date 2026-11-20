@@ -20,7 +20,9 @@ d = struct('rounds', 3, 'windPrior', [0 0], 'windSd', 2, 'windStep', 1, 'windowS
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 segAll = vertcat(segsByRally{:});
-if isempty(segAll), report = []; return; end
+if isempty(segAll)                                    % no flights (an empty court, one drop): the prior stands
+    report = [];  air.sessionCD = prior.CD;  return
+end
 tAll = vertcat(segAll.t);
 nW = floor((max(tAll) - min(tAll)) / opts.windowS) + 1;
 t0w = min(tAll);

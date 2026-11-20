@@ -172,13 +172,28 @@ jobs:
       matrix:
         # 22 Nov: the default (lift following spin) with gusts and in calm air: the model-error term's
         # coverage in both (Chris, item 3)
+        # and (item 12) the same with gusts on realistic pictures, at the calibrated quantiser and a harsher one
         include:
           - detector: learned
             gust: '0.6'
             lift: spin
+            real: 'false'
+            qp: 23
           - detector: learned
             gust: '0'
             lift: spin
+            real: 'false'
+            qp: 23
+          - detector: learned
+            gust: '0.6'
+            lift: spin
+            real: 'true'
+            qp: 23
+          - detector: learned
+            gust: '0.6'
+            lift: spin
+            real: 'true'
+            qp: 29
     steps:
       - uses: actions/checkout@v4
 
@@ -193,10 +208,10 @@ jobs:
             Statistics_and_Machine_Learning_Toolbox
             Parallel_Computing_Toolbox
 
-      - name: Shot study (${{ matrix.detector }}, gusts ${{ matrix.gust }} m/s, lift ${{ matrix.lift }}, about 250 shots at 4K240 Linear)
+      - name: Shot study (${{ matrix.detector }}, gusts ${{ matrix.gust }} m/s, lift ${{ matrix.lift }}, realistic ${{ matrix.real }} qp ${{ matrix.qp }}, about 250 shots at 4K240 Linear)
         uses: matlab-actions/run-command@v2
         with:
-          command: addpath('vision', 'vision/tools'); shotStudy('out/shotstudy', struct('detectors', {{'${{ matrix.detector }}'}}, 'targetShots', 250, 'minutes', 60, 'gustAmp', ${{ matrix.gust }}, 'liftModel', '${{ matrix.lift }}'));
+          command: addpath('vision', 'vision/tools'); shotStudy('out/shotstudy', struct('detectors', {{'${{ matrix.detector }}'}}, 'targetShots', 250, 'minutes', 60, 'gustAmp', ${{ matrix.gust }}, 'liftModel', '${{ matrix.lift }}', 'realism', ${{ matrix.real }}, 'qp', ${{ matrix.qp }}));
 
       - name: Print results into the log
         if: always()

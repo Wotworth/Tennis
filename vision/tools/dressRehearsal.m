@@ -68,6 +68,8 @@ for nm = fieldnames(files)'
     catch err
         R.steps(end+1) = step(sprintf('quickLook %s', nm{1}), false, err.message);
     end
+    % clip 1's calibration serves the rest even when a later stage of clip 1 broke
+    if isempty(calibFile) && exist(fullfile(out, 'stages', 'calib.mat'), 'file'), calibFile = fullfile(out, 'stages', 'calib.mat'); end
 end
 % --- 2c. the accuracy report ----------------------------------------------------------------
 try

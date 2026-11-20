@@ -21,10 +21,12 @@ function O = observe(S, cams, opts)
 if nargin < 3, opts = struct(); end
 d = struct('sigmaPx', 0.5, 'dropout', 0.05, 'hideMs', 25, 'posErrM', 0.01, 'rotErrDeg', 0.04, ...
            'readoutPrior', 0.008, 'shutter', 1 / 1920, 'blockShare', 0, 'blockWhere', 'part', 'blockFrac', 0.5, 'blockSeed', 1, ...
-           'errModel', []);
+           'errModel', [], 'hitMs', 60);
 % opts.errModel (tv.synth.detectorModel, 20 Nov): the detector's measured recall and centre error by
 %   the ball's size in the picture, in place of sigmaPx and dropout. The size comes from the ball's
-%   distance to the camera and the lens.
+%   distance to the camera and the lens. With errModel.hit (22 Nov), frames within opts.hitMs of a
+%   hit use the detector's behaviour round a contact (strings, bodies, heads) instead.
+%   RETUNE(real footage): hitMs.
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 tHits = [];  if ~isempty(S.shots), tHits = [S.shots.tHit]; end
@@ -72,8 +74,13 @@ for k = 1:2
             Bm = ballAt(S.pieces{r}, Te);
             dpx = 2 * 0.0335 ./ sqrt(sum((Bm - cam.pos) .^ 2, 2)) * tv.lens.pxPerRad(cam.lens);
             em = opts.errModel;  dq = min(max(dpx, min(em.d)), max(em.d));  dq(~isfinite(dq)) = min(em.d);
-            keep = all(isfinite(uv), 2) & rand(numel(n), 1) < interp1(em.d, em.recall, dq);
-            sig = interp1(em.d, em.sigma, dq);
+            rec = interp1(em.d, em.recall, dq);  sig = interp1(em.d, em.sigma, dq);
+            if isfield(em, 'hit') && ~isempty(tHits)
+                near = min(abs(Te - tHits), [], 2) <= opts.hitMs / 1000;
+                hq = min(max(dq, min(em.hit.d)), max(em.hit.d));
+                rec(near) = interp1(em.hit.d, em.hit.recall, hq(near));  sig(near) = interp1(em.hit.d, em.hit.sigma, hq(near));
+            end
+            keep = all(isfinite(uv), 2) & rand(numel(n), 1) < rec;
         end
         for j = find(hideCam == k)
             keep = keep & abs(Te - tHits(j)) > opts.hideMs / 1000;

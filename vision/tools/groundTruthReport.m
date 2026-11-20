@@ -14,6 +14,10 @@ function G = groundTruthReport(M, runs, outFile)
 %               against where it was put
 %     targets   each bounce found near a taped cross, against the cross
 %     machine   per machine setting: the spread of speed, spin effect and landing spot
+%     spin      (optional, 22 Nov) the machine's spin from the striped balls the Hero 7 filmed
+%               side-on (tools/spinFromStripe.m on M.spinTruth.file, or runs.stripe when already
+%               run) against the system's rpm for the same feeds, in feed order, and whether each
+%               truth falls inside the system's stated band (2 sd)
 %   Parts whose clip is missing from runs are left out. G holds every number; the report is
 %   written to outFile when given.
 if nargin < 3, outFile = ''; end
@@ -61,6 +65,23 @@ if isfield(M, 'machine')
         r = machineCheck(runs.(m.clip), m.setting);
         G.machine(end+1) = r;
         L{end+1} = sprintf('| %s | %d | %.1f (%.1f) | %.1f (%.1f) | %.0f |', r.setting, r.n, r.speed, r.speedSd, r.spin, r.spinSd, r.landSd); %#ok<AGROW>
+    end
+end
+if isfield(M, 'spinTruth') && isfield(runs, M.spinTruth.clip)
+    st = [];
+    if isfield(runs, 'stripe'), st = runs.stripe;
+    elseif isfield(M.spinTruth, 'file') && exist(M.spinTruth.file, 'file'), st = spinFromStripe(M.spinTruth.file);
+    end
+    if ~isempty(st)
+        G.spin = spinCheck(st, runs.(M.spinTruth.clip));
+        L{end+1} = '| Striped ball | rpm from the stripe | rpm from the system (2 sd) | Difference | Truth inside the band |';
+        L{end+1} = '|---|---|---|---|---|';
+        for b = G.spin.rows(:)'
+            L{end+1} = sprintf('| %d | %.0f +/- %.0f | %.0f (%.0f) | %+.0f | %s |', b.ball, b.stripe, b.stripeSd, b.system, 2 * b.systemSd, b.system - b.stripe, tv.testing.ternary(b.inside, 'yes', 'no')); %#ok<AGROW>
+        end
+        L{end+1} = sprintf('Spin: %d balls on the stripe, %d feeds from the system; matched in order. Median difference %.0f rpm (%.0f%%); truth inside the stated band for %d of %d.', ...
+            G.spin.nStripe, G.spin.nFeeds, G.spin.medianDiff, 100 * G.spin.medianFrac, nnz([G.spin.rows.inside]), numel(G.spin.rows));
+        L{end+1} = '';
     end
 end
 G.text = strjoin(L, newline);
@@ -180,7 +201,23 @@ se = arrayfun(@(s) nanIfEmpty(s.spinEffect), feed) * 3.28084;
 b = cell2mat(arrayfun(@(s) bounceOf(s), feed(:), 'UniformOutput', false));
 landSd = NaN;  if size(b, 1) > 1, landSd = 100 * sqrt(sum(var(b, 0, 1))); end
 r = struct('setting', setting, 'n', numel(feed), 'speed', mean(sp), 'speedSd', std(sp), ...
-    'spin', mean(se, 'omitnan'), 'spinSd', std(se, 'omitnan'), 'landSd', landSd);
+    'spin', mean(se(isfinite(se))), 'spinSd', std(se(isfinite(se))), 'landSd', landSd);
+end
+
+function S = spinCheck(st, res)
+% the stripe's balls against the machine's feeds, both in the order they left the machine
+sh = res.shots;  if iscell(sh), sh = [sh{:}]; end
+feed = sh(arrayfun(@(s) s.index == 1, sh));
+S.nStripe = numel(st.balls);  S.nFeeds = numel(feed);
+n = min(S.nStripe, S.nFeeds);
+S.rows = struct('ball', {}, 'stripe', {}, 'stripeSd', {}, 'system', {}, 'systemSd', {}, 'inside', {});
+for i = 1:n
+    sys = nanIfEmpty(feed(i).rpm);  sd = NaN;  if isfield(feed(i), 'rpmSd'), sd = nanIfEmpty(feed(i).rpmSd); end
+    S.rows(end+1) = struct('ball', i, 'stripe', st.balls(i).rpm, 'stripeSd', st.balls(i).rpmSd, 'system', sys, 'systemSd', sd, ...
+        'inside', abs(sys - st.balls(i).rpm) <= 2 * hypot(sd, st.balls(i).rpmSd)); %#ok<AGROW>
+end
+d = abs([S.rows.system] - [S.rows.stripe]);
+S.medianDiff = median([d NaN(1, isempty(d))]);  S.medianFrac = median([d ./ [S.rows.stripe], NaN(1, isempty(d))]);
 end
 
 function v = nanIfEmpty(x)

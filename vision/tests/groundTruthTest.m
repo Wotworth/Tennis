@@ -57,3 +57,15 @@ ev = struct('type', {'bounce', 'bounce', 'hit', 'bounce'}, 't', {1, 2, 3, 4}, 'p
 runs = struct('clip3', struct('events', {{ev}}));
 G = groundTruthReport(M, runs);
 assert(G.targets(1).n == 2 && G.targets(2).n == 1 && G.targets(1).worst < 0.04)
+
+%% Spin: the striped balls against the system's rpm for the same feeds (22 Nov, item 6)
+M = tv.readJson(fullfile(fileparts(mfilename('fullpath')), '..', 'groundtruth', 'template.json'));
+sh = struct('index', {1, 2, 1, 1}, 'rpm', {2000, 900, 2500, 3100}, 'rpmSd', {100, 100, 60, 60}, ...
+    'speedContact', 20, 'spinEffect', 0.3, 'bounce', [8 0]);
+st.balls = struct('rpm', {2050, 2480, 2700}, 'rpmSd', {20, 20, 20});
+runs = struct('clip8', struct('shots', sh), 'stripe', st);
+G = groundTruthReport(M, runs);
+assert(numel(G.spin.rows) == 3 && G.spin.nFeeds == 3)
+assert(isequal([G.spin.rows.inside], [true true false]))      % the third: 400 rpm off, band 2 x 63
+assert(abs(G.spin.medianDiff - 50) < 1e-9)
+assert(~isempty(strfind(G.text, 'Striped ball')))

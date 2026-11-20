@@ -854,7 +854,12 @@ Every test below gives a number that is **not graded against our own labels or s
    - **Proves:** how alike the system finds balls the machine fires the same way (speed, spin, landing spot), and your returns.
 8. **Optional — one clip at 4K200 (3 min)** if the menu offers it, same settings otherwise. Note the battery % and any heat warning before and after each clip.
    - **Proves:** whether 4K200 runs cooler or longer than 4K240 on battery, for choosing the mode.
-9. **Before the nets come down:** a last 30-second clip of the empty court from both cameras (the light will have moved), then stop.
+9. **Optional — spin truth with striped balls (clip 8, about 5 min).**
+   - *At home beforehand:* on 6 balls draw, with a thick black marker, a band about 1 cm wide all the way round the middle, and one filled dot about 2 cm across on one side of the band. The dot lets a whole turn be told apart from half a turn.
+   - Hero 7: **1080p, 240 frames a second**, Protune on, the fastest shutter it offers (write it down). Put it on a tripod or the fence **about 3 m to the side of the machine's path, level with the machine's mouth, looking straight across the path** (side-on), with the mouth near one edge of the picture so the ball crosses the frame.
+   - Machine: one topspin setting; write down the dials as for clips 4 to 7. Start the Hero 7 and both GoPros. Feed the 6 striped balls one at a time; don't hit them back. Stop all three.
+   - **Proves:** the machine's spin in rpm, counted from the band turning frame by frame (`tools/spinFromStripe.m`: within 2% on a made-up 13-pixel ball from 1200 to 4800 rpm), against the rpm the system finds for the same six balls.
+10. **Before the nets come down:** a last 30-second clip of the empty court from both cameras (the light will have moved), then stop.
 
 ### 16.4 After the session
 1. Write the numbers from 16.3 (camera positions, court widths, target positions, machine settings, drop spots) in a note and send it to me. I fill `vision/groundtruth/2026-11-25.json` from it (template: `vision/groundtruth/template.json`).
@@ -890,6 +895,7 @@ File names: keep the camera's own names (GX01xxxx.MP4); put each camera's files 
 - [ ] Clip 3: 6 targets measured; 3 drops and 3 tosses each, "on"/"off" said
 - [ ] Clips 4–7: one per machine setting, settings written; first 10 balls untouched
 - [ ] (Optional) 4K200 clip; battery and heat noted
+- [ ] (Optional) Clip 8: 6 striped balls (band and dot) from the machine, Hero 7 side-on at 1080p240 from about 3 m, dials and shutter written
 - [ ] Last empty-court clip
 
 ---
@@ -924,6 +930,7 @@ For each camera, and for **each lens offered at 4K240** (Linear and Wide), one c
 
 ### 17.4 Timing drift, and battery and heat: one long recording (about 1.5 hours, mostly waiting)
 Tests c and d in one go, because both need the cameras recording for a long time.
+**Modes (Chris, 22 Nov):** run 1 with **CAM 1 at 4K240 and CAM 2 at 4K120**, everything else as on Tuesday. 4K240 records continuously (no 10-second limit), but PetaPixel's review had 4K120 stop at about 51 minutes from heat, so both modes are timed. The clap timing works across the two frame rates. If there is time on Sunday, **run 2 swaps the modes** (CAM 1 4K120, CAM 2 4K240) so each camera is timed in both; run 2 needs no claps.
 1. Batteries full; empty cards (the largest you have). Leave the cameras in the cold spot for 15 minutes first, switched off, so they start cold. Write down the temperature (your phone's weather app).
 2. **Timecode sync** both cameras (section 5).
 3. Put them side by side, both seeing the same spot about 1 to 2 m away. Screens off or dimmed, as on Tuesday.
@@ -931,7 +938,7 @@ Tests c and d in one go, because both need the cameras recording for a long time
 5. **Clap again at 10, 20 and 30 minutes** (phone timer).
 6. Then leave them. When each camera stops, write down the time and anything it showed: a heat warning, a cold warning, a flat battery, or a full card.
 7. Note whether the files are split into pieces (chapters) and how big each is.
-- **Gives:** (c) how far apart the two cameras' clocks really are after timecode sync, and how fast they drift apart (from the claps: start, 10, 20, 30 minutes; `tools/syncFromClaps.m`, which on a made-up recording finds the offset within 0.02 ms and a 40 ppm drift exactly); (d) how long each camera really records 4K240 in the cold, and what stops it (`tools/runtimeFromFiles.m`: minutes recorded, gaps between chapters, card used per minute). The Tuesday clip plan (16.6) is redone from it.
+- **Gives:** (c) how far apart the two cameras' clocks really are after timecode sync, and how fast they drift apart (from the claps: start, 10, 20, 30 minutes; `tools/syncFromClaps.m`, which on a made-up recording finds the offset within 0.02 ms and a 40 ppm drift exactly); (d) how long each camera really records at 4K240 and at 4K120 in the cold, and what stops it (heat, cold, battery or card) (`tools/runtimeFromFiles.m`: minutes recorded, gaps between chapters, card used per minute). The Tuesday clip plan (16.6) is redone from it.
 - **Removes from Tuesday:** the guesswork in 16.6, and the optional 4K200 clip's battery part (16.3 step 8) if you also do a short 4K200 run here.
 - **Sending it:** these files are very large. Send the **small LRV files** of this recording if the cameras write them, plus a list of the big files' names and sizes; I fetch only the minutes round each clap from the big ones.
 
@@ -943,5 +950,6 @@ Same Drive folder, a folder `HOME` with `CAM1` and `CAM2` inside. Order: the fli
 - [ ] Checkerboard: CAM 1 Linear, CAM 1 Wide, CAM 2 Linear, CAM 2 Wide (90 s each)
 - [ ] Lamp flickers (phone slow-motion shows bands)
 - [ ] Flicker: CAM 1, CAM 2 (15 s each, Tuesday's shutter; Wide too if used)
-- [ ] Long recording: temperature written, timecode synced, claps at 0, 10, 20, 30 min, stop times and warnings written, chapter sizes noted
+- [ ] Long recording, run 1 (CAM 1 4K240, CAM 2 4K120): temperature written, timecode synced, claps at 0, 10, 20, 30 min, stop times and warnings written, chapter sizes noted
+- [ ] (If time) run 2, modes swapped: temperature, stop times and warnings written
 - [ ] Uploaded: flicker, checkerboard, LRVs and the list

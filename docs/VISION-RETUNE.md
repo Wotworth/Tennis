@@ -61,6 +61,8 @@ The first real footage is the TV-PH-0 lens calibration and trial sessions; most 
 | Retention | `+tv/+ops/retention.m` | Rally segments kept 3 months are not cut out yet | TV-OPS-03 once the archive fills |
 | Synthetic footage | `+tv/+synth/renderBackground.m`, `+tv/+synth/renderFrame.m`, `+tv/+synth/renderAudio.m` | Make the generator look and sound like real footage (shadows, compression, voices) | Compare with trial footage; then re-run every synthetic test |
 | Synthetic footage | `+tv/+physics/bounce.m` | Court restitution and friction | Trials (bounce kick) |
+| Synthetic realism | `+tv/+synth/realPatch.m`, `tools/detectorSizeStudy.m` | HEVC quantiser 23 (x265 on synthetic 4K at 240 Mb/s) and 29 (harsher); noise 1.5 levels read plus 0.03 x brightness; the shares of shadows, strings, bodies and heads in flight and round a contact; shapes and colours | The real file's bitrate and the noise in still parts of Tuesday's first clip; the share of real frames with a ball near a player |
+| Synthetic realism | `+tv/+synth/observe.m` | Frames within 60 ms of a hit use the detector's near-contact behaviour | Tuesday's machine and rally clips: how long the ball is hard to find round a contact |
 
 ## Known limits of the synthetic tests
 
