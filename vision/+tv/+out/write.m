@@ -14,7 +14,9 @@ s.created = tv.util.nowUtc();
 s.startUtc = R.rec(1).startUtc;
 s.cameras = arrayfun(@(k) struct('serial', R.rec(k).serial, 'position', R.cams(k).pos, ...
     'lineRmsPx', R.calib(k).rmsPx, 'readoutS', R.sync.readout(k), ...
-    'cornersOutOfView', {cornersMissing(R.calib(k))}), 1:2);   % TV-CAL-20
+    'cornersOutOfView', {cornersMissing(R.calib(k))}, ...       % TV-CAL-20
+    'lineSupport', fieldOr(R.calib(k), 'support', NaN), ...       % share of the fitted lines with paint under them (Chris, 20 Nov)
+    'calibSource', fieldOr(R.calib(k), 'source', 'lines')), 1:2);   % 'lines', or 'corners' when tapped
 s.sync = struct('startOffsetS', R.sync.startOffset(2), 'deltaS', R.sync.delta, 'drift', R.sync.drift);
 s.air = struct('rho', R.air.rho, 'wind', R.air.wind(1:2), 'sessionCD', R.air.sessionCD);
 s.symmetry = struct('chosen', R.symmetry.chosen, 'ballGapM', R.symmetry.ballGap', 'playerGapM', R.symmetry.playerGap', ...
@@ -85,4 +87,9 @@ end
 function m = cornersMissing(rep)
 m = {};
 if isfield(rep, 'corners') && ~isempty(rep.corners), m = rep.corners.missing(:)'; end
+end
+
+function v = fieldOr(s, f, d)
+v = d;
+if isfield(s, f) && ~isempty(s.(f)), v = s.(f); end
 end

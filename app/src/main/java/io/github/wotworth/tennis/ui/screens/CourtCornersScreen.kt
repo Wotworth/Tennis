@@ -200,13 +200,17 @@ fun CourtCornersScreen() {
                 // the loupe: what is under the finger, magnified, above the finger, with a crosshair
                 val f = finger ?: VisionDefaults.cornerLoupePreview?.let { CornerGeometry.toBox(it, size, zoom, pan, c.width, c.height) }
                 if (f != null && image != null) {
-                    val lr = zpx(v.loupeRadius).toPx()
+                    val lr = minOf(zpx(v.loupeRadius).toPx(), 0.32f * size.height)
                     val shown = size.width / c.width * zoom                       // screen px per picture px now
                     val mag = shown * v.loupeMag
                     val at = CornerGeometry.toPicture(f, size, zoom, pan, c.width, c.height)
+                    // above the finger; where there is no room above, beside it (on the side with more room)
                     var centre = Offset(f.x, f.y - 1.7f * lr)
-                    if (centre.y - lr < 0) centre = Offset(f.x, f.y + 1.7f * lr)
-                    centre = Offset(centre.x.coerceIn(lr, size.width - lr), centre.y)
+                    if (centre.y - lr < 0) {
+                        val side = if (f.x > size.width / 2) -1f else 1f
+                        centre = Offset(f.x + side * 1.9f * lr, f.y)
+                    }
+                    centre = Offset(centre.x.coerceIn(lr, size.width - lr), centre.y.coerceIn(lr, size.height - lr))
                     val half = lr / mag
                     val circle = Path().apply { addOval(androidx.compose.ui.geometry.Rect(centre, lr)) }
                     clipPath(circle) {

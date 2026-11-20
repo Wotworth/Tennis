@@ -86,6 +86,8 @@ Chris's follow-ups (19 Nov, afternoon), all in the reports named: misses on 59 f
 
 Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens calibration and trial sessions). The launcher needs the new "checks" tile state (LAUNCHER-REQUESTS.md), not built.
 
+Overnight 20 Nov (Chris's Parts 1 to 4): see docs/reports/OVERNIGHT-20NOV.md. Releases v0.6.46 and v0.6.47 (shot card, corner snap and magnifier). Neighbours test cause found and fixed (the rolling stray was kept; gate judges a rolling ball on 90% of its points). Every frame searched by default. TV-OPS-04 / AC-12: 1.5 h in 18 h. Tuesday checklist (manual section 16), ground-truth report, camera-file check, quick look.
+
 ## Next
 
 - Vision, next: (1) the neighbours case with round 5 (second rally dropped at the flight fit; the test now prints each rally's flights); (2) the Hero 7 side clips when Chris sends them: set the calibration alert level, try real taps, measure the lens from the checkerboard clips; (3) the first pass for rally windows (PROCESSING-TIME-1.md), if Chris says go; (4) frames through memory instead of temporary files; (5) spot-finding on the graphics card.
@@ -110,7 +112,7 @@ Next for vision: Chris reviews the preview; then the hardware (TV-PH-0's lens ca
 
 - **Hero 7 test clips (Chris will record before the nets come down):** one minute in Linear (2.7K, 60 fps, HyperSmooth off) from the side fence at the planned height near a baseline extension with the whole court in view, one minute in Wide, and checkerboard clips in both modes. The side clip is the real test of the two-camera calibration.
 - Round 5 adopted (Chris, 19 Nov evening); pictures from the new videos: private pages only.
-- **For Chris (19 Nov evening):** (a) on a doubtful court-line fit the PC now waits for his answer instead of processing with a warning: keep that, or process anyway? (b) the first pass for rally windows: build it now (my recommendation), or process every frame for the first sessions?
+- Answered 20 Nov: (a) wait for his taps (with reminders and the tile); (b) process every frame for now (built: `cfg.frames 'all'`); a cheaper first pass only when it misses under 1% on his real sessions and he agrees.
 
 - Purchase: Claude recommends buying the two cameras now and the PC later (17 Nov); Chris to decide.
 
