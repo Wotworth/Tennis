@@ -83,7 +83,7 @@ if strcmp(cfg.frames, 'all') && strcmp(cfg.detector, 'learned')
     guard();
     kScan = k('scan', cfg.ballApparentScale, cfg.ballNetFile, cfg.ballCut, h(kCal));
     A = tv.pipeline.stage(outDir, 'scan', kScan, @() scanAll(rec, C, cfg));
-    R = tv.rally.fromPlay(R, A.rows, rec, sync, cfg.play);
+    R = tv.rally.fromPlay(R, A.rows, rec, sync, cfg.play, C.cams, tv.court.interest(cfg.court));
 end
 
 % --- detection and 2D tracks -----------------------------------------------------------------

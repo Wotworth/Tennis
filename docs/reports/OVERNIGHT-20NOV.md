@@ -11,7 +11,8 @@ Chris's message of 19 Nov (late), Parts 1 to 4. Releases: v0.6.46 and later (see
 
 ### 2. Every frame is processed
 - `cfg.frames = 'all'` is the default: the learned detector runs over every frame of both recordings.
-- Rallies are where the ball was in play (a quarter-second counts when a quarter of its frames hold a confident spot; joined under 4 s apart, 1.5 s before and 2 s after), joined with the sound's windows, so nothing either finds is left out.
+- Rallies are where the ball was in play, joined with the sound's windows, so nothing either finds is left out. A quarter-second counts when a quarter of its frames hold a ball both cameras agree on: inside your court and its surrounds, at least 0.2 m up, and moving like a ball (4 to 75 m/s). Rallies under 4 s apart are joined; each window starts 1.5 s before the play and ends 2 s after.
+- **Caught by CI (run 55) and fixed:** the first version counted a confident spot in either camera. The neighbours' ball, which is always in play, joined the neighbours test into one 25-second rally, and none of your 9 shots survived. In the pipeline test, players changing ends joined its two rallies. Both cameras together, plus the height and speed rule, separate them in the unit test; the next CI run checks the full tests.
 - `session.json` keeps the sound's own windows and the share of the play they would have held (`rallyFinding`). That is the measurement for a cheaper first pass later: switch only when it misses under 1% on your sessions and you agree.
 
 ### 3. Why round 5 lost the neighbours test's second rally — found and fixed
@@ -23,7 +24,7 @@ Chris's message of 19 Nov (late), Parts 1 to 4. Releases: v0.6.46 and later (see
 | Why | The rolling test asked for *every* 3D point of the stray to be under 0.3 m. 90% were under 5 cm, but a few mis-paired points sat at 0.7 to 1.4 m |
 | What followed | The flight fit takes one ball at a time; it mixed the stray with your ball, the fits failed, and two of your shots went |
 | Fix | The test uses the 90th percentile of the heights (`rollShare` 0.9). Rally 2 then keeps only your ball (checked on the local run) |
-| CI result | see docs/STATUS.md (run 55) |
+| CI result | Run 55 could not show it: a new fault (rallies from play, item 2) joined the neighbours test into one rally. Fixed; the next run shows it |
 
 It is not marked a known shortfall.
 
