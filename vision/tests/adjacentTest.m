@@ -48,6 +48,21 @@ for r = 1:numel(R.result.segs)
                 strjoin(arrayfun(@(i) sprintf('%s %d', nm{i}, cnt(i)), find(cnt > 0), 'UniformOutput', false), ', '));
         end
     end
+    % where Chris's ball went when the gate took it out (21 Nov, Chris: why does tracking ever take the
+    % other ball?): his detections in the gate's log, by camera, track and reason
+    Lg = R.result.gateLog{r};
+    for kk = 1:2
+        if isempty(Lg), break; end
+        Lk = Lg([Lg.cam] == kk);
+        keys = unique(arrayfun(@(x) sprintf('%d|%s', x.track, x.reason), Lk, 'UniformOutput', false));
+        for q = 1:numel(keys)
+            sel = Lk(strcmp(arrayfun(@(x) sprintf('%d|%s', x.track, x.reason), Lk, 'UniformOutput', false), keys{q}));
+            [cnt, nm] = tv.synth.trackLabels(struct('frames', [sel.frame]', 'uv', [[sel.u]', [sel.v]']), kk, R.result.rec, T.cams, T.truth, 4 * T.sc.frameSize(1) / 960);
+            im = find(strcmp(nm, 'mine'));
+            if isempty(im) || cnt(im) == 0, continue; end
+            fprintf('   camera %d, track %s, "%s": mine %d of %d, frames %d-%d\n', kk, strtok(keys{q}, '|'), sel(1).reason, cnt(im), numel(sel), min([sel.frame]), max([sel.frame]));
+        end
+    end
     for g = R.result.segs{r}'
         fprintf('rally %d flight %.3f-%.3f rms %.2f px n %d/%d\n', r, g.t0, max(g.t), g.rmsPx, g.n);
     end

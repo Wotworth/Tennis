@@ -5,7 +5,20 @@ Chris's message of 21 Nov, items 1 to 7 (items 8 to 11 were cut off in the messa
 ## 1. Curve tile
 - **Now:** the tile shows from **1 ft** (Chris: B), and only when the curve is at least **twice its own uncertainty**. Older session files don't carry the uncertainty; for them the 1 ft limit alone applies.
 - **The uncertainty:** each fitted flight now carries the covariance of its parameters (from the fit's own pixel error and its priors). It is carried through to the spin effect and the curve. Checked against 30 refits of one flight with fresh pixel noise: predicted 4.4 cm against 4.3 cm of real scatter for the curve, 7.9 cm against 7.5 cm for the spin effect; the true curve lay within twice the predicted uncertainty in 30 of 30 fits.
-- **What it can't see:** gusts. The uncertainty comes from pixel noise and the fit's priors, so a gust that pushes the ball sideways looks like a sure curve to it. The shot study compares the rules with gusts and in calm air (section 1b, when CI finishes).
+- **What it can't see:** anything the flight model leaves out. The uncertainty comes from pixel noise and the fit's priors only.
+
+### 1b. How the per-shot rule does (shot study, CI run 57, 201 shots, Tuesday's set-up)
+In calm air (only a steady wind), shots with a curve truly of each size:
+
+| Rule | Shown: truly 1 ft or more | 0.5 to 1 ft | **under 0.5 ft (wrong)** | wrong side |
+|---|---|---|---|---|
+| 2 × its own uncertainty | 18 of 18 | 42 of 45 | **109 of 119** | 21 |
+| 3 × its own uncertainty | 18 of 18 | 42 of 45 | **105 of 119** | 20 |
+| 2 × and 0.5 ft | 18 of 18 | 33 of 45 | 25 of 119 | 0 |
+| **1 ft (now)** | 14 of 18 | 12 of 45 | **1 of 119** | 0 |
+
+**The per-shot rule as asked does much worse than the fixed 1 ft.** The fit's own uncertainty is about 1.5 cm, because 450 points at 4K240 pin the path down very well. But the curve's real error is about 6 cm (median) even in calm air: the real error sat within twice the fit's own uncertainty in only 18 of 182 shots. Nearly all of it is **model error**, not noise: the fit holds lift constant through a flight, while real lift falls as the ball slows and the spin decays (section 4b). A rule built on the fit's uncertainty can only work once that model error is in the uncertainty, or gone.
+- **What the app does now:** 1 ft, and the twice-its-uncertainty guard on top. The guard almost never bites (the uncertainty is tiny), so in practice it is the 1 ft rule. With gusts: section 1c.
 
 ## 3. Real test-set balls of 5 px and more that round 5 missed (4)
 Looked at by eye in private crops (frames not in the repository):
@@ -35,7 +48,19 @@ Looked at by eye in private crops (frames not in the repository):
 | AC-11 Synthetic rpm recovered (true lift known) | within 10% | median within 15%, 90% within 35%; rpm is secondary and always shown ±25% (TV-SPN-03, 04) |
 | Measured (shot study, run 56) | | median 12% with gusts, 10% calm; 90th percentile 31% with gusts, 22% calm: met |
 
-**The spin-effect tail (90th percentile 27 cm):** section 4b, from the shot study's new tail table (CI run 57).
+### 4b. The spin-effect tail (90th percentile about 26 cm)
+CI run 57, calm air, the worst tenth of the shots (errors of 26 cm or more, 19 shots) against the rest, medians:
+
+| | Tail | Rest |
+|---|---|---|
+| true spin effect | **317 cm** | 152 cm |
+| speed | 67 mph | 62 mph |
+| hit distance from the net | 14.7 m | 12.5 m |
+| fit error | 1.28 px | 1.04 px |
+| error ÷ the fit's own uncertainty | **19** | 6 |
+| kinds | 12 forehands, 4 serves, 2 backhands, 1 machine | |
+
+**The tail is the heavy-spin, fast, deep shots, and the error is model error.** Fitting the fit's own constant-lift model to perfect true flights (no noise, no wind) gives a median error of 11 cm and up to 34 cm on the heaviest spins, always the same way (about 3% of the effect, overstated). The path itself fits to 1 mm; the error comes when the spin is taken away to find where the same shot would have landed without it. A fit whose lift follows the spin as the ball slows is being tested now (section 4c).
 
 ## 5. Tuesday checklist (manual 16)
 - Recording: **about 40 minutes** (the clips add up to 37 to 41), corrected from 20.
