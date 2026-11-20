@@ -138,6 +138,15 @@ if any(isfinite(cv) & abs(cv) > 0.01)
     shown = abs([rows.curveFound]) >= 0.15;  truthBig = abs(cv) >= 0.15;  ok = isfinite([rows.curveFound]);
     L{end+1} = sprintf('| Curve shown (0.5 ft or more) when it truly is / when it truly is not | %d of %d / %d of %d | | | |', ...
         nnz(shown & truthBig & ok), nnz(truthBig & ok), nnz(shown & ~truthBig & ok), nnz(~truthBig & ok));
+    % other showing limits (the app's curveShowFt), and how often a shown curve is on the wrong side
+    cf = [rows.curveFound];
+    for ft = [1 1.5 2]
+        lim = ft * 0.3048;  sh = abs(cf) >= lim & ok;  tb = abs(cv) >= lim;  under = abs(cv) < 0.15;
+        L{end+1} = sprintf(['| Limit %.1f ft: shown when truly over it / when truly under 0.5 ft / shown on the wrong side | ' ...
+            '%d of %d / %d of %d / %d | | | |'], ft, nnz(sh & tb), nnz(tb & ok), nnz(sh & under), nnz(under & ok), ...
+            nnz(sh & sign(cf) ~= sign(cv))); %#ok<AGROW>
+    end
+    L{end+1} = sprintf('| Limit 0.5 ft: shown on the wrong side | %d of %d shown | | | |', nnz(shown & ok & sign(cf) ~= sign(cv)), nnz(shown & ok));
 end
 L{end+1} = line('rpm error, %', abs([rows.rpmErrPct]), '(rpm +/-25% shown, TV-SPN-03)', 0);
 L{end+1} = line('rpm error with the true lift known, %', abs([rows.rpmKnownClPct]), '10% (AC-11)', 0);

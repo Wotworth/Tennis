@@ -34,16 +34,28 @@ In docs/reports/PROCESSING-TIME-1.md. In short: 2,592,000 frames; with the code 
 Two steps (drawing whole 4K frames for hundreds of shots is out of reach here):
 1. **By ball size**, on small rendered patches (`tools/detectorSizeStudy.m`, 150 balls per size, 240 fps, 1/1920 s shutter, the court coded once and the ball's blocks re-coded each frame):
 
-| Ball (px) | Learned: spot on it / > 0.5 | Learned centre error, median | Before the new centre | Colour detector: found / centre error |
+| Ball (px) | Learned: found / over 0.5 | Learned centre error, median | Before the new centre | Colour detector: found / centre error |
 |---|---|---|---|---|
-| 2 | 99% / 78% | 0.19 px | 0.30 px | 0% |
-| 3 | 99% / 89% | 0.20 | 0.32 | 13% / 0.49 |
-| 4 | 100% / 98% | 0.16 | 0.17 | 99% / 0.48 |
-| 5 | 100% / 100% | 0.06 | 0.10 | 100% / 0.22 |
-| 6 | 100% / 100% | 0.05 | 0.07 | 100% / 0.11 |
-| 8 | 100% / 100% | 0.04 | 0.06 | 100% / 0.14 |
+| 2 | 99% / 80% | 0.24 px | 0.35 px | 0% |
+| 3 | 100% / 87% | 0.20 | 0.34 | 13% / 0.48 |
+| 4 | 100% / 96% | 0.15 | 0.20 | 94% / 0.46 |
+| 5 | 100% / 100% | 0.06 | 0.09 | 100% / 0.20 |
+| 6 | 100% / 100% | 0.04 | 0.08 | 100% / 0.10 |
+| 8 | 100% / 100% | 0.04 | 0.05 | 100% / 0.12 |
 
-2. **Over a whole session** (`tools/shotStudy.m`, about 250 shots each, Tuesday's set-up): each detector's measured behaviour at the size the ball really is in each frame. Results: section "Tuesday's set-up" below, when CI finishes.
+(MATLAB, CI run 55. "Found": a spot within the ball's size of it scoring over 0.05, which is what the tracker is given.)
+
+2. **Over a whole session** (`tools/shotStudy.m`, about 250 shots each, Tuesday's set-up): each detector's measured behaviour at the size the ball really is in each frame (CI run 55; 201 shots in 52 rallies, far-corner ball 4.0 px):
+
+| Detector | Shots found | Speed within 2 mph | Speed error median / 90th, mph | Bounce error median, cm | Spin effect error median, cm | Sideways curve error median / 90th, cm |
+|---|---|---|---|---|---|---|
+| learned (round 5, new centre) | 177 | 98% | 0.49 / 1.30 | 1.7 | 8.8 | 8.9 / 35.8 |
+| learned, old centre | 176 | 98% | 0.50 / 1.41 | 1.7 | 8.8 | 9.1 / 35.8 |
+| colour | 174 | 95% | 0.63 / 1.43 | 1.8 | 9.4 | 8.9 / 34.5 |
+
+**What it says:** with two cameras and the whole flight fitted, the detector hardly changes speed (0.5 vs 0.6 mph median); the colour detector's weakness at 3 px costs a few shots and a little speed. The learned one stays. Processing time is a different matter: the colour detector is cheaper, but it misses balls under 4 px, and accuracy comes first.
+
+**Shots found, 177 of 201 (target 95%):** 17 of the 24 misses are the ball machine's feeds. The app already starts a shot at a rally's first flight when nobody tossed (`tv.metrics.rallies`), but the study only counted hit events, so it marked every feed missed. Fixed in the study (it now scores as the app does) and it now lists each miss and why. The next CI run says what the other 7 are.
 
 ## Part 2: the shot card
 | Side, 1:1 | Side, ×3 | Top | A slice serve from above |
@@ -55,7 +67,7 @@ Two steps (drawing whole 4K frames for hundreds of shots is out of reach here):
 - First tiles: the spin's effect ("5.7 ft · longer from slice"), then the sideways curve when it is 0.5 ft or more ("curved left from slice", left and right as the hitter saw it).
 - "side · top" above the chart, remembered. The top view: the court lengthways in true proportion, singles and doubles lines, you at the bottom, the path solid, the same shot without spin dashed and straight, the bounce marked.
 - Sample session: some shots now curve sideways. A slice's no-spin path used to land further on, like topspin's; it now lands shorter.
-- **How well the two cameras measure sideways curve:** the shot study, below.
+- **How well the two cameras measure sideways curve:** not well enough yet at 0.5 ft (section 22 and 14 below).
 
 ## Part 3: court corners
 | Four corners, three snapped | The magnifier (finger on the fourth) |
@@ -80,12 +92,30 @@ So tap accuracy hardly matters up to about 12 px at 1920 wide (25 px for Linear)
 ## Part 4: Tuesday
 - **20. Field checklist:** the user manual, section 16 (about 90 minutes; what each test proves).
 - **21. Ground truth:** `tools/groundTruthReport.m` with `vision/groundtruth/template.json`: gravity and release height from each 2-metre drop (a free parabola through the 3D points, nothing assumed), still balls placed by the two sight lines against where they were put, bounces against the taped crosses, the machine's spread per setting, and the camera positions against the tape. Tested on made-up inputs with known answers.
-- **22. Synthetic test matching Tuesday:** the shot study (below).
+- **22. Synthetic test matching Tuesday:** the shot study (section 22 and 14 below).
 - **23. Quick look:** `tools/quickLook.m`. Upload whole files to Drive (manual 16.5); I cut 10-second stretches with FFmpeg reading over the link, so only the needed parts download. One calibration serves all clips (`cfg.calibFrom`); timing is solved per clip from the ball.
 - **24. Mission 1 Pro files:** `tools/checkCameraFile.m` runs on the first file: name and chapters, the LRV beside it, codec and bit depth, picture size, frame rate and every frame's own time (dropped or doubled frames), start time (timecode or creation time), telemetry (serial, model, GPS, gyro), the real shutter, ISO and white balance, the sound. Tested on GoPro's HERO8 sample. Only a real file can show: the Mission 1 Pro's naming and chaptering at 4K240, whether it writes a timecode track and an LRV, its GPMF tags, its codec at 4K240 (HEVC 10-bit or 8-bit, 4:2:0 or 4:2:2), and how long a chapter is.
 - **25. Far-end misses:** next section.
 - **26.** Done (Part 1 item 4).
 - **27. PC readiness:** the manual's section 2.1 opens with a short checklist, a new step checks FFmpeg sees the graphics card's decoder (`ffmpeg -hwaccels` must list cuda), and the benchmark judges a 1.5-hour 4K240 session against 18 hours.
+
+## 22 and 14. Tuesday's set-up, synthetic (shot study, learned detector, CI run 55)
+Linear lens, 4K, 240 frames a second, cameras 2.5 m behind the baselines' extensions at 3.5 m, 4 m out; far-corner ball 4.0 px across; 201 shots in 52 rallies, sidespin on, a third of the rallies started by a ball machine on four settings. Truth flights carry things the fit does not model: spin decay, 15% scatter in lift, per-shot drag, gusts of about 1 m/s.
+
+| Measure | Median | 90th percentile | Target | |
+|---|---|---|---|---|
+| Speed at contact, mph | 0.49 | 1.30 | 2 mph for 90% (AC-07) | met |
+| Bounce position, cm | 1.7 | 3.0 | median 5 cm (AC-08) | met |
+| Spin effect, cm | 8.8 | 26.9 | 10 cm (AC-10) | median met, the tail not |
+| Net clearance, cm | 0.3 | 0.9 | | |
+| In / out / net calls | 169 of 169 right | | all | met |
+| Spin rate (rpm), % | 17 | 52 | shown ±25% | |
+| Spin rate with the true lift known, % | 12 | 33 | 10% (AC-11) | not met |
+| **Sideways curve**, cm | 8.9 | 35.8 | | see below |
+
+**Sideways curve (item 14): not good enough at 0.5 ft.** Of the shots that truly curved 0.5 ft or more, the tile showed for 44 of 57; but it also showed for 44 of the 110 that did not. As it stands, about half the "curved" tiles in a real session would be wrong. The 90th-percentile error (36 cm, 1.2 ft) is more than twice the 0.5 ft limit. My guess at the cause: a gust blows the ball sideways in the same way sidespin does, and the fit cannot tell one from the other within one flight. The next CI run tests that guess (the same session in calm air), and it also counts what a 1, 1.5 or 2 ft limit would show. The app is unchanged until you choose (question 2 in the summary).
+
+**Ball machine (item 21's consistency, synthetic):** not measured in this run: the feeds were not counted (see item 5). The next run gives the spread found per setting against the truth.
 
 ## 25. The 19 far-end misses (video 8, round 5, Python twin)
 Video 8's SwingVision marks: 59 bounces, 28 missed by the one-camera bounce scoring, 19 of them at the far end. For each one (`far_miss.py`, `far_miss2.py`; numbers only, no frames):
