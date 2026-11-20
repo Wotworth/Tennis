@@ -100,3 +100,26 @@ assert(numel(plog) == 2 && all(strcmp({plog.reason}, 'person off court')))
 pl(3) = mk([0 * T + 6, 0 * T + 1]);                        % a third person walks on court
 [k3, ~, plog] = tv.players.keepCourt(pl, info, box, struct('playerInsideFrac', 0.6));
 assert(numel(k3) == 2 && any(strcmp({plog.reason}, 'third person on court')))
+
+%% A point paired with another ball's track off its own path is dropped (21 Nov, Chris: why does pairing
+% ever take the other ball?). A stray rolls across Chris's court; camera 2 loses it for 15 frames.
+% Meanwhile camera 2 sees a ball lying exactly on camera 1's sight line through the stray (a ball
+% in the air that camera 1 sees behind the stray), so the stray's camera-1 points pair with it
+% perfectly and land 1 to 1.5 m up. Before: kept (the 90% rolling test then had to hide them).
+stray = [-6 + 3 * t, -2 + 0 * t, c.ballRadius + 0 * t];
+dirs = stray - cams(1).pos;
+up = 1.0 + 0.5 * t;                                       % the other ball's height along that sight line
+s = (up - cams(1).pos(3)) ./ dirs(:, 3);
+phantom = cams(1).pos + s .* dirs;
+gap = 50:64;
+[tr, cand, rec, sync] = tv.testing.ballTracks(cams, {stray, phantom}, fps, 0.3);
+% camera 1 can't see the phantom apart from the stray (it lies behind it): only camera 2's track stays
+tr{1} = tr{1}(1);  cand{1} = cand{1}(ismember(cand{1}(:, 1:3), [double(tr{1}.frames), tr{1}.uv], 'rows'), :);
+keep = ~ismember(tr{2}(1).frames, gap);                  % camera 2 loses the stray for 15 frames
+tr{2}(1).frames = tr{2}(1).frames(keep);  tr{2}(1).uv = tr{2}(1).uv(keep, :);  tr{2}(1).area = tr{2}(1).area(keep);
+[kept, log] = tv.recon.gateTracks(tr, cand, cams, rec, sync, box, struct('rollShare', 1));
+r = log([log.cam] == 1 & ismember([log.frame], gap));
+fprintf('camera 1 stray points in the gap: %d logged, reasons %s\n', numel(r), strjoin(unique({r.reason}), ', '));
+% judged on every point (rollShare 1, the rule before 20 Nov), the stray is recognised as rolling and
+% rejected whole: its points paired with the other ball no longer count as its own
+assert(isempty(kept{1}) && all(strcmp({r.reason}, 'rolling on the ground')))

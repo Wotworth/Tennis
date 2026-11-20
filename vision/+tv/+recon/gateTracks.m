@@ -24,6 +24,8 @@ function [kept, log, partners] = gateTracks(tracks, cands, cams, rec, sync, box,
 %      other camera worse there gives up those points ("overlaps a better track"), but only
 %      when the two are the same ball: their 3D points over the overlap are within
 %      opts.sameBallM (median). Two balls in view at once are both kept.
+%   1b. A point paired with another track than its partner (where the partner has a gap) is kept
+%      only if it lies on the track's own path; otherwise "paired with another ball" (21 Nov).
 %   4. Candidates that are in no track are logged "isolated".
 %   The flight fit (tv.recon.segments) then drops what no physical flight
 %   explains ("implausible flight", logged by the pipeline).
@@ -36,7 +38,8 @@ function [kept, log, partners] = gateTracks(tracks, cands, cams, rec, sync, box,
 %   none), reason, errPx.
 %   RETUNE(real footage): every opts value (tv.pipeline.defaults, cfg.gate).
 if nargin < 7, opts = struct(); end
-d = struct('epipolarPx', 4, 'minInsideFrac', 0.5, 'minPairedFrac', 0.3, 'maxSpeed', 75, 'maxGapFrames', 3, 'sameBallM', 2, 'rollMaxZ', 0.3, 'rollMinS', 0.3, 'rollShare', 0.9);
+d = struct('epipolarPx', 4, 'minInsideFrac', 0.5, 'minPairedFrac', 0.3, 'maxSpeed', 75, 'maxGapFrames', 3, 'sameBallM', 2, 'rollMaxZ', 0.3, 'rollMinS', 0.3, 'rollShare', 0.9, ...
+    'otherPairM', 0.5, 'otherPairS', 0.25);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 log = emptyLog();
@@ -84,6 +87,16 @@ for k = 1:2
         st(paired) = {'ok'};
         out = paired & ~tv.court.inInterest(X, box);
         st(out) = {'outside court of interest'};
+        % 21 Nov (Chris: why does pairing ever take the other ball?): a point paired with some other
+        % track than its own partner lands wherever that other ball's sight line meets its own, and
+        % any pixel on the other camera's epipolar line passes the epipolar test. Where the track's
+        % own partner had a gap, the stray in adjacentTest paired with Chris's ball this way and got
+        % points 0.7 to 1.4 m up. Such a point is kept only if it lies on the track's own path (from
+        % its partner-paired points); otherwise it is dropped as "paired with another ball".
+        if pid > 0
+            other = paired & ~out & ~usePartner;
+            if any(other), st(other & ~onOwnPath(T{k}{j}, X, usePartner & paired, other, opts)) = {'paired with another ball'}; end
+        end
         info{k}{j} = struct('status', {st}, 'X', X, 'err', best, 'partner', pid);
     end
 end
@@ -118,7 +131,7 @@ for k = 1:2
             continue
         end
         % implausible jumps between neighbouring inside points (time order)
-        drop = ~inside & paired;                      % outside points
+        drop = (~inside & paired) | strcmp(I.status, 'paired with another ball');   % outside points; other balls' pairs
         [ts, o] = sort(t);  ii = o(inside(o));
         last = [];
         for m = ii(:)'
@@ -193,6 +206,32 @@ for k = 1:2
         log(end+1) = struct('cam', k, 'frame', C(iso(m), 1), 'u', C(iso(m), 2), 'v', C(iso(m), 3), 't', t(m), ...
             'X', nan(1, 3), 'track', 0, 'reason', 'isolated', 'errPx', NaN); %#ok<AGROW>
     end
+end
+end
+
+function ok = onOwnPath(t, X, own, other, opts)
+% points paired with another track: within opts.otherPairM of the track's own path at that time
+% (its partner-paired points: interpolated between the nearest on each side, or from the nearest
+% one plus the local speed times the gap), judged only within opts.otherPairS of an own point;
+% further away from any own point there is nothing to judge by and the pair stands
+ok = true(size(t));
+io = find(own);
+if numel(io) < 2, return; end
+[to, ord] = sort(t(io));  Xo = X(io(ord), :);
+[to, u] = unique(to);  Xo = Xo(u, :);
+if numel(to) < 2, return; end
+v = sqrt(sum(diff(Xo) .^ 2, 2)) ./ max(diff(to), 1e-4);  vMed = median(v);
+for m = find(other(:))'
+    tm = t(m);
+    [dt, a] = min(abs(to - tm));
+    if dt > opts.otherPairS, continue; end
+    if tm > to(1) && tm < to(end)
+        b = find(to > tm, 1);  f = (tm - to(b - 1)) / (to(b) - to(b - 1));
+        P = Xo(b - 1, :) + f * (Xo(b, :) - Xo(b - 1, :));  lim = opts.otherPairM + 0.5 * 9.81 * (to(b) - to(b - 1)) ^ 2;
+    else
+        P = Xo(a, :);  lim = opts.otherPairM + vMed * dt;
+    end
+    ok(m) = norm(X(m, :) - P) <= lim;
 end
 end
 
