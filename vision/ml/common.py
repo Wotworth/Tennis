@@ -77,6 +77,16 @@ def labels():
             k = (int(r['v']), int(r['i'])); p = (float(r['x']), float(r['y']))
             if r['verdict'] == 'ball': frames[k]['balls'].append(p)
             elif r['verdict'] == 'unsure': frames[k]['ignore'].append(p)
+    # still balls (Chris, 22 Nov): balls checked by eye to be lying still, though the frame
+    # difference called them moving (the net mesh in front). A motion detector does not look for
+    # them, so they are neither misses nor false spots; score() counts them apart
+    for k in frames: frames[k]['still'] = []
+    if os.path.exists(f'{TESTSET}/labels_still.csv'):
+        for r in csv.DictReader(open(f'{TESTSET}/labels_still.csv')):
+            k = (int(r['v']), int(r['i'])); p = (float(r['x']), float(r['y']))
+            near = [b for b in frames[k]['balls'] if np.hypot(b[0] - p[0], b[1] - p[1]) <= 2]
+            for b in near: frames[k]['balls'].remove(b)
+            frames[k]['still'].append(p)
     return frames
 
 
@@ -86,9 +96,11 @@ def score(dets, radius=10):
     out = {}
     for (v, i), lab in L.items():
         d = dets.get((v, i), [])
-        s = out.setdefault(v, {'balls': 0, 'found': 0, 'false': 0, 'frames': 0})
+        s = out.setdefault(v, {'balls': 0, 'found': 0, 'false': 0, 'frames': 0, 'still': 0, 'stillFound': 0})
         s['frames'] += 1
         s['balls'] += len(lab['balls'])
+        s['still'] += len(lab.get('still', []))
+        s['stillFound'] += sum(1 for q in lab.get('still', []) if any(np.hypot(p[0] - q[0], p[1] - q[1]) <= radius for p in d))
         used = set()
         for b in lab['balls']:
             hit = [j for j, p in enumerate(d) if j not in used and np.hypot(p[0] - b[0], p[1] - b[1]) <= radius]
@@ -96,9 +108,9 @@ def score(dets, radius=10):
                 s['found'] += 1; used.add(hit[0])
         for j, p in enumerate(d):
             if j in used: continue
-            if any(np.hypot(p[0] - q[0], p[1] - q[1]) <= radius for q in lab['ignore'] + lab['balls']): continue
+            if any(np.hypot(p[0] - q[0], p[1] - q[1]) <= radius for q in lab['ignore'] + lab['balls'] + lab.get('still', [])): continue
             s['false'] += 1
-    t = {k: sum(o[k] for o in out.values()) for k in ('balls', 'found', 'false', 'frames')}
+    t = {k: sum(o[k] for o in out.values()) for k in ('balls', 'found', 'false', 'frames', 'still', 'stillFound')}
     out['all'] = t
     return out
 
@@ -106,4 +118,5 @@ def score(dets, radius=10):
 def show(sc, name):
     for k in (1, 2, 3, 'all'):
         s = sc[k]
-        print('%-28s %-4s found %2d of %2d balls in play; %3d false spots in %d frames' % (name, k, s['found'], s['balls'], s['false'], s['frames']))
+        still = ('; still balls (not looked for) %d, of them found %d' % (s['still'], s['stillFound'])) if s.get('still') else ''
+        print('%-28s %-4s found %2d of %2d balls in play; %3d false spots in %d frames%s' % (name, k, s['found'], s['balls'], s['false'], s['frames'], still))
