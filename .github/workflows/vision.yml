@@ -12,10 +12,10 @@ on:
   workflow_dispatch:
     inputs:
       only:
-        description: 'Run one job only (a manual run): all, test, fit-study, block-study, error-budget, shot-study, neighbours-study or rehearsal'
+        description: 'Run one job only (a manual run): all, test, fit-study, block-study, error-budget, shot-study, neighbours-study, rehearsal or calib-study'
         type: choice
         default: all
-        options: [all, test, fit-study, block-study, error-budget, shot-study, neighbours-study, rehearsal]
+        options: [all, test, fit-study, block-study, error-budget, shot-study, neighbours-study, rehearsal, calib-study]
       leg:
         description: 'With shot-study: one leg only (coverage-gust, coverage-calm, real23, real29, real23-combined); empty for all'
         type: string
@@ -354,5 +354,39 @@ jobs:
         if: always()
         run: |
           for f in $(find out -type f \( -name 'rehearsal.md' -o -name 'groundtruth.md' \) 2>/dev/null); do
+            echo "=== BEGIN-B64 $f"; base64 -w 0 "$f"; echo; echo "=== END-B64"
+          done
+
+  # 22 Nov: the 4K rehearsal put camera 2 5.5 m off; Tuesday's two views calibrated from the lines
+  # at 4K and 960 x 540, with the real-footage and the synthetic line settings (tools/calibStudy.m)
+  calib-study:
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all' || inputs.only == 'calib-study'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MATLAB
+        uses: matlab-actions/setup-matlab@v2
+        with:
+          release: latest
+          products: >
+            Image_Processing_Toolbox
+            Optimization_Toolbox
+            Computer_Vision_Toolbox
+            Statistics_and_Machine_Learning_Toolbox
+
+      - name: FFmpeg
+        run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
+
+      - name: Calibration study
+        uses: matlab-actions/run-command@v2
+        with:
+          command: addpath('vision', 'vision/tools'); calibStudy(fullfile(pwd, 'out', 'calibstudy'));
+
+      - name: Print results into the log
+        if: always()
+        run: |
+          for f in $(find out -type f -name 'calibstudy*' 2>/dev/null); do
             echo "=== BEGIN-B64 $f"; base64 -w 0 "$f"; echo; echo "=== END-B64"
           done
