@@ -38,7 +38,8 @@ data class FieldNotes(
             "(the near baseline, the cameras' side, at x = -11.885), y across (the cameras' side fence at negative y), z up."
         private const val CHRIS = "\nChris: "
         const val SPIN_NOTE = "Optional (manual 16.3 step 9, clip 8): six striped balls fed by the machine at one setting, filmed side-on " +
-            "by the Hero 7 at 1080p240 from about 3 m. clip: the GoPro clip of the same feeds."
+            "by the Hero 7 at 1080p240 from about 3 m. clip: the GoPro clip of the same feeds. spin: top or back, as the machine is set " +
+            "(it settles which way the stripe turns)."
 
         /** Manual 16.3 step 7: four settings, one clip each. */
         val DEFAULT_MACHINE = listOf(
@@ -88,7 +89,7 @@ data class FieldNotes(
                     alongM = x?.let { round4(kotlin.math.abs(it - HALF_LENGTH)) }, behind = x == null || x >= HALF_LENGTH,
                     acrossM = y?.let { kotlin.math.abs(it) }, acrossOther = (y ?: 0.0) > 0)
             }
-            val spin = m["spinTruth"].obj()?.let { SpinTruth(it.text("clip") ?: SPIN_CLIP, it.text("file") ?: "", it.num("balls")?.toInt()) }
+            val spin = m["spinTruth"].obj()?.let { SpinTruth(it.text("clip") ?: SPIN_CLIP, it.text("file") ?: "", it.num("balls")?.toInt(), it.text("spin") ?: "top") }
             return FieldNotes(d.session, chris, if (cams.isEmpty()) d.cameras else cams, court, still, drops, targets,
                 if (m.containsKey("machine")) machine else d.machine, spin)
         }
@@ -119,7 +120,7 @@ data class FieldNotes(
             linkedMapOf("name" to it.name, "fromBaselineM" to it.fromBaselineM, "fromSidelineM" to it.fromSidelineM, "x" to it.x, "y" to it.y)
         }),
     ).also { t ->
-        spin?.let { t["spinTruth"] = linkedMapOf("clip" to it.clip, "file" to it.file, "balls" to it.balls, "note" to SPIN_NOTE) }
+        spin?.let { t["spinTruth"] = linkedMapOf("clip" to it.clip, "file" to it.file, "balls" to it.balls, "spin" to it.spin, "note" to SPIN_NOTE) }
         t["machine"] = machine.map {
             linkedMapOf("clip" to it.clip, "setting" to it.setting, "speedDial" to it.speedDial, "spinDial" to it.spinDial,
                 "feedS" to it.feedS, "elevationDeg" to it.elevationDeg, "position" to linkedMapOf("x" to it.x, "y" to it.y))
@@ -244,7 +245,11 @@ data class MachineClip(
 }
 
 /** Clip 8, optional: the Hero 7's file of the striped balls. */
-data class SpinTruth(val clip: String = FieldNotes.SPIN_CLIP, val file: String = "", val balls: Int? = 6)
+data class SpinTruth(
+    val clip: String = FieldNotes.SPIN_CLIP, val file: String = "", val balls: Int? = 6,
+    /** The machine's setting for the striped balls (clip 8 is fed with topspin): it settles which way the stripe turns. */
+    val spin: String = "top",
+)
 
 /** The draft on the phone: filesDir/groundtruth/<date>.json, saved on every change. */
 class FieldNotesStore(val dir: File) {

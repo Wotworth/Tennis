@@ -29,7 +29,7 @@ for i = 1:numel(opts.detectors)
     M = tv.synth.detectorModel(csv, name);
     R = fitStudy(outDir, struct('scenario', 'tuesday', 'errModel', M, 'sideSpin', true, 'machine', 0.33, ...
         'targetShots', opts.targetShots, 'minutes', opts.minutes, 'gustAmp', opts.gustAmp, 'liftModel', opts.liftModel, 'tag', [name tv.testing.ternary(opts.gustAmp == 0, '_calm', '') '_' opts.liftModel rtag], ...
-        'title', sprintf('Tuesday set-up, detector: %s%s, lift %s', name, tv.testing.ternary(opts.gustAmp == 0, ', calm air', ''), opts.liftModel) rtitle));
+        'title', [sprintf('Tuesday set-up, detector: %s%s, lift %s', name, tv.testing.ternary(opts.gustAmp == 0, ', calm air', ''), opts.liftModel) rtitle]));
     r = R.rows;  f = [r.found];
     sp = abs([r.speedErr]) * 2.23694;  sp = sp(isfinite(sp));
     cv = abs([r.curveErr]) * 100;  cv = cv(isfinite(cv));

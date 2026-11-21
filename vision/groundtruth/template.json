@@ -25,7 +25,7 @@
   "targets": {"clip": "clip3", "spots": [
       {"name": "far left corner", "fromBaselineM": 0.5, "fromSidelineM": 0.5, "x": 11.385, "y": -4.985},
       {"name": "far right corner", "fromBaselineM": 0.5, "fromSidelineM": 0.5, "x": 11.385, "y": 4.985}]},
-  "spinTruth": {"clip": "clip8", "file": "HERO7/GH010001.MP4", "balls": 6, "note": "Optional (manual 16.3 step 9, clip 8): six striped balls fed by the machine at one setting, filmed side-on by the Hero 7 at 1080p240 from about 3 m. clip: the GoPro clip of the same feeds."},
+  "spinTruth": {"clip": "clip8", "file": "HERO7/GH010001.MP4", "balls": 6, "spin": "top", "note": "Optional (manual 16.3 step 9, clip 8): six striped balls fed by the machine at one setting, filmed side-on by the Hero 7 at 1080p240 from about 3 m. clip: the GoPro clip of the same feeds. spin: top or back, as the machine is set (it settles which way the stripe turns)."},
   "machine": [
     {"clip": "clip4", "setting": "medium flat", "speedDial": 5, "spinDial": 0, "feedS": 4, "elevationDeg": 10, "position": {"x": 12.3, "y": 0}},
     {"clip": "clip8", "setting": "striped balls, topspin", "speedDial": 5, "spinDial": 6, "feedS": 4, "elevationDeg": 10, "position": {"x": 12.3, "y": 0}}

@@ -41,7 +41,15 @@ for n = 0:nT - 1
 end
 fclose(fid);
 tv.util.run(sprintf('%s -y -v error -f rawvideo -pix_fmt rgb24 -s %dx%d -r %d -i "%s" -c:v libx264 -crf 18 -pix_fmt yuv420p "%s"', tv.util.ffmpeg(), W, H, fps, raw, f));
-R = spinFromStripe(f);
-fprintf('found %d balls: %s rpm (truth %s)\n', numel(R.balls), mat2str(round([R.balls.rpm])), mat2str(rpms));
+% the machine is set to topspin; the balls cross the picture left to right
+R = spinFromStripe(f, struct('spin', 'top'));
+fprintf('found %d balls: %s rpm, sd %s (truth %s)\n', numel(R.balls), mat2str(round([R.balls.rpm])), mat2str(round(10 * [R.balls.rpmSd]) / 10), mat2str(rpms));
 assert(numel(R.balls) == numel(rpms))
-assert(all(abs([R.balls.rpm] - rpms) ./ rpms < 0.03), 'rpm off by more than 3%')
+err = [R.balls.rpm] - rpms;
+assert(all(abs(err) ./ rpms < 0.02), 'rpm off by more than 2%')
+assert(all(abs(err) <= 3 * [R.balls.rpmSd] + 0.002 * rpms), 'the stated uncertainty does not cover the error')
+% without the machine's setting the dot decides; where it can't, the ball must say so
+R2 = spinFromStripe(f);
+fprintf('without the setting: %s rpm, %s\n', mat2str(round([R2.balls.rpm])), strjoin({R2.balls.sense}, ', '));
+assert(numel(R2.balls) == numel(rpms))
+assert(all(abs([R2.balls.rpm] - rpms) ./ rpms < 0.02 | strcmp({R2.balls.sense}, 'unsure')), 'a wrong half turn was not flagged')

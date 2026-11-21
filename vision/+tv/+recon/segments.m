@@ -208,7 +208,7 @@ function [segs, cuts] = refineSplits(segs, cams, rec, sync, air, prior, opts)
 % 15 moments where both halves keep enough detections, then at the frames
 % next to the best one; keep the split when both halves together fit much
 % better (opts.splitGain of the error or less), then look again.
-k = 1;  cuts = [];
+segs = segs(:);  k = 1;  cuts = [];
 while k <= numel(segs)
     g = segs(k);
     if (isfinite(g.rmsPx) && g.rmsPx <= opts.splitRms) || size(g.obs, 1) < 4 * opts.minPerCam, k = k + 1; continue; end
@@ -234,7 +234,8 @@ while k <= numel(segs)
             end
         end
     end
-    if isempty(best), k = k + 1; else, segs = [segs(1:k-1); best; segs(k+1:end)]; cuts(end+1) = bestCut; end %#ok<AGROW>
+    % (a column throughout: the two halves go in where the flight was)
+    if isempty(best), k = k + 1; else, segs = [segs(1:k-1); best(:); segs(k+1:end)]; cuts(end+1) = bestCut; end %#ok<AGROW>
 end
 end
 

@@ -855,10 +855,10 @@ Every test below gives a number that is **not graded against our own labels or s
 8. **Optional — one clip at 4K200 (3 min)** if the menu offers it, same settings otherwise. Note the battery % and any heat warning before and after each clip.
    - **Proves:** whether 4K200 runs cooler or longer than 4K240 on battery, for choosing the mode.
 9. **Optional — spin truth with striped balls (clip 8, about 5 min).**
-   - *At home beforehand:* on 6 balls draw, with a thick black marker, a band about 1 cm wide all the way round the middle, and one filled dot about 2 cm across on one side of the band. The dot lets a whole turn be told apart from half a turn.
+   - *At home beforehand:* on 6 balls draw, with a thick black marker, a band about 1 cm wide all the way round the middle, and one filled dot about 2 cm across on one side of the band. The dot lets a whole turn be told apart from half a turn. (Keeping the machine on topspin settles that too, so a ball whose dot happens to face the camera still counts.)
    - Hero 7: **1080p, 240 frames a second**, Protune on, the fastest shutter it offers (write it down). Put it on a tripod or the fence **about 3 m to the side of the machine's path, level with the machine's mouth, looking straight across the path** (side-on), with the mouth near one edge of the picture so the ball crosses the frame.
    - Machine: one topspin setting; write down the dials as for clips 4 to 7. Start the Hero 7 and both GoPros. Feed the 6 striped balls one at a time; don't hit them back. Stop all three.
-   - **Proves:** the machine's spin in rpm, counted from the band turning frame by frame (`tools/spinFromStripe.m`: within 2% on a made-up 13-pixel ball from 1200 to 4800 rpm), against the rpm the system finds for the same six balls.
+   - **Proves:** the machine's spin in rpm, counted from the band turning frame by frame (`tools/spinFromStripe.m`: within 0.5% on a made-up 13-pixel ball from 1200 to 4800 rpm, each with its own stated uncertainty), against the rpm the system finds for the same six balls.
 10. **Before the nets come down:** a last 30-second clip of the empty court from both cameras (the light will have moved), then stop.
 
 ### 16.4 After the session

@@ -70,7 +70,9 @@ end
 if isfield(M, 'spinTruth') && isfield(runs, M.spinTruth.clip)
     st = [];
     if isfield(runs, 'stripe'), st = runs.stripe;
-    elseif isfield(M.spinTruth, 'file') && exist(M.spinTruth.file, 'file'), st = spinFromStripe(M.spinTruth.file);
+    elseif isfield(M.spinTruth, 'file') && exist(M.spinTruth.file, 'file')
+        so = struct('spin', '');  if isfield(M.spinTruth, 'spin'), so.spin = M.spinTruth.spin; end
+        st = spinFromStripe(M.spinTruth.file, so);
     end
     if ~isempty(st)
         G.spin = spinCheck(st, runs.(M.spinTruth.clip));

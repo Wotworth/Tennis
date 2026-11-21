@@ -90,7 +90,9 @@ The size study now reports each condition apart. The shot study uses separate fi
 - **5. Randomized neighbours study:** six sessions (12 rallies). Random per session: the courts' gap, the neighbours' timing and shots, the crossing ball, the stray, the walker's distance, and your own targets and speeds. RESULT-NEIGHBOURS
 - **6. Spin truth:**
   - Manual 16.3 step 9 (clip 8): six balls with a band and a dot. The dot tells a whole turn from half a turn; a band alone looks the same after half a turn, which would scramble readings above about 3600 rpm. The Hero 7 films them side-on at 1080p240 from about 3 m.
-  - `tools/spinFromStripe.m` gets rpm from the band's turn frame to frame: within 2% from 1200 to 4800 rpm on a made-up 13 px ball.
+  - `tools/spinFromStripe.m` gets rpm from the band's turn: within 0.5% from 1200 to 4800 rpm on a made-up 13 px ball, over four noise draws.
+  - The first version passed here but failed in CI's MATLAB at 4800 rpm: it read half the rate when that ball's dot sat facing the camera, where it shows almost nothing. It now uses the machine's setting (topspin) to settle the half turn. Without the setting, such a ball is marked "unsure" instead of being given a wrong number.
+  - Each frame's angle is now measured against the pass's middle frame, not just the frame before. That makes the reading about ten times steadier, and its stated uncertainty now matches its real error (the first version understated it about tenfold).
   - groundTruthReport compares it with the system's rpm for the same feeds, ball by ball, and says whether each truth falls inside the system's stated band.
 - **9. Field notes in the app:** sessions page → "tuesday's measurements".
   - The form follows Tuesday's order and saves as you type. Values you must measure start empty, so a default can't pass for a measurement.

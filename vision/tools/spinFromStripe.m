@@ -7,16 +7,23 @@ function R = spinFromStripe(file, opts)
 %     1. the ball is found in every frame it is in view: what differs from the clip's still
 %        background, yellow-green, ball-sized; frames in a row make one ball's pass
 %     2. each frame's picture of the ball is unwrapped round its centre (angle by distance from the
-%        centre), and the turn from one frame to the next is the shift that best lines the two up
-%        (the dot makes a whole turn tell apart from half a turn)
-%     3. rpm = the slope of the angle turned so far against the frame number x frames a second /
-%        360 x 60; the scatter about that line gives its uncertainty. Turns over 150 degrees a frame (over 6000 rpm at 240
-%        frames a second) cannot be told from the other way round and are flagged.
-%   R.balls(i): firstFrame, nFrames, rpm, rpmSd, degPerFrame (each pair), sizePx, aliased.
-%   opts: fps (default: the file's), maxBalls, minFrames (default 6), diffThresh.
+%        centre); the turn between two pictures is the shift that best lines them up
+%     3. the turn per frame up to a half turn comes from every pair of frames in a row together
+%        (the band alone looks the same after half a turn). Which of the two: the way the ball spins
+%        when it is known (opts.spin 'top' or 'back', with the way the ball crosses the picture;
+%        the two readings always turn opposite ways), else the dot's evidence over the whole pass.
+%        The dot tells little when it sits near the spin axis, facing the camera: then sense is
+%        'unsure'.
+%     4. every frame's angle is measured against the pass's middle frame and followed outwards;
+%        rpm = the slope of the straight line through them x frames a second / 360 x 60, and the
+%        scatter about the line gives rpmSd. Turns over 150 degrees a frame (over 6000 rpm at 240
+%        frames a second) are flagged as aliased.
+%   R.balls(i): firstFrame, nFrames, rpm, rpmSd, degPerFrame (each pair in a row), sizePx, aliased,
+%   sense ('given', 'dot' or 'unsure').
+%   opts: fps (default: the file's), spin ('top', 'back' or ''), minFrames (default 6), diffThresh.
 %   The camera counts frames, not time: the rpm is as good as its frame rate (240: 0.1%).
 if nargin < 2, opts = struct(); end
-d = struct('fps', NaN, 'minFrames', 6, 'diffThresh', 40, 'maxSeconds', 120, 'nAngles', 180, 'scale', 1);
+d = struct('fps', NaN, 'spin', '', 'minFrames', 6, 'diffThresh', 40, 'maxSeconds', 120, 'nAngles', 180, 'scale', 1);
 for f = fieldnames(d)', if ~isfield(opts, f{1}), opts.(f{1}) = d.(f{1}); end, end
 info = tv.media.probe(file);
 fps = opts.fps;  if ~isfinite(fps), fps = info.fps; end
@@ -40,29 +47,74 @@ end
 % passes: frames in a row with a ball
 has = isfinite(found(:, 1));
 starts = find(has & [true; ~has(1:end - 1)]);
-R.balls = struct('firstFrame', {}, 'nFrames', {}, 'rpm', {}, 'rpmSd', {}, 'degPerFrame', {}, 'sizePx', {}, 'aliased', {});
+R.balls = struct('firstFrame', {}, 'nFrames', {}, 'rpm', {}, 'rpmSd', {}, 'degPerFrame', {}, 'sizePx', {}, 'aliased', {}, 'sense', {});
 R.fps = fps;  R.file = file;
 for s = starts(:)'
     e = s;  while e < n && has(e + 1), e = e + 1; end
     if e - s + 1 < opts.minFrames, continue; end
-    dth = nan(e - s, 1);
+    na = opts.nAngles;  step = 360 / na;  w = round(na / 6);
+    % (a) each pair of frames in a row: its circular correlation along the angle
+    C = nan(e - s, na);
     for k = s:e - 1
-        dth(k - s + 1) = turn(crops{k}, crops{k + 1}, opts.nAngles);
+        C(k - s + 1, :) = corrAlong(crops{k}, crops{k + 1});
     end
-    dth = dth(isfinite(dth));
-    if isempty(dth), continue; end
-    % the angle turned so far, frame by frame (signs agreeing with the main direction), and the
-    % straight line through it: its slope is the turn per frame, its scatter the uncertainty
-    sg = sign(median(dth));  if sg == 0, sg = 1; end
-    a = abs(dth);  a(sign(dth) ~= sg) = NaN;  a = a(isfinite(a));
-    if numel(a) < 3, continue; end
-    cum = [0; cumsum(a)];  t = (0:numel(a))';
-    p = [t, ones(size(t))] \ cum;
-    res = cum - [t, ones(size(t))] * p;
-    rpm = p(1) * fps / 360 * 60;
-    sd = sqrt(sum(res .^ 2) / max(1, numel(t) - 2) / sum((t - mean(t)) .^ 2)) * fps / 360 * 60;
+    C = C(all(isfinite(C), 2), :);
+    if size(C, 1) < 3, continue; end
+    % (b) the turn per frame up to a half turn: the band repeats every half turn, so the two halves
+    % of the correlation are added, over every pair of the pass
+    [~, h] = max(sum(C(:, 1:na / 2) + C(:, na / 2 + 1:end), 1));
+    dA = (h - 1) * step;  if dA > 180, dA = dA - 360; end
+    dB = dA - 180 * sign(dA + (dA == 0));
+    % (c) which of the two: the way the ball spins when it is known (opts.spin, with the way it
+    % moves across the picture), else the dot's evidence over every pair; too little evidence is
+    % flagged. On the picture, topspin turns clockwise for a ball moving right, anticlockwise left.
+    ev = C(:, h) - C(:, mod(h - 1 + na / 2, na) + 1);
+    tEv = mean(ev) / (std(ev) / sqrt(numel(ev)) + eps);
+    dx = found(e, 1) - found(s, 1);
+    if any(strcmp(opts.spin, {'top', 'back'})) && dx ~= 0
+        want = sign(dx) * (2 * strcmp(opts.spin, 'top') - 1);
+        if sign(dA) == want, d0 = dA; else, d0 = dB; end
+        sense = 'given';
+    else
+        if tEv >= 0, d0 = dA; else, d0 = dB; end
+        sense = tv.testing.ternary(abs(tEv) >= 3, 'dot', 'unsure');
+    end
+    k0 = mod(round(d0 / step), na) + 1;
+    % (d) each pair's own turn near the pass's (for the record and the prediction below)
+    dth = nan(size(C, 1), 1);
+    for i = 1:size(C, 1), dth(i) = peakNear(C(i, :), k0, w) * step; end
+    dth(dth > 180) = dth(dth > 180) - 360;
+    md = median(dth);  d1 = mean(dth(abs(dth - md) <= max(10, 3 * 1.4826 * median(abs(dth - md)))));
+    % (e) the angle of every frame against the middle frame of the pass, followed frame by frame
+    % from the middle outwards; a straight line through those angles has the turn per frame as its
+    % slope. Each frame's angle carries its own error only, so the slope is much better than the
+    % frame-to-frame turns, and its scatter gives an honest uncertainty.
+    ref = s + floor((e - s) / 2);  th = nan(e - s + 1, 1);  th(ref - s + 1) = 0;
+    for dirn = [1 -1]
+        last = 0;  jl = ref;
+        for j = ref + dirn:dirn:tv.testing.ternary(dirn > 0, e, s)
+            c = corrAlong(crops{ref}, crops{j});
+            if ~all(isfinite(c)), continue; end
+            pred = last + (j - jl) * d1;
+            m = peakNear(c, mod(round(pred / step), na) + 1, w) * step;
+            v = pred + mod(m - pred + 180, 360) - 180;
+            th(j - s + 1) = v;
+            if abs(v - pred) < 25, last = v;  jl = j; end
+        end
+    end
+    t = (0:e - s)';  ok = isfinite(th);
+    for pass2 = 1:2
+        X = [t(ok), ones(nnz(ok), 1)];  p = X \ th(ok);  res = th - [t, ones(size(t))] * p;
+        if pass2 == 1
+            mr = median(abs(res(ok)));  ok = ok & abs(res) <= max(6, 3 * 1.4826 * mr);
+            if nnz(ok) < 4, break; end
+        end
+    end
+    if nnz(ok) < 4, continue; end
+    rpm = abs(p(1)) * fps / 360 * 60;
+    sd = sqrt(sum(res(ok) .^ 2) / max(1, nnz(ok) - 2) / sum((t(ok) - mean(t(ok))) .^ 2)) * fps / 360 * 60;
     R.balls(end+1) = struct('firstFrame', s - 1, 'nFrames', e - s + 1, 'rpm', rpm, 'rpmSd', sd, ...
-        'degPerFrame', dth', 'sizePx', 2 * median(found(s:e, 3)), 'aliased', p(1) > 150); %#ok<AGROW>
+        'degPerFrame', dth', 'sizePx', 2 * median(found(s:e, 3)), 'aliased', abs(p(1)) > 150, 'sense', sense); %#ok<AGROW>
 end
 end
 
@@ -97,17 +149,21 @@ U = U - mean(v);  U(~isfinite(U)) = 0;
 s = sqrt(mean(U(:) .^ 2));  if s > 0, U = U / s; end
 end
 
-function d = turn(A, B, na)
-% the turn (degrees, -180..180) that lines picture B up with picture A: circular correlation along the angle
-d = NaN;
-if isempty(A) || isempty(B), return; end
+function c = corrAlong(A, B)
+% circular correlation along the angle between pictures A and B (NaN when either is missing):
+% c(k) is how well B matches A turned by (k - 1) steps
+if isempty(A) || isempty(B), c = NaN; return; end
 FA = fft(A, [], 2);  FB = fft(B, [], 2);
 c = real(ifft(sum(conj(FA) .* FB, 1)));
-[~, k] = max(c);
-% sub-step: a parabola through the peak and its neighbours
-km = mod(k - 2, na) + 1;  kp = mod(k, na) + 1;
-den = c(km) - 2 * c(k) + c(kp);  off = 0;
+end
+
+function k = peakNear(c, k0, w)
+% the correlation peak within w steps of step k0 (circular), with a parabola through it and its
+% neighbours for the sub-step; returned as a step count from 0
+na = numel(c);  idx = mod(k0 - 1 + (-w:w), na) + 1;
+[~, j] = max(c(idx));  kk = idx(j);
+km = mod(kk - 2, na) + 1;  kp = mod(kk, na) + 1;
+den = c(km) - 2 * c(kk) + c(kp);  off = 0;
 if den < 0, off = 0.5 * (c(km) - c(kp)) / den; end
-d = (k - 1 + off) * 360 / na;
-if d > 180, d = d - 360; end
+k = mod(kk - 1 + off, na);
 end
