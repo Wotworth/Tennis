@@ -159,16 +159,27 @@ The size study now reports each condition apart. The shot study uses separate fi
 
 | Item | Decision |
 |---|---|
-| 3 | Model-error terms reset from run 61: bounce 2.0 cm; spin effect 4.2 cm + 8%; curve 20 cm + 16% in gusts, 7.5 cm + 6% calm |
+| 3 | Model-error terms reset from run 61: bounce 2.0 cm; spin effect 4.2 cm + 8%; curve 20 cm + 16% in gusts, 7.5 cm + 6% calm; checked on fresh shots (94 to 100%) |
 | 10 | Gusts scale the curve band only (measured: bounce and spin effect don't grow with gusts) |
-| 7 | quickLook assumes Linear; empty-clip crashes fixed |
+| 7 | quickLook assumes Linear; empty-clip, split-flight and early-bounce breaks fixed; 4K rehearsal in two CI jobs |
 | 11 | Deploy from the tablet with Cloudflare's own build; secrets only in Cloudflare |
 | 8 | Frames through memory with the file as fallback; spot-finding as array maths |
-| 12 | HEVC at quantiser 23 (calibrated to 240 Mb/s) and 29 (harsher) |
+| 12 | HEVC at quantiser 23 (calibrated to 240 Mb/s) and 29 (harsher); learned-else-colour near hits measured, not yet in the pipeline |
 | 2 | Run 1 splits the modes across the cameras; run 2 optional |
 | 4 | Still balls listed apart; original labels unchanged |
-| 5 | Six varied sessions per CI run |
-| 6 | Band plus dot on the balls |
+| 5 | Six varied sessions per CI run; they fail AC-15, so the gate gets retuned on them and checked on six fresh ones |
+| 6 | Band plus dot on the balls; the machine's topspin settles the half turn |
 | 9 | The file goes by share sheet to Drive |
 | 13 | Batch of about 130 per 15 minutes |
 | 14 | Numbers bundled in the app until the cloud carries them |
+
+## Questions
+
+1. **Near-hit fallback in the pipeline** (item 12): near a hit, take the colour detector's spot where the learned one has none.
+   - A. Build it as a switch and choose on Tuesday's real hits (the machine clips have known speeds). **Recommended**: the gain is measured on synthetic pictures only, and the colour detector also fires on ball-coloured clothing.
+   - B. Build it and turn it on now.
+   - C. Leave it until after Tuesday.
+2. **Courts next to yours on Tuesday:** will they be in use? If yes, the neighbours gate gets fixed before Tuesday; if not, it can follow.
+3. **Labelling batch** (item 13): how Tuesday's batch reaches your phone. A: the cloud Worker, with a write key put in this session's environment (recommended, once the cloud is up). B: a file in the Tuesday Drive folder that the app imports.
+4. **After your cloud deploy:** send the database ID and the Worker's address (not secret).
+

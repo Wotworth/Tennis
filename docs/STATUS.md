@@ -94,7 +94,7 @@ Overnight 20 Nov (Chris's Parts 1 to 4): see docs/reports/OVERNIGHT-20NOV.md. Re
 
 ## Next
 
-- Vision, next: (1) CI on 9f35809: realistic-picture shot studies (quantisers 23 and 29), neighbours study, 4K rehearsal; fill DAY-22NOV.md; (2) the weekend: Chris deploys the cloud (manual 2.3) and sends the database ID and Worker address, then the app gets the host; home tests (manual 17); (3) Tuesday (manual 16): checkCameraFile on the first files, quickLook, groundTruthReport, labelBatch; (4) the learned detector near contact (strings, bodies): it loses the ball there in the realistic patches.
+- Vision, next: (1) still running in CI: the neighbours study with the reason each of Chris's detections was rejected, and the 4K rehearsal in two legs; add both to DAY-22NOV.md; (2) the neighbours gate: it rejects 12% of Chris's ball on varied sessions (AC-15: 2%); retune on the six varied sessions, check on six fresh ones; (3) the near-hit colour fallback (learned spot, else colour) in the pipeline, if Chris agrees; (4) the weekend: Chris deploys the cloud (manual 2.3) and sends the database ID and Worker address, then the app gets the host; home tests (manual 17); (5) Tuesday (manual 16): checkCameraFile on the first files, quickLook, groundTruthReport, labelBatch.
 - Vision, after round 5: (1) court-line fit that needs paint under every line and keeps faint clay lines, tested on a Linear-mode clip if Chris can record one; (2) finding the moving spots faster (two thirds of the time per frame); (3) the 25 Apr SwingVision export's detection (24 of 49 points done) and its column in SWINGVISION-SESSIONS-1.md; (4) more of Chris's exports as they come.
 
 - Design v2 (VIS-09): vision pages done with Chris's 17 Nov feedback (tabs summary/court/3D/health, rally pages with replay, wide court colour scale, swipeable tab names; reports DESIGN-V2-1, DESIGN-V2-2, release v0.6.28). App-wide: shared parts done (segments, square buttons, labelled app bar). Then (v0.6.33): court map pinch-zoom; summary key figures (accuracy, serves, topspin, speed) against all earlier sessions and the last ten; session trends tab with a rolling ten-session average; iPhone footage tests removed from the app. Next: whichever hub pages Chris names after testing v0.6.28.
@@ -118,6 +118,7 @@ Overnight 20 Nov (Chris's Parts 1 to 4): see docs/reports/OVERNIGHT-20NOV.md. Re
 - Round 5 adopted (Chris, 19 Nov evening); pictures from the new videos: private pages only.
 - Answered 21 Nov: curve tile B, 1 ft (done); per-shot rule measured, not adopted (needs model error in the uncertainty; after Tuesday).
 - Answered 22 Nov: AC-11 kept as written, 90th percentile reported beside it; items 1 to 14 done or in CI (DAY-22NOV.md).
+- Asked 22 Nov (end of day): the near-hit colour fallback in the pipeline (build it as a switch and choose on Tuesday's real hits, recommended; or default on now; or wait); whether the courts next to Chris's will be in use on Tuesday (sets how soon the neighbours gate must be fixed).
 - Asked 22 Nov: how a labelling batch from Tuesday's footage reaches the phone (cloud Worker with a write key in this session's environment, or a file in the Drive folder the app imports).
 - Answered 20 Nov: (a) wait for his taps (with reminders and the tile); (b) process every frame for now (built: `cfg.frames 'all'`); a cheaper first pass only when it misses under 1% on his real sessions and he agrees.
 
@@ -140,7 +141,9 @@ Overnight 20 Nov (Chris's Parts 1 to 4): see docs/reports/OVERNIGHT-20NOV.md. Re
 - Launcher work is on wp-launcher **main**. The launcher's other session still releases from `ccr-fa86e307-85zu7m` (it released v0.9.167, fix-8, from there on 6 Nov). Before every launcher release from main, merge that branch into main first, or the release drops its fixes. Done for v0.9.167 on 6 Nov (main 52730cf).
 
 - The watcher's hold-and-skip lines for a held session (`tv.ingest.scanOnce`) have no test of their own; a session that fails is tried again on every pass and alerts each time (as before this change).
-- The learned detector loses the ball on the racquet strings and partly behind bodies in the realistic synthetic patches (22 Nov); the colour detector keeps it on the strings. To check on Tuesday's machine clips.
+- On realistic synthetic pictures (strings, bodies, shadows, HEVC) the learned detector alone misses AC-06 and AC-07: shots found 86% (quantiser 23) and 75% (29), speed within 2 mph 84% and 80%. The loss is near contact. The learned spot, else the colour one, gives 90% and 93% (quantiser 23); not in the pipeline yet. To check on Tuesday's machine clips.
+- Neighbours (AC-15): on six varied sessions 12.1% of Chris's ball detections are rejected (worst 34.4%; limit 2%) and 39 of 49 shots are found; the 21 Nov fixes pass only on adjacentTest's one session.
+- The 4K first pass takes 26 to 79 minutes a clip on GitHub's machines (no graphics card); the four-clip 4K rehearsal runs as two CI jobs.
 - Nothing has run on the phone yet.
 - Wrapped secondary text lines sit close together (the Zune type roles trim line height); revisit in PH-1 if it reads badly on the phone.
 
