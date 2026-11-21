@@ -55,8 +55,12 @@ It runs them through `checkCameraFile`, then `quickLook` on clip 1, then `quickL
 
 `checkCameraFile` flags the synthetic files' missing telemetry track as FAIL, which is correct: they have none. Real files carry it.
 
-**Small rehearsal (960 × 540) after the fixes:** RESULT-SMALL
-**Full-size rehearsal in CI (4K240):** RESULT-4K
+6. **A clip whose flight was split in two broke the 3D step** (Octave only: it stacks an empty row on a column where MATLAB doesn't mind). Fixed so both accept it.
+7. **A dropped ball's bounce, found before the "hit", left no path between them** and broke the shot measurements. That shot now gets no flight time instead of breaking the clip.
+
+**Small rehearsal (960 × 540, here):** clips 1 and 2 now run through the whole chain; before these fixes, clips 1 to 3 broke. The full four-clip run here takes over two hours in Octave, so the complete check is the 4K one in CI.
+
+**Full-size rehearsal in CI (4K240):** before the fixes, clips 1 to 3 went through the whole chain in MATLAB, each finding its rally (2, 8 and 3 shots). Clip 4 then ran out of GitHub's 6-hour limit. The first pass over each clip takes 26 to 79 minutes on CI's small machines with no graphics card, so it says nothing about the Legion's time. The rehearsal now runs as two jobs (clips 1 and 2; clips 1, 3 and 4). RESULT-4K
 
 ## 11. Cloud deploy this weekend
 
@@ -102,7 +106,17 @@ The size study now reports each condition apart. The shot study uses separate fi
 - At quantiser 29 the learned detector also weakens in flight: 64% found at 4 px, against 90% at quantiser 23.
 - Bounces stay good (1.3 to 1.4 cm median): they are far from the players.
 - The spin-effect band holds the truth less often on realistic pictures (91% at quantiser 23, 83% at 29, against 95 to 96% on clean ones). Bounce and curve bands still hold (96 to 99%).
-- **What I'm testing (CI now):** near a hit, use the colour detector's spot wherever the learned one has none ("learnedColour"). In a small local run this finds the ball near hits in 90 to 100% of frames, against 40 to 43% for the learned detector alone. RESULT-COMBINED
+- **What I'm testing (CI now):** near a hit, use the colour detector's spot wherever the learned one has none ("learnedColour"). Result (CI, the same session at quantiser 23):
+
+  | Near a hit | Shots found | Speed within 2 mph | Speed error median / 90th, mph | Spin-effect band holds (2 sd) |
+  |---|---|---|---|---|
+  | Learned detector alone | 172 of 201 (86%) | 84% | 0.69 / 2.41 | 91% |
+  | Learned, else colour | 180 of 201 (90%) | 93% | 0.60 / 1.78 | 96% |
+
+  - Near a hit the combination finds the ball in 80 to 96% of frames at 4 to 8 px (the learned one alone: 38 to 47%).
+  - AC-07 is met again; AC-06 is still short (90% against 95%).
+  - The study picks the colour spot nearest the true ball, so it is a best case: on real pictures the colour detector also fires on yellow-green shirts and the like.
+  - This is not in the pipeline yet; see the question below.
 
 ## The rest
 
