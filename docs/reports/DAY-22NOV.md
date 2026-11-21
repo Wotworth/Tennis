@@ -133,7 +133,11 @@ The size study now reports each condition apart. The shot study uses separate fi
     | 4 | 3.06 | 5 of 8 | 4 of 5 | 34.4% | 2 |
     | 5 | 3.99 | 7 of 9 | 7 of 7 | 11.5% | 0 |
     | 6 | 4.11 | 8 of 9 | 6 of 8 | 20.6% | 0 |
-  - The study now records why each of your detections was rejected. Session 4 (the worst) is running here to find the cause. RESULT-NB4
+  - **Why** (CI rerun, which records the reason for each rejected detection of your ball):
+    - *"Mostly outside"*: 816 detections in session 4 and 483 in session 6, the two worst sessions. The gate drops a whole track when over half of its 3D points lie outside your court's box. When the tracker has joined your ball to a neighbour's ball, or your ball flies on past the box after an out shot, the whole track goes, including the part over your court.
+    - *Flight fit*: 94 to 210 detections in every session, dropped as outliers when the flights are fitted.
+    - The rest: under 35 per session (one camera only, paired with the wrong ball, overlapping a better track).
+  - **Proposed fix:** judge "mostly outside" on each stretch of a track rather than on the whole track, so only the stretch outside your court goes; then look at the flight-fit outliers. The other rules (a ball rolling along the ground, the epipolar check) still keep the neighbours out. It will be retuned on these six sessions and checked on six fresh ones, with adjacentTest kept. Each CI run of the study takes about 6 hours. Question 2 below sets when.
 - **6. Spin truth:**
   - Manual 16.3 step 9 (clip 8): six balls with a band and a dot. The dot tells a whole turn from half a turn; a band alone looks the same after half a turn, which would scramble readings above about 3600 rpm. The Hero 7 films them side-on at 1080p240 from about 3 m.
   - `tools/spinFromStripe.m` gets rpm from the band's turn: within 0.5% from 1200 to 4800 rpm on a made-up 13 px ball, over four noise draws.
