@@ -320,7 +320,13 @@ jobs:
   rehearsal:
     if: github.event_name != 'workflow_dispatch' || inputs.only == 'all' || inputs.only == 'rehearsal'
     runs-on: ubuntu-latest
-    timeout-minutes: 330
+    timeout-minutes: 340
+    # 4K first passes take 26 to 79 minutes a clip on these machines: all four clips need about
+    # 6.5 hours, over the 6-hour limit, so two legs, each calibrating from clip 1
+    strategy:
+      fail-fast: false
+      matrix:
+        clips: ["'clip1', 'clip2'", "'clip1', 'clip3', 'clip4'"]
     steps:
       - uses: actions/checkout@v4
 
@@ -339,10 +345,10 @@ jobs:
       - name: FFmpeg
         run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
 
-      - name: Dress rehearsal (4K at 240, HEVC, the whole chain)
+      - name: Dress rehearsal (4K at 240, HEVC, the whole chain; clips ${{ matrix.clips }})
         uses: matlab-actions/run-command@v2
         with:
-          command: addpath('vision', 'vision/tools'); dressRehearsal(fullfile(pwd, 'out', 'rehearsal'));
+          command: addpath('vision', 'vision/tools'); dressRehearsal(fullfile(pwd, 'out', 'rehearsal'), struct('clips', {{${{ matrix.clips }}}}));
 
       - name: Print results into the log
         if: always()
