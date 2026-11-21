@@ -24,7 +24,7 @@ Coverage means the share of shots whose true error falls inside the stated band.
   | Curve, calm air | 7.5 cm + 6% |
 
   The weather sets where the curve term sits between calm and gusts (item 10).
-- Run 61 is the data these terms were set from. The next shot-study run (running now) checks them on fresh sessions.
+- Run 61 is the data these terms were set from. Rerun on the same two sessions with the new terms: bounce 96% / 95%, spin effect 96% / 95%, curve 97% / 95% (gusts / calm). That only shows the terms were set right. RESULT-FRESH
 - **Line calls and the curve tile use only the bands with the model error.** AC-11 is kept as written; the 90th percentile is reported beside it (shotstudy.md, "Speed error median / 90th").
 
 ## 7. Dress rehearsal: a synthetic Tuesday through the whole chain
@@ -80,14 +80,37 @@ The app's cloud check runs every 15 minutes and sends no notifications (TV-UP-03
 
 The size study now reports each condition apart. The shot study uses separate figures for frames in flight and for frames within 60 ms of a hit.
 
-- **Early result (4 trials per condition):** the learned detector loses the ball on the strings. The racquet's motion swamps it: the nearest moving spot was 7 to 14 px off. A ball partly behind a body or head is also mostly lost. The colour detector keeps the ball on the strings.
-- **Full study (CI, both quantisers):** RESULT-REAL
+**Full study (CI, 60 trials per condition and size, the 201-shot gusty Tuesday session):**
+
+| Learned detector | Shots found (AC-06: 95%) | Speed within 2 mph (AC-07: 90%) | Speed error median / 90th, mph | Bounce error median, cm | Spin effect error median, cm |
+|---|---|---|---|---|---|
+| Clean pictures (before) | 193 of 201 (96%) | 97% | 0.47 / 1.25 | 1.7 | 7.4 |
+| Realistic, quantiser 23 | 172 of 201 (86%) | 84% | 0.69 / 2.41 | 1.3 | 9.8 |
+| Realistic, quantiser 29 | 150 of 201 (75%) | 80% | 1.12 / 2.78 | 1.4 | 13.1 |
+
+- **This changes the answer.** On realistic pictures the learned detector misses AC-06 and AC-07. The loss is round the hits: the 60 ms either side of contact is where the shot's start and speed come from.
+- Near a hit (strings 40%, a body in front 30%, behind 30%), the learned detector finds the ball in 31 to 47% of frames at 3 to 8 px, at quantiser 23. On the strings alone it finds it in under 10%: the racquet's own motion swamps it. The colour detector finds it in 74 to 90% of frames at 4 to 8 px.
+- At quantiser 29 the learned detector also weakens in flight: 64% found at 4 px, against 90% at quantiser 23.
+- Bounces stay good (1.3 to 1.4 cm median): they are far from the players.
+- The spin-effect band holds the truth less often on realistic pictures (91% at quantiser 23, 83% at 29, against 95 to 96% on clean ones). Bounce and curve bands still hold (96 to 99%).
+- **What I'm testing (CI now):** near a hit, use the colour detector's spot wherever the learned one has none ("learnedColour"). In a small local run this finds the ball near hits in 90 to 100% of frames, against 40 to 43% for the learned detector alone. RESULT-COMBINED
 
 ## The rest
 
 - **2. 4K120 runtime:** manual 17.4 now times 4K120 as well. Run 1: CAM 1 at 4K240, CAM 2 at 4K120, claps as before. Optional run 2 swaps the modes.
 - **4. Still balls:** the two clay balls behind the net mesh are now listed apart (`vision/testset/labels_still.csv`). They count as neither misses nor false spots and are reported on their own. Round 5 rescored: 31 of 33 balls in play at score 0.5 (was 31 of 35); tracker 30 of 33; the clay video 7 of 7.
-- **5. Randomized neighbours study:** six sessions (12 rallies). Random per session: the courts' gap, the neighbours' timing and shots, the crossing ball, the stray, the walker's distance, and your own targets and speeds. RESULT-NEIGHBOURS
+- **5. Randomized neighbours study:** six sessions (12 rallies). Random per session: the courts' gap, the neighbours' timing and shots, the crossing ball, the stray, the walker's distance, and your own targets and speeds.
+  - **It fails on varied sessions.** Shots found: 39 of 49 (80%). Line calls right: 35 of 39. Your ball's detections rejected: 12.1% median, worst 34.4% (AC-15 limit 2%). Neighbours' detections accepted: 0.04% median, worst 0.64% (AC-14 is met). Identity swaps: 4 in all, in two sessions.
+  - The 21 Nov fixes were tuned on the one neighbours session in adjacentTest and pass there. They don't carry over to other gaps, timings and crossings: the gate now keeps the neighbours out but throws away too much of your ball.
+  - | Session | Gap, m | Shots found | Calls right | Your ball rejected | Swaps |
+    |---|---|---|---|---|---|
+    | 1 | 3.46 | 7 of 9 | 7 of 7 | 10.4% | 0 |
+    | 2 | 3.19 | 6 of 6 | 6 of 6 | 6.9% | 0 |
+    | 3 | 3.90 | 6 of 8 | 5 of 6 | 12.7% | 2 |
+    | 4 | 3.06 | 5 of 8 | 4 of 5 | 34.4% | 2 |
+    | 5 | 3.99 | 7 of 9 | 7 of 7 | 11.5% | 0 |
+    | 6 | 4.11 | 8 of 9 | 6 of 8 | 20.6% | 0 |
+  - The study now records why each of your detections was rejected. Session 4 (the worst) is running here to find the cause. RESULT-NB4
 - **6. Spin truth:**
   - Manual 16.3 step 9 (clip 8): six balls with a band and a dot. The dot tells a whole turn from half a turn; a band alone looks the same after half a turn, which would scramble readings above about 3600 rpm. The Hero 7 films them side-on at 1080p240 from about 3 m.
   - `tools/spinFromStripe.m` gets rpm from the band's turn: within 0.5% from 1200 to 4800 rpm on a made-up 13 px ball, over four noise draws.
