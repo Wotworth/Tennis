@@ -234,8 +234,9 @@ while k <= numel(segs)
             end
         end
     end
-    % (a column throughout: the two halves go in where the flight was)
-    if isempty(best), k = k + 1; else, segs = [segs(1:k-1); best(:); segs(k+1:end)]; cuts(end+1) = bestCut; end %#ok<AGROW>
+    % the two halves go in where the flight was; every piece as a column (Octave makes the empty
+    % pieces of a one-flight list rows, and won't stack a row on a column)
+    if isempty(best), k = k + 1; else, segs = [reshape(segs(1:k-1), [], 1); best(:); reshape(segs(k+1:end), [], 1)]; cuts(end+1) = bestCut; end %#ok<AGROW>
 end
 end
 
@@ -265,7 +266,7 @@ while merged && numel(segs) > 1
         % never above opts.mergeCapPx: a junk fragment's large error must not license a junk merge
         if m.ok && m.rmsPx < min(max(opts.mergeRms, 1.3 * max(a.rmsPx, b.rmsPx)), opts.mergeCapPx)
             m.x = shiftStart(m, a);
-            segs = [segs(1:k-1); m; segs(k+2:end)];
+            segs = [reshape(segs(1:k-1), [], 1); m; reshape(segs(k+2:end), [], 1)];
             merged = true;
             break
         end
