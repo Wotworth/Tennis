@@ -143,6 +143,7 @@ Overnight 20 Nov (Chris's Parts 1 to 4): see docs/reports/OVERNIGHT-20NOV.md. Re
 - The watcher's hold-and-skip lines for a held session (`tv.ingest.scanOnce`) have no test of their own; a session that fails is tried again on every pass and alerts each time (as before this change).
 - On realistic synthetic pictures (strings, bodies, shadows, HEVC) the learned detector alone misses AC-06 and AC-07: shots found 86% (quantiser 23) and 75% (29), speed within 2 mph 84% and 80%. The loss is near contact. The learned spot, else the colour one, gives 90% and 93% (quantiser 23); not in the pipeline yet. To check on Tuesday's machine clips.
 - Neighbours (AC-15): on six varied sessions 12.1% of Chris's ball detections are rejected (worst 34.4%; limit 2%) and 39 of 49 shots are found; the 21 Nov fixes pass only on adjacentTest's one session.
+- 4K dress rehearsal (22 Nov): camera 2 calibrated 5.55 m too far back along the court, with a good-looking line fit (99% on paint, 0.6 px); at 960 x 540 the same camera is 3 cm off. Being found with tools/calibStudy.m in CI. On Tuesday the taped camera positions catch it.
 - The 4K first pass takes 26 to 79 minutes a clip on GitHub's machines (no graphics card); the four-clip 4K rehearsal runs as two CI jobs.
 - Nothing has run on the phone yet.
 - Wrapped secondary text lines sit close together (the Zune type roles trim line height); revisit in PH-1 if it reads badly on the phone.

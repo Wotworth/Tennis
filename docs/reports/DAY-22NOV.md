@@ -60,7 +60,22 @@ It runs them through `checkCameraFile`, then `quickLook` on clip 1, then `quickL
 
 **Small rehearsal (960 × 540, here):** clips 1 and 2 now run through the whole chain; before these fixes, clips 1 to 3 broke. The full four-clip run here takes over two hours in Octave, so the complete check is the 4K one in CI.
 
-**Full-size rehearsal in CI (4K240):** before the fixes, clips 1 to 3 went through the whole chain in MATLAB, each finding its rally (2, 8 and 3 shots). Clip 4 then ran out of GitHub's 6-hour limit. The first pass over each clip takes 26 to 79 minutes on CI's small machines with no graphics card, so it says nothing about the Legion's time. The rehearsal now runs as two jobs (clips 1 and 2; clips 1, 3 and 4). RESULT-4K
+**Full-size rehearsal in CI (4K240):** before the fixes, clips 1 to 3 went through the whole chain in MATLAB, each finding its rally (2, 8 and 3 shots). Clip 4 then ran out of GitHub's 6-hour limit. The first pass over each clip takes 26 to 79 minutes on CI's small machines with no graphics card, so it says nothing about the Legion's time. The rehearsal now runs as two jobs (clips 1 and 2; clips 1, 3 and 4).
+
+**4K after the fixes (two CI jobs): every step runs, but the numbers show a calibration fault.**
+
+| Clip | Flights, shots | Camera 2's timing off the truth |
+|---|---|---|
+| 1 (still balls) | 3, 2 | 7.7 ms |
+| 2 (drop) | 11, 8 | 3.6 ms |
+| 3 (toss to a target) | 5, 3 | 3.0 ms |
+| 4 (machine, two chapters) | 2, 1 | 1.2 ms |
+
+- **Camera 2 was placed 5.55 m too far back along the court** (x 19.94 m against the taped 14.39 m; across and height right). Camera 1 was 0.3 cm from the tape.
+- Everything downstream is off with it. The drop gives gravity 11.5 m/s² (truth 9.8). The still balls are 17 to 40 cm off (5 of 6 found). No target bounce lands within 0.5 m. The machine ball reads 56.9 mph.
+- The line fit looked good (99% of the lines on paint, 0.6 px), so the calibration's own check didn't flag it. On Tuesday the tape-measured camera positions would show it at once: that is what the camera row of the accuracy report is for.
+- At 960 × 540 the same camera comes out 3 cm from the truth. So the fault is at 4K (the size Tuesday is filmed at), or in the synthetic 4K picture.
+- **Cause:** being found now (CI, `tools/calibStudy.m`): each camera's 4K view, calibrated with the real-footage line settings and with the synthetic ones, against the truth. RESULT-CALIB
 
 ## 11. Cloud deploy this weekend
 
