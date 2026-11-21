@@ -78,7 +78,7 @@ for d = opts.sizes
             [dist, j] = min(hypot(C(:, 1) - c0(1), C(:, 2) - c0(2)));
             if dist <= max(2, d)
                 E.learned.proposed = E.learned.proposed + 1;  E.learnedRaw.proposed = E.learnedRaw.proposed + 1;
-                xyR = C(j, 1:2);
+                xyR = C(j, 1:2);  j0 = j;
                 xyN = tv.detect.ballCentre(cur, bg, xyR, C(j, 3:5), M(j, 2));
                 E.learned = tally(E.learned, p(j), xyN - c0, vel);
                 E.learnedRaw = tally(E.learnedRaw, p(j), xyR - c0, vel);
@@ -111,7 +111,9 @@ m = tv.detect.ballModel();  net = tv.detect.loadBallNet(m.net);  pre = tv.detect
 K = max(1, round(2 * opts.fps / 60));
 P = opts.patch;
 conds = [fieldnames(opts.flightMix); fieldnames(opts.hitMix)]';
-names = {'learned', 'learnedRaw', 'colour'};
+% learnedColour (22 Nov, item 12): the learned detector's spot, or the colour detector's where the
+% learned one has none, the combination for the frames round a hit
+names = {'learned', 'learnedRaw', 'colour', 'learnedColour'};
 po = struct('patch', P, 'fps', opts.fps, 'shutter', opts.shutter, 'qp', opts.qp);
 bpp = [];
 for d = opts.sizes
@@ -170,7 +172,7 @@ v = x(find(c >= p / 100 - 1e-12, 1));
 end
 
 function E = detectAll(E, prev, prev1, cur, nxt1, nxt, bg, d, c0, vel, P, net, pre)
-% the three detectors on one trial's frames, as in the main loop
+% the detectors on one trial's frames, as in the main loop (learnedColour in the realistic study only)
 S = struct('mask', true(P, P), 'dmin', 0.8 * d * ones(P, P), 'dmax', 1.25 * d * ones(P, P) + 1);
 [C, ~, pa, na] = tv.detect.motionProposals(prev, cur, nxt, S, struct('align', false));
 if ~isempty(C)
@@ -180,7 +182,7 @@ if ~isempty(C)
     [dist, j] = min(hypot(C(:, 1) - c0(1), C(:, 2) - c0(2)));
     if dist <= max(2, d)
         E.learned.proposed = E.learned.proposed + 1;  E.learnedRaw.proposed = E.learnedRaw.proposed + 1;
-        xyR = C(j, 1:2);
+        xyR = C(j, 1:2);  j0 = j;
         xyN = tv.detect.ballCentre(cur, bg, xyR, C(j, 3:5), M(j, 2));
         E.learned = tally(E.learned, p(j), xyN - c0, vel);
         E.learnedRaw = tally(E.learnedRaw, p(j), xyR - c0, vel);
@@ -188,9 +190,20 @@ if ~isempty(C)
 end
 F = cat(4, prev1, cur, nxt1);
 Cc = tv.detect.ballCandidates(F, bg, true(P, P), struct('maxArea', max(30, pi / 4 * (2 * d)^2 * 3)));
+okC = false;
 if ~isempty(Cc)
-    [dist, j] = min(hypot(Cc(:, 2) - c0(1), Cc(:, 3) - c0(2)));
-    if dist <= max(2, d), E.colour.proposed = E.colour.proposed + 1;  E.colour = tally(E.colour, 1, Cc(j, 2:3) - c0, vel); end
+    [dist, j] = min(hypot(Cc(:, 2) - c0(1), Cc(:, 3) - c0(2)));  okC = dist <= max(2, d);  jc = j;
+    if okC, E.colour.proposed = E.colour.proposed + 1;  E.colour = tally(E.colour, 1, Cc(j, 2:3) - c0, vel); end
+end
+if isfield(E, 'learnedColour')
+    % the learned spot when it scores over 0.05, else the colour detector's
+    if exist('xyN', 'var') && p(j0) > 0.05
+        E.learnedColour.proposed = E.learnedColour.proposed + 1;
+        E.learnedColour = tally(E.learnedColour, p(j0), xyN - c0, vel);
+    elseif okC
+        E.learnedColour.proposed = E.learnedColour.proposed + 1;
+        E.learnedColour = tally(E.learnedColour, 1, Cc(jc, 2:3) - c0, vel);
+    end
 end
 end
 

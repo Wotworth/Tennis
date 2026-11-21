@@ -29,7 +29,13 @@ csv = fullfile(outDir, 'sizestudy.csv');
 rows = {};
 for i = 1:numel(opts.detectors)
     name = opts.detectors{i};
-    M = tv.synth.detectorModel(csv, name);
+    if strcmp(name, 'learnedColour')
+        % (22 Nov, item 12) the learned detector in flight, and near a hit the learned spot or, where
+        % it has none, the colour detector's
+        M = tv.synth.detectorModel(csv, 'learned');  Mh = tv.synth.detectorModel(csv, 'learnedColour');  M.hit = Mh.hit;
+    else
+        M = tv.synth.detectorModel(csv, name);
+    end
     R = fitStudy(outDir, struct('scenario', 'tuesday', 'seed', opts.seed, 'errModel', M, 'sideSpin', true, 'machine', 0.33, ...
         'targetShots', opts.targetShots, 'minutes', opts.minutes, 'gustAmp', opts.gustAmp, 'liftModel', opts.liftModel, 'tag', [name tv.testing.ternary(opts.gustAmp == 0, '_calm', '') '_' opts.liftModel rtag], ...
         'title', [sprintf('Tuesday set-up, detector: %s%s, lift %s', name, tv.testing.ternary(opts.gustAmp == 0, ', calm air', ''), opts.liftModel) rtitle]));

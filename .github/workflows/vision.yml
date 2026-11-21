@@ -16,9 +16,13 @@ on:
         type: choice
         default: all
         options: [all, test, fit-study, block-study, error-budget, shot-study, neighbours-study, rehearsal]
+      leg:
+        description: 'With shot-study: one leg only (coverage-gust, coverage-calm, real23, real29, real23-combined); empty for all'
+        type: string
+        default: ''
 
 concurrency:
-  group: vision-${{ github.ref }}-${{ inputs.only || 'all' }}
+  group: vision-${{ github.ref }}-${{ inputs.only || 'all' }}-${{ inputs.leg || 'all' }}
   cancel-in-progress: true
 
 jobs:
@@ -174,25 +178,37 @@ jobs:
         # coverage in both (Chris, item 3), on session seed 11 (the terms were set from seed 7)
         # and (item 12) the same with gusts on realistic pictures, at the calibrated quantiser and a harsher one
         include:
-          - detector: learned
+          - leg: coverage-gust
+            detector: learned
             gust: '0.6'
             lift: spin
             real: 'false'
             qp: 23
             seed: 11
-          - detector: learned
+          - leg: coverage-calm
+            detector: learned
             gust: '0'
             lift: spin
             real: 'false'
             qp: 23
             seed: 11
-          - detector: learned
+          - leg: real23
+            detector: learned
             gust: '0.6'
             lift: spin
             real: 'true'
             qp: 23
             seed: 7
-          - detector: learned
+          # 22 Nov, item 12: near a hit the colour detector's spot where the learned one has none
+          - leg: real23-combined
+            detector: learnedColour
+            gust: '0.6'
+            lift: spin
+            real: 'true'
+            qp: 23
+            seed: 7
+          - leg: real29
+            detector: learned
             gust: '0.6'
             lift: spin
             real: 'true'
@@ -200,11 +216,14 @@ jobs:
             seed: 7
     steps:
       - uses: actions/checkout@v4
+        if: inputs.leg == '' || inputs.leg == null || inputs.leg == matrix.leg
 
       - name: Install FFmpeg (the realistic legs code every synthetic patch with HEVC)
+        if: inputs.leg == '' || inputs.leg == null || inputs.leg == matrix.leg
         run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg
 
       - name: Set up MATLAB
+        if: inputs.leg == '' || inputs.leg == null || inputs.leg == matrix.leg
         uses: matlab-actions/setup-matlab@v2
         with:
           release: latest
@@ -216,12 +235,13 @@ jobs:
             Parallel_Computing_Toolbox
 
       - name: Shot study (${{ matrix.detector }}, gusts ${{ matrix.gust }} m/s, lift ${{ matrix.lift }}, realistic ${{ matrix.real }} qp ${{ matrix.qp }}, seed ${{ matrix.seed }}, about 250 shots at 4K240 Linear)
+        if: inputs.leg == '' || inputs.leg == null || inputs.leg == matrix.leg
         uses: matlab-actions/run-command@v2
         with:
           command: addpath('vision', 'vision/tools'); shotStudy('out/shotstudy', struct('detectors', {{'${{ matrix.detector }}'}}, 'targetShots', 250, 'minutes', 60, 'gustAmp', ${{ matrix.gust }}, 'liftModel', '${{ matrix.lift }}', 'realism', ${{ matrix.real }}, 'qp', ${{ matrix.qp }}, 'seed', ${{ matrix.seed }}));
 
       - name: Print results into the log
-        if: always()
+        if: always() && (inputs.leg == '' || inputs.leg == null || inputs.leg == matrix.leg)
         run: |
           for f in $(find out -type f \( -name 'shotstudy*' -o -name 'sizestudy*' -o -name 'fitstudy_*.md' -o -name 'fitstudy_*_shots.csv' \) 2>/dev/null); do
             echo "=== BEGIN-B64 $f"; base64 -w 0 "$f"; echo; echo "=== END-B64"
