@@ -35,10 +35,13 @@ end
 % path to the bounce
 tEnd = max(seg.t) + 0.6;
 if ~isempty(bounceEv), tEnd = bounceEv.t; end
+% a bounce found no later than the hit (a dropped or tossed ball, where the start is read late)
+% leaves no path between them: the path is the hit point alone and the flight time is unknown
+bad = tEnd <= tHit;  tEnd = max(tEnd, tHit);
 tt = (tHit:0.001:tEnd)';
 P = tv.recon.segmentModel(x, seg.t0, max(tt, seg.t0), air);
 [m.apex, ~] = max(P(:, 3));
-m.flightTime = tEnd - tHit;
+m.flightTime = tEnd - tHit;  if bad, m.flightTime = NaN; end
 % net clearance: the ball's bottom over the net, with the sag (TV-EVT-03)
 m.netClearance = NaN;
 i = find(sign(P(1:end-1, 1)) ~= sign(P(2:end, 1)), 1);

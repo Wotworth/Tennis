@@ -17,13 +17,14 @@ function R = neighboursStudy(outDir, opts)
 %   Slow: about 15 minutes a session; the video of each session is deleted once scored.
 if nargin < 1, outDir = fullfile(pwd, 'out', 'neighbours'); end
 if nargin < 2, opts = struct(); end
-d = struct('n', 6, 'seed', 1, 'keepVideo', false);
+d = struct('n', 6, 'seed', 1, 'keepVideo', false, 'sessions', []);   % sessions: run only these (default 1:n)
 for f = fieldnames(d)', if ~isfield(opts, f{1}), opts.(f{1}) = d.(f{1}); end, end
 if ~exist(outDir, 'dir'), mkdir(outDir); end
 c = tv.court.constants();
 rows = struct('session', {}, 'gapM', {}, 'crossRally', {}, 'crossH', {}, 'rollS', {}, 'sidelineM', {}, ...
-    'shotsTrue', {}, 'shotsFound', {}, 'callsRight', {}, 'calls', {}, 'mineRejected', {}, 'othersAccepted', {}, 'swaps', {}, 'error', {});
-for v = 1:opts.n
+    'shotsTrue', {}, 'shotsFound', {}, 'callsRight', {}, 'calls', {}, 'mineRejected', {}, 'othersAccepted', {}, 'swaps', {}, 'why', {}, 'error', {});
+vs = 1:opts.n;  if ~isempty(opts.sessions), vs = opts.sessions; end
+for v = vs
     tv.util.seed(1000 * opts.seed + v);
     sc = tv.synth.adjacentScenario();  sc.seed = 100 * opts.seed + v;
     gap = 3.0 + 1.5 * rand();  off = 2 * c.halfDoubles + gap;
@@ -37,7 +38,7 @@ for v = 1:opts.n
     side = 1.5 + 2.5 * rand();  sc.sidelineY = c.halfDoubles + side;
     row = struct('session', v, 'gapM', gap, 'crossRally', sc.crossing.rally, 'crossH', sc.crossing.height, 'rollS', sc.roll.start, ...
         'sidelineM', side, 'shotsTrue', NaN, 'shotsFound', NaN, 'callsRight', NaN, 'calls', NaN, 'mineRejected', NaN, ...
-        'othersAccepted', NaN, 'swaps', NaN, 'error', '');
+        'othersAccepted', NaN, 'swaps', NaN, 'why', '', 'error', '');
     root = fullfile(outDir, sprintf('s%02d', v));
     try
         gen = fullfile(root, 'synth');
@@ -58,6 +59,11 @@ for v = 1:opts.n
         row.shotsTrue = rep.shotsTrue;  row.shotsFound = rep.shotsFound;
         row.callsRight = nnz(rep.callOk);  row.calls = numel(rep.callOk);
         row.mineRejected = M.falseNeg;  row.othersAccepted = M.falsePos;  row.swaps = M.swaps;
+        % why Chris's ball was rejected: each reason with its count, largest first
+        if ~isempty(M.mineRejectedWhy)
+            [~, o] = sort([M.mineRejectedWhy.n], 'descend');  W = M.mineRejectedWhy(o);
+            row.why = strjoin(arrayfun(@(w) sprintf('%s %d', w.reason, w.n), W, 'UniformOutput', false), '; ');
+        end
         save(fullfile(root, 'scores.mat'), 'M', 'rep', 'sc');
     catch err
         row.error = err.message;
@@ -94,11 +100,11 @@ if any(ok)
         100 * median([r(ok).othersAccepted]), 100 * max([r(ok).othersAccepted]), sum([r(ok).swaps]));
     L{end+1} = '';
 end
-L{end+1} = '| Session | Gap, m | Crossing: rally, height m | Stray at, s | Walker outside, m | Shots found | Calls right | Chris''s ball rejected | Others accepted | Swaps | Note |';
-L{end+1} = '|---|---|---|---|---|---|---|---|---|---|---|';
+L{end+1} = '| Session | Gap, m | Crossing: rally, height m | Stray at, s | Walker outside, m | Shots found | Calls right | Chris''s ball rejected | Why (detections) | Others accepted | Swaps | Note |';
+L{end+1} = '|---|---|---|---|---|---|---|---|---|---|---|---|';
 for x = r(:)'
-    L{end+1} = sprintf('| %d | %.2f | %d, %.2f | %.1f | %.1f | %d of %d | %d of %d | %.1f%% | %.2f%% | %d | %s |', x.session, x.gapM, x.crossRally, x.crossH, x.rollS, x.sidelineM, ...
-        x.shotsFound, x.shotsTrue, x.callsRight, x.calls, 100 * x.mineRejected, 100 * x.othersAccepted, x.swaps, strrep(x.error, '|', '/')); %#ok<AGROW>
+    L{end+1} = sprintf('| %d | %.2f | %d, %.2f | %.1f | %.1f | %d of %d | %d of %d | %.1f%% | %s | %.2f%% | %d | %s |', x.session, x.gapM, x.crossRally, x.crossH, x.rollS, x.sidelineM, ...
+        x.shotsFound, x.shotsTrue, x.callsRight, x.calls, 100 * x.mineRejected, x.why, 100 * x.othersAccepted, x.swaps, strrep(x.error, '|', '/')); %#ok<AGROW>
 end
 fid = fopen(fullfile(outDir, 'neighboursstudy.md'), 'w');  fprintf(fid, '%s\n', L{:});  fclose(fid);
 fprintf('%s\n', L{:});
