@@ -12,22 +12,25 @@ function shotStudy(outDir, opts)
 %   opts.realism true (22 Nov, item 12): the size study on realistic pictures (tv.synth.realPatch:
 %   strings, bodies, heads, shadows, HEVC at quantiser opts.qp, noise, rolling shutter), and the fit
 %   study uses its near-contact rows round each hit.
+%   opts.seed (default 7) draws the session; another seed flies fresh shots (22 Nov: the model-error
+%   terms were set from seed 7, so seed 11 checks them on shots they were not set from).
 %   Writes sizestudy.md, fitstudy_<detector>.md and shotstudy.md (the comparison).
 if nargin < 1, outDir = fullfile(pwd, 'out', 'shotstudy'); end
 if nargin < 2, opts = struct(); end
-d = struct('targetShots', 300, 'minutes', 75, 'detectors', {{'learned', 'learnedRaw', 'colour'}}, 'trials', 150, 'gustAmp', 0.6, 'liftModel', 'spin', 'realism', false, 'qp', 23, 'trialsPerCond', 60);
+d = struct('targetShots', 300, 'minutes', 75, 'detectors', {{'learned', 'learnedRaw', 'colour'}}, 'trials', 150, 'gustAmp', 0.6, 'liftModel', 'spin', 'realism', false, 'qp', 23, 'trialsPerCond', 60, 'seed', 7);
 fn = fieldnames(d);
 for k = 1:numel(fn), if ~isfield(opts, fn{k}), opts.(fn{k}) = d.(fn{k}); end, end
 if ~exist(outDir, 'dir'), mkdir(outDir); end
 detectorSizeStudy(outDir, struct('trials', opts.trials, 'realism', opts.realism, 'qp', opts.qp, 'trialsPerCond', opts.trialsPerCond));
 rtag = '';  rtitle = '';
 if opts.realism, rtag = sprintf('_real%d', opts.qp);  rtitle = sprintf(', realistic pictures (HEVC quantiser %d)', opts.qp); end
+if opts.seed ~= 7, rtag = sprintf('%s_seed%d', rtag, opts.seed);  rtitle = sprintf('%s, session seed %d', rtitle, opts.seed); end
 csv = fullfile(outDir, 'sizestudy.csv');
 rows = {};
 for i = 1:numel(opts.detectors)
     name = opts.detectors{i};
     M = tv.synth.detectorModel(csv, name);
-    R = fitStudy(outDir, struct('scenario', 'tuesday', 'errModel', M, 'sideSpin', true, 'machine', 0.33, ...
+    R = fitStudy(outDir, struct('scenario', 'tuesday', 'seed', opts.seed, 'errModel', M, 'sideSpin', true, 'machine', 0.33, ...
         'targetShots', opts.targetShots, 'minutes', opts.minutes, 'gustAmp', opts.gustAmp, 'liftModel', opts.liftModel, 'tag', [name tv.testing.ternary(opts.gustAmp == 0, '_calm', '') '_' opts.liftModel rtag], ...
         'title', [sprintf('Tuesday set-up, detector: %s%s, lift %s', name, tv.testing.ternary(opts.gustAmp == 0, ', calm air', ''), opts.liftModel) rtitle]));
     r = R.rows;  f = [r.found];
