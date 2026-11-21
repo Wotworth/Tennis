@@ -24,7 +24,16 @@ Coverage means the share of shots whose true error falls inside the stated band.
   | Curve, calm air | 7.5 cm + 6% |
 
   The weather sets where the curve term sits between calm and gusts (item 10).
-- Run 61 is the data these terms were set from. Rerun on the same two sessions with the new terms: bounce 96% / 95%, spin effect 96% / 95%, curve 97% / 95% (gusts / calm). That only shows the terms were set right. RESULT-FRESH
+- Run 61 is the data these terms were set from. Rerun on the same two sessions with the new terms: bounce 96% / 95%, spin effect 96% / 95%, curve 97% / 95% (gusts / calm). That only shows the terms were set right.
+- **Check on fresh shots** (CI, session seed 11, which the terms were not set from):
+
+  | Band at 2 sd | Gusts (211 shots) | Calm (228 shots) |
+  |---|---|---|
+  | Bounce point | 96% | 100% |
+  | Spin effect | 98% | 99% |
+  | Sideways curve | 94% | 95% |
+
+  The terms hold on fresh shots. In calm air the bounce and spin-effect bands are a little wide: 1 sd already holds 93 to 95%, where about 68% is ideal. That's the safe direction for line calls, so I've left them as they are.
 - **Line calls and the curve tile use only the bands with the model error.** AC-11 is kept as written; the 90th percentile is reported beside it (shotstudy.md, "Speed error median / 90th").
 
 ## 7. Dress rehearsal: a synthetic Tuesday through the whole chain
